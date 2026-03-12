@@ -1,16 +1,9 @@
 import { Module } from '@nestjs/common';
-import { PrismaModule } from './prisma/prisma.module';
-import { EventsModule } from './events/events.module';
-import { InventoryModule } from './inventory/inventory.module';
-import { EventItemsModule } from './event-items/event-items.module';
+import { PrismaModule } from './services/prisma.module';
+
 
 @Module({
-  imports: [
-    PrismaModule,
-    EventsModule,
-    InventoryModule,
-    EventItemsModule,
-  ],
+  imports: [PrismaModule],
   controllers: [],
   providers: [],
 })
