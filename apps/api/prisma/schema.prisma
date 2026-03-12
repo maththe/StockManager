@@ -1,11 +1,14 @@
 generator client {
   provider        = "prisma-client-js"
-  }
+  previewFeatures = ["driverAdapters"]
+}
 
 datasource db {
   provider = "postgresql"
-  url = env("DATABASE_URL")
+  url      = env("DATABASE_URL")
 }
+
+// ================= ENUMS =================
 
 enum EventStatus {
   PLANNING
@@ -14,36 +17,24 @@ enum EventStatus {
   CANCELLED
 }
 
-// Corrigido typo e adicionado status parciais caso decida manter
-enum AllocationStatus {
-  RESERVED
-  IN_TRANSIT
-  AT_EVENT
-  PARTIALLY_RETURNED 
-  RETURNED
-  RETURNED_WITH_DAMAGE
-  AVAILABLE
+// Define se a divergência foi porque sumiu ou porque quebrou
+enum DivergenceType {
+  MISSING
+  DAMAGED
 }
 
-// NOVO: Tipo de movimentação
-enum MovementType {
-  STOCK_IN        // Compra/Adição de estoque
-  STOCK_OUT       // Remoção/Baixa
-  EVENT_DISPATCH  // Envio para evento
-  EVENT_RETURN    // Retorno de evento
-  DAMAGE_LOSS     // Perda ou quebra
-  ADJUSTMENT      // Ajuste de inventário
+// Define se a divergência já foi resolvida (ex: cliente pagou pela cadeira quebrada)
+enum DivergenceStatus {
+  PENDING
+  RESOLVED
 }
 
 // ================= MODELS =================
 
 model User {
-  id        String          @id @default(uuid())
+  id        String   @id @default(uuid())
   name      String
-  email     String          @unique
-  // Sugestão futura: adicionar role (ADMIN, MANAGER) e senha
-  
-  movements StockMovement[]
+  email     String   @unique
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -66,7 +57,7 @@ model Category {
 model Client {
   id          String   @id @default(uuid())
   companyName String
-  taxId       String   @unique // CNPJ/CPF
+  taxId       String   @unique
   contactName String?
   events      Event[]
 
@@ -78,7 +69,7 @@ model Client {
 
 model Item {
   id                String   @id @default(uuid())
-  code           String   @unique
+  skuCode           String   @unique
   name              String
   totalQuantity     Int      @default(0)
   availableQuantity Int      @default(0)
@@ -87,13 +78,12 @@ model Item {
   categoryId String
   category   Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
 
-  allocations EventAllocatedItem[]
-  movements   StockMovement[]
+  eventItems EventItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([categoryId]) // Adicionado índice
+  @@index([categoryId])
   @@map("items")
 }
 
@@ -108,22 +98,20 @@ model Event {
   clientId String
   client   Client @relation(fields: [clientId], references: [id], onDelete: Restrict)
 
-  allocatedItems EventAllocatedItem[]
-  movements      StockMovement[]
+  eventItems EventItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([clientId]) // Adicionado índice
+  @@index([clientId])
   @@map("events")
 }
 
-model EventAllocatedItem {
-  id               String           @id @default(uuid())
+model EventItem {
+  id               String   @id @default(uuid())
   plannedQuantity  Int
-  shippedQuantity  Int              @default(0)
-  returnedQuantity Int              @default(0)
-  allocationStatus AllocationStatus @default(RESERVED)
+  shippedQuantity  Int      @default(0)
+  returnedQuantity Int      @default(0)
 
   eventId String
   event   Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
@@ -131,35 +119,30 @@ model EventAllocatedItem {
   itemId String
   item   Item   @relation(fields: [itemId], references: [id], onDelete: Restrict)
 
+  divergences Divergence[] // Relacionamento com as divergências
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([eventId]) // Adicionado índice
-  @@index([itemId])  // Adicionado índice
-  @@map("event_allocated_items")
+  @@index([eventId])
+  @@index([itemId])
+  @@map("event_items")
 }
 
-model StockMovement {
-  id           String       @id @default(uuid())
-  quantity     Int          // Sempre positivo. O tipo define se soma ou subtrai
-  movementType MovementType // NOVO: Define o contexto do movimento
-  movementDate DateTime     @default(now())
-  notes        String?
+// NOVA TABELA: Divergências
+model Divergence {
+  id          String           @id @default(uuid())
+  quantity    Int              // Quantidade que faltou ou quebrou
+  type        DivergenceType   // MISSING (Faltou) ou DAMAGED (Danificado)
+  status      DivergenceStatus @default(PENDING) // Começa como pendente de resolução
+  notes       String?          // Observações (Ex: "Cadeira quebrou a perna traseira")
 
-  itemId String
-  item   Item   @relation(fields: [itemId], references: [id], onDelete: Cascade)
-
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Restrict)
-
-  eventId String?
-  event   Event?  @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  eventItemId String
+  eventItem   EventItem @relation(fields: [eventItemId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([itemId])
-  @@index([userId])
-  @@index([eventId])
-  @@map("stock_movements")
+  @@index([eventItemId])
+  @@map("divergences")
 }
