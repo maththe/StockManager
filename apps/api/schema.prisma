@@ -1,9 +1,140 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
 datasource db {
   provider = "postgresql"
 }
 
-generator client {
-  provider      = "prisma-client-js"
-  output        = "../src/generated/prisma"
-  moduleFormat  = "cjs"
+enum ItemType {
+  RETURNABLE
+  CONSUMABLE
+}
+
+enum EventStatus {
+  PLANNING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum AllocationStatus {
+  RESERVED
+  IN_TRANSIT
+  AT_EVENT
+  RETURNED
+  RETURNED_WITH_DAMAGE
+}
+
+enum MovementType {
+  INBOUND_PURCHASE
+  OUTBOUND_DISPOSAL
+  LOSS_THEFT
+  INVENTORY_ADJUSTMENT
+}
+
+// ================= MODELS =================
+
+model User {
+  id        String          @id @default(uuid())
+  name      String
+  email     String          @unique
+  movements StockMovement[]
+
+  @@map("users")
+}
+
+model Category {
+  id          String  @id @default(uuid())
+  name        String
+  description String?
+  items       Item[]
+
+  @@map("categories")
+}
+
+model Client {
+  id          String  @id @default(uuid())
+  companyName String
+  taxId       String  @unique
+  contactName String?
+  events      Event[]
+
+  @@map("clients")
+}
+
+model Item {
+  id                String   @id @default(uuid())
+  skuCode           String   @unique
+  name              String
+  itemType          ItemType
+  totalQuantity     Int      @default(0)
+  availableQuantity Int      @default(0)
+  unitCost          Decimal  @db.Decimal(10, 2)
+
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id])
+
+  allocations EventAllocatedItem[]
+  movements   StockMovement[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("items")
+}
+
+model Event {
+  id            String      @id @default(uuid())
+  eventName     String
+  startDate     DateTime
+  endDate       DateTime
+  eventLocation String
+  status        EventStatus @default(PLANNING)
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id])
+
+  allocatedItems EventAllocatedItem[]
+  movements      StockMovement[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("events")
+}
+
+model EventAllocatedItem {
+  id               String           @id @default(uuid())
+  plannedQuantity  Int
+  shippedQuantity  Int              @default(0)
+  returnedQuantity Int              @default(0)
+  allocationStatus AllocationStatus @default(RESERVED)
+
+  eventId String
+  event   Event  @relation(fields: [eventId], references: [id])
+
+  itemId String
+  item   Item   @relation(fields: [itemId], references: [id])
+
+  @@map("event_allocated_items")
+}
+
+model StockMovement {
+  id           String       @id @default(uuid())
+  movementType MovementType
+  quantity     Int // Can be positive or negative
+  movementDate DateTime     @default(now())
+  notes        String?
+
+  itemId String
+  item   Item   @relation(fields: [itemId], references: [id])
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  eventId String? // Optional, in case the breakage/loss is tied to a specific event
+  event   Event?  @relation(fields: [eventId], references: [id])
+
+  @@map("stock_movements")
 }
