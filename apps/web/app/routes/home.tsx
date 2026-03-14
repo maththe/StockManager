@@ -5,6 +5,7 @@ export default function Home() {
   return (
     <Routes>
       <Route path="/" element={<Login />} />
+      <Route path="/dashboard" element={<div>Dashboard</div>} />
     </Routes>
   );
 }

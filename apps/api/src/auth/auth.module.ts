@@ -1,8 +1,7 @@
 import { Module } from '@nestjs/common';
-import { JwtModule } from '@nestjs/jwt';
+import { JwtModule, JwtService } from '@nestjs/jwt';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
-import { AuthGuard } from './auth.guard'; // Se quiser prover o Guard globalmente
 import { UsersModule } from '../users/users.module';
 
 @Module({

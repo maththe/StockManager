@@ -1,20 +1,33 @@
 import { useState } from "react";
-import { Form, Link } from "react-router";
+import { Link } from "react-router";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "~/components/ui/card";
 import { Loader2, Package2 } from "lucide-react";
+import { useLogin } from "~/services/tanStackQuery/auth";
 
 export default function Login() {
   const [isLoading, setIsLoading] = useState(false);
+  const login = useLogin();
 
-  async function handleSubmit(event: React.FormEvent) {
-    event.preventDefault();
+  // The action function now receives FormData directly
+  const handleAction = async (formData: FormData) => {
     setIsLoading(true);
-    
-    setTimeout(() => setIsLoading(false), 2000);
-  }
+    const payload = {
+      email: formData.get("email") as string,
+      senha: formData.get("password") as string,
+    };
+
+    try {
+      await login.mutateAsync(payload);
+      console.log("Login successful");
+    } catch (error) {
+      console.error("Error logging in:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-950 p-4">
@@ -29,12 +42,14 @@ export default function Login() {
           </CardDescription>
         </CardHeader>
         
-        <form onSubmit={handleSubmit}>
+        {/* Switched to a standard form using the modern action prop */}
+        <form action={handleAction}>
           <CardContent className="grid gap-4">
             <div className="grid gap-2">
               <Label htmlFor="email">E-mail</Label>
               <Input 
                 id="email" 
+                name="email" 
                 type="email" 
                 placeholder="nome@empresa.com" 
                 required 
@@ -53,6 +68,7 @@ export default function Login() {
               </div>
               <Input 
                 id="password" 
+                name="password" 
                 type="password" 
                 required 
                 className="bg-gray-50/50 dark:bg-gray-900/50"
@@ -61,8 +77,8 @@ export default function Login() {
           </CardContent>
           
           <CardFooter className="flex flex-col gap-4">
-            <Button className="w-full" type="submit" disabled={isLoading}>
-              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <Button className="w-full" type="submit" disabled={isLoading || login.isPending}>
+              {(isLoading || login.isPending) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Acessar Painel
             </Button>
             
