@@ -13,15 +13,18 @@
   "license": "ISC",
   "packageManager": "pnpm@10.32.1",
   "devDependencies": {
+    "@types/express": "^5.0.6",
     "@types/pg": "^8.18.0",
     "prisma": "7.5.0"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.16",
     "@nestjs/core": "^11.1.16",
+    "@nestjs/jwt": "^11.0.2",
     "@nestjs/platform-express": "^11.1.16",
     "@prisma/adapter-pg": "^7.5.0",
     "@prisma/client": "^7.5.0",
+    "bcryptjs": "^3.0.3",
     "dotenv": "^17.3.1",
     "pg": "^8.20.0",
     "reflect-metadata": "^0.2.2",
