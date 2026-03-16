@@ -6,7 +6,6 @@ import { UsersService } from '../users/users.service';
 
 @Injectable()
 export class AuthService {
-  // Injetamos o JwtService para podermos criar o token
   constructor(
     private jwtService: JwtService,
     private usersService: UsersService,
