@@ -33,7 +33,7 @@ export class UsersController {
     return this.sanitize(user);
   }
 
-  @Get()
+  @Get("lista")
   async findAll(@Req() req: Request) {
     const user = (req as any).user;
     const users = await this.usersService.findAll(user?.tenantUuid);

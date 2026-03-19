@@ -4,6 +4,8 @@ import { UsersModule } from './users/users.module';
 import { PrismaModule } from './services/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { AuthGuard } from './auth/auth.guard';
+import { ItemsModule } from './Itens/items.module';
+import { CategoriesModule } from './categories/categories.module';
 
 
 
@@ -12,6 +14,8 @@ import { AuthGuard } from './auth/auth.guard';
     UsersModule,
     PrismaModule,
     AuthModule,
+    ItemsModule,
+    CategoriesModule,
   ],
   controllers: [],
   providers: [{

@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '../axios/api';
-import type { CreateItemInput, UpdateItemInput, Item } from '../../types/item';
+import { api } from '~/services/axios/api';
+import type { CreateItemInput, Item, UpdateItemInput } from '~/types/item';
 
 // Queries
 export const useItems = () => {

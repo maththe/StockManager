@@ -46,11 +46,13 @@ model Category {
   id          String   @id @default(uuid())
   name        String
   description String?
+  tenantUuid  String
   items       Item[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([tenantUuid])
   @@map("categories")
 }
 
@@ -74,6 +76,7 @@ model Item {
   totalQuantity     Int      @default(0)
   availableQuantity Int      @default(0)
   unitCost          Decimal  @db.Decimal(10, 2)
+  tenantUuid        String
 
   categoryId String
   category   Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
@@ -84,6 +87,7 @@ model Item {
   updatedAt DateTime @updatedAt
 
   @@index([categoryId])
+  @@index([tenantUuid])
   @@map("items")
 }
 
