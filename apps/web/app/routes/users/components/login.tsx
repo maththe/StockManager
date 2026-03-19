@@ -1,22 +1,24 @@
 import { useState } from "react";
 import { Link } from "react-router";
-import { Button } from "~/components/ui/button";
-import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "~/components/ui/card";
 import { Loader2, Package2 } from "lucide-react";
 import { useLogin } from "~/services/tanStackQuery/auth";
+import { FormProvider, useForm } from "react-hook-form";
+import { InputForm } from "~/components/Form/InputForm";
+import { Button } from "~/components/ui/button";
 
 export default function Login() {
   const [isLoading, setIsLoading] = useState(false);
   const login = useLogin();
+  const form = useForm();
 
   // The action function now receives FormData directly
-  const handleAction = async (formData: FormData) => {
+  const onSubmit = async() => {
     setIsLoading(true);
     const payload = {
-      email: formData.get("email") as string,
-      senha: formData.get("password") as string,
+      email: form.getValues("email"),
+      senha: form.getValues("password")
     };
 
     try {
@@ -41,18 +43,16 @@ export default function Login() {
             Entre com suas credenciais para gerenciar seu estoque
           </CardDescription>
         </CardHeader>
-        
-        {/* Switched to a standard form using the modern action prop */}
-        <form action={handleAction}>
+
+        <FormProvider {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)}>
           <CardContent className="grid gap-4">
             <div className="grid gap-2">
               <Label htmlFor="email">E-mail</Label>
-              <Input 
-                id="email" 
+              <InputForm  
                 name="email" 
                 type="email" 
                 placeholder="nome@empresa.com" 
-                required 
                 className="bg-gray-50/50 dark:bg-gray-900/50"
               />
             </div>
@@ -66,7 +66,7 @@ export default function Login() {
                   Esqueceu a senha?
                 </Link>
               </div>
-              <Input 
+              <InputForm 
                 id="password" 
                 name="password" 
                 type="password" 
@@ -90,6 +90,7 @@ export default function Login() {
             </p>
           </CardFooter>
         </form>
+        </FormProvider>
       </Card>
     </div>
   );
