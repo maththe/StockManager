@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { Label } from "~/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "~/components/ui/card";
 import { Loader2, Package2 } from "lucide-react";
@@ -12,6 +12,7 @@ export default function Login() {
   const [isLoading, setIsLoading] = useState(false);
   const login = useLogin();
   const form = useForm();
+  const navigate = useNavigate();
 
   // The action function now receives FormData directly
   const onSubmit = async() => {
@@ -24,6 +25,7 @@ export default function Login() {
     try {
       await login.mutateAsync(payload);
       console.log("Login successful");
+      navigate("/dashboard");
     } catch (error) {
       console.error("Error logging in:", error);
     } finally {
