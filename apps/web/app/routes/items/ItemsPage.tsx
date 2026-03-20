@@ -1,12 +1,13 @@
 import { useState } from "react";
-import { useItems, useCreateItem, useUpdateItem, useDeleteItem } from "~/services/tanStackQuery/items";
-import { useCategories } from "~/services/tanStackQuery/categories";
+
 import { ItemModal } from "./components/ItemModal";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "~/components/ui/table";
 import { Plus, Edit, Trash2, Loader2 } from "lucide-react";
 import type { Item, CreateItemInput, UpdateItemInput } from "~/types/item";
+import { useCategories } from "~/services/tanStackQuery/Itens/categories";
+import { useItems, useCreateItem, useUpdateItem, useDeleteItem } from "~/services/tanStackQuery/Itens/items";
 
 export default function ItemsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
