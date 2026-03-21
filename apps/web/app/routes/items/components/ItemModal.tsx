@@ -21,7 +21,7 @@ export function ItemModal({
 }: ItemModalProps) {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[600px] rounded-2xl bg-white/70 dark:bg-[#071427]/60 backdrop-blur-md">
         <DialogHeader>
           <DialogTitle>
             {item ? "Editar Item" : "Criar Novo Item"}

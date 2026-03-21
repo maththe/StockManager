@@ -98,6 +98,7 @@ model Event {
   endDate       DateTime
   eventLocation String
   status        EventStatus @default(PLANNING)
+  tenantUuid        String
 
   clientId String
   client   Client @relation(fields: [clientId], references: [id], onDelete: Restrict)
@@ -116,6 +117,7 @@ model EventItem {
   plannedQuantity  Int
   shippedQuantity  Int      @default(0)
   returnedQuantity Int      @default(0)
+  tenantUuid        String
 
   eventId String
   event   Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
@@ -140,6 +142,7 @@ model Divergence {
   type        DivergenceType   // MISSING (Faltou) ou DAMAGED (Danificado)
   status      DivergenceStatus @default(PENDING) // Começa como pendente de resolução
   notes       String?          // Observações (Ex: "Cadeira quebrou a perna traseira")
+  tenantUuid        String
 
   eventItemId String
   eventItem   EventItem @relation(fields: [eventItemId], references: [id], onDelete: Cascade)

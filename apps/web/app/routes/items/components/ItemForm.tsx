@@ -96,7 +96,7 @@ export function ItemForm({ item, onSubmit, isLoading = false, categories }: Item
           />
         </div>
 
-        <Button type="submit" className="w-full" disabled={isSubmitting || isLoading}>
+        <Button type="submit" className="w-full bg-gradient-to-r from-primary to-secondary text-white shadow-md hover:opacity-95" disabled={isSubmitting || isLoading}>
           {(isSubmitting || isLoading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           {item ? "Atualizar Item" : "Criar Item"}
         </Button>

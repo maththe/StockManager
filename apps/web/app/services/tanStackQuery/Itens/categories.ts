@@ -1,5 +1,6 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { api } from '~/services/axios/api';
+import { queryClient } from '../queryClient';
 
 
 export interface Category {
@@ -29,4 +30,14 @@ export const useCategory = (id: string) => {
     },
     enabled: !!id,
   });
+};
+export const useCreateCategory = () => {
+  return useMutation({
+    mutationFn: async (payload: Omit<Category, 'id' | 'createdAt' | 'updatedAt'>) => {
+      const response = await api.post<Category>('/categories', payload);
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
+    }});
 };

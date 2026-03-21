@@ -7,6 +7,7 @@ import { Label } from "~/components/ui/label";
 import { Loader2 } from "lucide-react";
 import type { CreateItemInput, UpdateItemInput, Item } from "~/types/item";
 import { useCategories } from "~/services/tanStackQuery/Itens/categories";
+import { SelectForm } from "~/components/Form/SelectForm";
 
 interface ItemFormDialogProps {
   open: boolean;
@@ -53,13 +54,13 @@ export function ItemFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md rounded-2xl bg-white/75 dark:bg-[#071427]/60 backdrop-blur-md">
         <DialogHeader>
           <DialogTitle>{item ? "Editar Item" : "Novo Item"}</DialogTitle>
         </DialogHeader>
 
         <FormProvider {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 px-4 py-2">
             <div className="grid gap-2">
               <Label htmlFor="skuCode">Código SKU</Label>
               <InputForm
@@ -86,6 +87,7 @@ export function ItemFormDialog({
                   type="number"
                   placeholder="0"
                   required
+                  registerOptions={{ valueAsNumber: true }}
                 />
               </div>
               <div className="grid gap-2">
@@ -95,6 +97,7 @@ export function ItemFormDialog({
                   type="number"
                   placeholder="0"
                   required
+                  registerOptions={{ valueAsNumber: true }}
                 />
               </div>
             </div>
@@ -107,25 +110,24 @@ export function ItemFormDialog({
                 placeholder="0.00"
                 step="0.01"
                 required
+                registerOptions={{ valueAsNumber: true }}
               />
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="categoryId">Categoria</Label>
-              <select
-                {...form.register("categoryId")}
-                className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <option value="">Selecione uma categoria</option>
-                {categories.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.name}
-                  </option>
-                ))}
-              </select>
+              <SelectForm
+                name="categoryId"
+                label="Categoria"
+                options={categories.map((cat) => ({
+                  value: cat.id,
+                  label: cat.name,
+                }))}
+                placeholder="Selecione uma categoria"
+                required
+              />
             </div>
 
-            <DialogFooter className="pt-4">
+            <DialogFooter className="pt-4 flex justify-end gap-2">
               <Button
                 type="button"
                 variant="outline"
@@ -134,7 +136,7 @@ export function ItemFormDialog({
               >
                 Cancelar
               </Button>
-              <Button type="submit" disabled={isLoading}>
+              <Button type="submit" className="bg-gradient-to-r from-primary to-secondary text-white" disabled={isLoading}>
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {item ? "Atualizar" : "Criar"}
               </Button>
