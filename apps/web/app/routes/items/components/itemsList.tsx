@@ -13,7 +13,7 @@ export function ItemsList() {
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-    const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
 
   const { data: items = [], isLoading } = useItems();
   const { data: categories = [] } = useCategories();
@@ -21,7 +21,7 @@ export function ItemsList() {
   const updateItem = useUpdateItem();
   const deleteItem = useDeleteItem();
 
-  
+
 
   const getCategoryName = (categoryId: string) => {
     return categories.find((cat) => cat.id === categoryId)?.name || "-";
