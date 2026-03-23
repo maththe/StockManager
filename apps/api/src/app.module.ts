@@ -6,6 +6,8 @@ import { AuthModule } from './auth/auth.module';
 import { AuthGuard } from './auth/auth.guard';
 import { ItemsModule } from './Itens/items.module';
 import { CategoriesModule } from './categories/categories.module';
+import { EventsModule } from './events/events.module';
+import { ClientsModule } from './clients/clients.module';
 
 @Module({
   imports: [
@@ -14,6 +16,8 @@ import { CategoriesModule } from './categories/categories.module';
     AuthModule,
     ItemsModule,
     CategoriesModule,
+    EventsModule,
+    ClientsModule,
   ],
   controllers: [],
   providers: [
