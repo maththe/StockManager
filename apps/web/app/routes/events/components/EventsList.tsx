@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { CalendarDays, Edit2, Loader2, Plus, Trash2, Warehouse } from "lucide-react";
+import { Boxes, CalendarDays, Edit2, Loader2, Plus, Trash2, Warehouse } from "lucide-react";
 import { Link } from "react-router";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
@@ -9,6 +9,7 @@ import { useCreateEvent, useDeleteEvent, useEvents, useUpdateEvent } from "~/ser
 import type { Event } from "~/types/event";
 import { ClientFormDialog } from "./ClientFormDialog";
 import { EventFormDialog } from "./EventFormDialog";
+import { EventItemsDialog } from "./EventItemsDialog";
 
 const statusLabel: Record<string, string> = {
   PLANNING: "Planejamento",
@@ -34,6 +35,8 @@ export function EventsList() {
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [clientDialogOpen, setClientDialogOpen] = useState(false);
+  const [eventItemsDialogOpen, setEventItemsDialogOpen] = useState(false);
+  const [itemsEvent, setItemsEvent] = useState<Event | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const { data: events = [], isLoading } = useEvents();
@@ -72,6 +75,11 @@ export function EventsList() {
 
   const handleCreateClient = async (data: any) => {
     await createClient.mutateAsync(data);
+  };
+
+  const handleManageItems = (event: Event) => {
+    setItemsEvent(event);
+    setEventItemsDialogOpen(true);
   };
 
   const handleDelete = async (id: string) => {
@@ -184,6 +192,9 @@ export function EventsList() {
                           <Button variant="ghost" size="sm" onClick={() => handleOpenDialog(event)}>
                             <Edit2 className="h-4 w-4" />
                           </Button>
+                          <Button variant="ghost" size="sm" onClick={() => handleManageItems(event)}>
+                            <Boxes className="h-4 w-4" />
+                          </Button>
                           <Button
                             variant="ghost"
                             size="sm"
@@ -224,6 +235,17 @@ export function EventsList() {
         onOpenChange={setClientDialogOpen}
         onSubmit={handleCreateClient}
         isLoading={createClient.isPending}
+      />
+
+      <EventItemsDialog
+        open={eventItemsDialogOpen}
+        onOpenChange={(open) => {
+          setEventItemsDialogOpen(open);
+          if (!open) {
+            setItemsEvent(null);
+          }
+        }}
+        event={itemsEvent}
       />
     </div>
   );

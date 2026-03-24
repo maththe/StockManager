@@ -7,6 +7,25 @@ export interface EventClient {
   contactName?: string | null;
 }
 
+export interface EventItem {
+  id: string;
+  eventId: string;
+  itemId: string;
+  plannedQuantity: number;
+  shippedQuantity: number;
+  returnedQuantity: number;
+  tenantUuid: string;
+  createdAt: string;
+  updatedAt: string;
+  item: {
+    id: string;
+    name: string;
+    skuCode: string;
+    availableQuantity: number;
+    totalQuantity: number;
+  };
+}
+
 export interface Event {
   id: string;
   eventName: string;
@@ -17,6 +36,7 @@ export interface Event {
   tenantUuid: string;
   clientId: string;
   client: EventClient;
+  eventItems?: EventItem[];
   createdAt: string;
   updatedAt: string;
 }
@@ -37,4 +57,15 @@ export interface UpdateEventInput {
   eventLocation?: string;
   status?: EventStatus;
   clientId?: string;
+}
+
+export interface CreateEventItemInput {
+  itemId: string;
+  plannedQuantity: number;
+}
+
+export interface UpdateEventItemInput {
+  plannedQuantity?: number;
+  shippedQuantity?: number;
+  returnedQuantity?: number;
 }
