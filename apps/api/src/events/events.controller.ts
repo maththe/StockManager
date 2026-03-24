@@ -12,6 +12,8 @@ import type { Request } from 'express';
 import { CreateEventInput } from './dto/create-event.input';
 import { UpdateEventInput } from './dto/update-event.input';
 import { EventsService } from './events.service';
+import { CreateEventItemInput } from './dto/create-event-item.input';
+import { UpdateEventItemInput } from './dto/update-event-item.input';
 
 @Controller('events')
 export class EventsController {
@@ -49,5 +51,42 @@ export class EventsController {
   async remove(@Param('id') id: string, @Req() req: Request) {
     const user = (req as any).user;
     return this.eventsService.remove(id, user.tenantUuid);
+  }
+
+  @Get(':id/items')
+  async findItems(@Param('id') id: string, @Req() req: Request) {
+    const user = (req as any).user;
+    return this.eventsService.findItems(id, user.tenantUuid);
+  }
+
+  @Post(':id/items')
+  async addItem(
+    @Param('id') id: string,
+    @Body() createEventItemDto: CreateEventItemInput,
+    @Req() req: Request,
+  ) {
+    const user = (req as any).user;
+    return this.eventsService.addItem(id, createEventItemDto, user.tenantUuid);
+  }
+
+  @Patch(':id/items/:eventItemId')
+  async updateItem(
+    @Param('id') id: string,
+    @Param('eventItemId') eventItemId: string,
+    @Body() updateEventItemDto: UpdateEventItemInput,
+    @Req() req: Request,
+  ) {
+    const user = (req as any).user;
+    return this.eventsService.updateItem(id, eventItemId, updateEventItemDto, user.tenantUuid);
+  }
+
+  @Delete(':id/items/:eventItemId')
+  async removeItem(
+    @Param('id') id: string,
+    @Param('eventItemId') eventItemId: string,
+    @Req() req: Request,
+  ) {
+    const user = (req as any).user;
+    return this.eventsService.removeItem(id, eventItemId, user.tenantUuid);
   }
 }

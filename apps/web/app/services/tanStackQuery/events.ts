@@ -1,6 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "~/services/axios/api";
-import type { CreateEventInput, Event, UpdateEventInput } from "~/types/event";
+import type {
+  CreateEventInput,
+  CreateEventItemInput,
+  Event,
+  EventItem,
+  UpdateEventInput,
+  UpdateEventItemInput,
+} from "~/types/event";
 
 export const useEvents = () => {
   return useQuery({
@@ -35,6 +42,7 @@ export const useUpdateEvent = () => {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["events"] });
       queryClient.invalidateQueries({ queryKey: ["events", variables.id] });
+      queryClient.invalidateQueries({ queryKey: ["event-items", variables.id] });
     },
   });
 };
@@ -47,6 +55,72 @@ export const useDeleteEvent = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["events"] });
+    },
+  });
+};
+
+export const useEventItems = (eventId?: string) => {
+  return useQuery({
+    queryKey: ["event-items", eventId],
+    enabled: Boolean(eventId),
+    queryFn: async () => {
+      const response = await api.get<EventItem[]>(`/events/${eventId}/items`);
+      return response.data;
+    },
+  });
+};
+
+export const useCreateEventItem = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ eventId, data }: { eventId: string; data: CreateEventItemInput }) => {
+      const response = await api.post<EventItem>(`/events/${eventId}/items`, data);
+      return response.data;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["event-items", variables.eventId] });
+      queryClient.invalidateQueries({ queryKey: ["events"] });
+      queryClient.invalidateQueries({ queryKey: ["items"] });
+    },
+  });
+};
+
+export const useUpdateEventItem = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      eventId,
+      eventItemId,
+      data,
+    }: {
+      eventId: string;
+      eventItemId: string;
+      data: UpdateEventItemInput;
+    }) => {
+      const response = await api.patch<EventItem>(`/events/${eventId}/items/${eventItemId}`, data);
+      return response.data;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["event-items", variables.eventId] });
+      queryClient.invalidateQueries({ queryKey: ["events"] });
+      queryClient.invalidateQueries({ queryKey: ["items"] });
+    },
+  });
+};
+
+export const useDeleteEventItem = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ eventId, eventItemId }: { eventId: string; eventItemId: string }) => {
+      await api.delete(`/events/${eventId}/items/${eventItemId}`);
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["event-items", variables.eventId] });
+      queryClient.invalidateQueries({ queryKey: ["events"] });
+      queryClient.invalidateQueries({ queryKey: ["items"] });
     },
   });
 };
