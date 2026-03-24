@@ -4,6 +4,7 @@ import { InputForm } from "~/components/Form/InputForm";
 import { SelectForm } from "~/components/Form/SelectForm";
 import { Button } from "~/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "~/components/ui/dialog";
+import { Label } from "~/components/ui/label";
 import type { Client } from "~/types/client";
 import type { CreateEventInput, Event, EventStatus, UpdateEventInput } from "~/types/event";
 
@@ -50,6 +51,7 @@ export function EventFormDialog({
           eventLocation: event.eventLocation,
           status: event.status,
           clientId: event.clientId,
+          inventoryCountConfirmed: false,
         }
       : {
           eventName: "",
@@ -58,8 +60,12 @@ export function EventFormDialog({
           eventLocation: "",
           status: "PLANNING",
           clientId: "",
+          inventoryCountConfirmed: false,
         },
   });
+
+  const currentStatus = form.watch("status");
+  const needsInventoryConfirmation = currentStatus === "COMPLETED" && event?.status !== "COMPLETED";
 
   const handleSubmit = async (data: CreateEventInput) => {
     await onSubmit({
@@ -87,6 +93,35 @@ export function EventFormDialog({
               <InputForm name="startDate" label="Início" type="datetime-local" required />
               <InputForm name="endDate" label="Fim" type="datetime-local" required />
             </div>
+
+            {needsInventoryConfirmation && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-amber-900">
+                    Antes de concluir o evento, confirme que a contagem física dos itens foi realizada.
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <input
+                      id="inventoryCountConfirmed"
+                      type="checkbox"
+                      className="h-4 w-4 accent-primary"
+                      {...form.register("inventoryCountConfirmed", {
+                        validate: (value) =>
+                          value || "Confirme a contagem dos itens para finalizar o evento.",
+                      })}
+                    />
+                    <Label htmlFor="inventoryCountConfirmed" className="cursor-pointer text-sm text-amber-900">
+                      Confirmo que realizei a contagem dos itens e validei o retorno ao estoque.
+                    </Label>
+                  </div>
+                  {form.formState.errors.inventoryCountConfirmed && (
+                    <p className="text-sm text-destructive">
+                      {form.formState.errors.inventoryCountConfirmed.message}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
 
             <div className="grid gap-4 md:grid-cols-2">
               <SelectForm

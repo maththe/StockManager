@@ -49,6 +49,12 @@ export class EventsService {
 
     await this.ensureClientExists(createEventInput.clientId);
 
+    if (createEventInput.status === EventStatus.COMPLETED && !createEventInput.inventoryCountConfirmed) {
+      throw new BadRequestException(
+        'Para finalizar o evento, confirme a contagem dos itens para validar o retorno ao estoque.',
+      );
+    }
+
     return this.prisma.event.create({
       data: {
         eventName: createEventInput.eventName,
@@ -105,6 +111,15 @@ export class EventsService {
     const nextStartDate = updateEventInput.startDate ?? existing.startDate.toISOString();
     const nextEndDate = updateEventInput.endDate ?? existing.endDate.toISOString();
     const { parsedStart, parsedEnd } = this.parseEventDates(nextStartDate, nextEndDate);
+    const isFinishingEvent =
+      updateEventInput.status === EventStatus.COMPLETED &&
+      existing.status !== EventStatus.COMPLETED;
+
+    if (isFinishingEvent && !updateEventInput.inventoryCountConfirmed) {
+      throw new BadRequestException(
+        'Para finalizar o evento, confirme a contagem dos itens para validar o retorno ao estoque.',
+      );
+    }
 
     return this.prisma.event.update({
       where: { id },
