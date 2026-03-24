@@ -7,4 +7,5 @@ export class CreateEventInput {
   eventLocation!: string;
   status?: EventStatus;
   clientId!: string;
+  inventoryCountConfirmed?: boolean;
 }

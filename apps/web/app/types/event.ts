@@ -28,6 +28,7 @@ export interface CreateEventInput {
   eventLocation: string;
   status: EventStatus;
   clientId: string;
+  inventoryCountConfirmed?: boolean;
 }
 
 export interface UpdateEventInput {
@@ -37,4 +38,5 @@ export interface UpdateEventInput {
   eventLocation?: string;
   status?: EventStatus;
   clientId?: string;
+  inventoryCountConfirmed?: boolean;
 }
