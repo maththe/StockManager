@@ -19,10 +19,10 @@ const statusLabel: Record<string, string> = {
 };
 
 const statusClassName: Record<string, string> = {
-  PLANNING: "bg-amber-100 text-amber-800",
-  IN_PROGRESS: "bg-sky-100 text-sky-800",
-  COMPLETED: "bg-emerald-100 text-emerald-800",
-  CANCELLED: "bg-rose-100 text-rose-800",
+  PLANNING: "bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-200",
+  IN_PROGRESS: "bg-sky-100 text-sky-800 dark:bg-sky-500/20 dark:text-sky-200",
+  COMPLETED: "bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-200",
+  CANCELLED: "bg-rose-100 text-rose-800 dark:bg-rose-500/20 dark:text-rose-200",
 };
 
 const formatDate = (value: string) =>
@@ -152,14 +152,14 @@ export function EventsList() {
               <Loader2 className="h-10 w-10 animate-spin text-muted-foreground" />
             </div>
           ) : events.length === 0 ? (
-            <div className="rounded-3xl border border-dashed border-border bg-white/70 px-6 py-14 text-center">
+            <div className="rounded-3xl border border-dashed border-border bg-card/70 px-6 py-14 text-center backdrop-blur-sm">
               <div className="text-lg font-semibold">Nenhum evento cadastrado</div>
               <div className="mt-2 text-sm text-muted-foreground">
                 Crie o primeiro evento e vincule-o a um cliente para começar a operação.
               </div>
             </div>
           ) : (
-            <div className="overflow-hidden rounded-2xl border border-gray-200 shadow-sm">
+            <div className="overflow-hidden rounded-2xl border border-border/80 bg-card/70 shadow-sm backdrop-blur-sm">
               <Table>
                 <TableHeader className="bg-muted/20">
                   <TableRow>
@@ -173,7 +173,7 @@ export function EventsList() {
                 </TableHeader>
                 <TableBody>
                   {events.map((event, index) => (
-                    <TableRow key={event.id} className={index % 2 === 0 ? "bg-white/50" : "bg-muted/5 hover:bg-muted/10"}>
+                    <TableRow key={event.id} className={index % 2 === 0 ? "bg-background/30" : "bg-muted/10 hover:bg-muted/20"}>
                       <TableCell className="font-medium">{event.eventName}</TableCell>
                       <TableCell>{event.client?.companyName ?? "-"}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">

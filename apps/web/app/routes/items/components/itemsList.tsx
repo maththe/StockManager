@@ -117,7 +117,7 @@ export function ItemsList() {
               <div>Clique em "Novo Item" para adicionar produtos ao seu estoque.</div>
             </div>
           ) : (
-            <div className="overflow-hidden rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm">
+            <div className="overflow-hidden rounded-2xl border border-border/80 bg-card/70 shadow-sm backdrop-blur-sm">
               <Table>
                 <TableHeader className="bg-muted/20">
                   <TableRow>
@@ -132,7 +132,7 @@ export function ItemsList() {
                 </TableHeader>
                 <TableBody>
                   {items.map((item, i) => (
-                    <TableRow key={item.id} className={i % 2 === 0 ? "bg-white/50" : "bg-muted/5 hover:bg-muted/10"}>
+                    <TableRow key={item.id} className={i % 2 === 0 ? "bg-background/30" : "bg-muted/10 hover:bg-muted/20"}>
                       <TableCell className="font-mono text-sm">{item.skuCode}</TableCell>
                       <TableCell className="font-medium">{item.name}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">{getCategoryName(item.categoryId)}</TableCell>
