@@ -1,5 +1,6 @@
 import { useMutation } from '@tanstack/react-query';
 import { api } from '../axios/api';
+import { mutationError, mutationSuccess } from './mutationToast';
 
 interface LoginInput {
   email: string;
@@ -21,6 +22,8 @@ export const useLogin = () => {
       localStorage.setItem('access_token', data.access_token);
       // Optionally set in axios headers for future requests
       api.defaults.headers.common['Authorization'] = `Bearer ${data.access_token}`;
+      mutationSuccess('Login realizado com sucesso.');
     },
+    onError: (error) => mutationError('Erro ao realizar login.', error),
   });
 };

@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '~/services/axios/api';
 import type { CreateItemInput, Item, UpdateItemInput } from '~/types/item';
+import { mutationError, mutationSuccess } from '../mutationToast';
 
 // Queries
 export const useItems = () => {
@@ -34,7 +35,9 @@ export const useCreateItem = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['items'] });
+      mutationSuccess('Item criado com sucesso.');
     },
+    onError: (error) => mutationError('Erro ao criar item.', error),
   });
 };
 
@@ -48,7 +51,9 @@ export const useUpdateItem = () => {
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['items'] });
       queryClient.invalidateQueries({ queryKey: ['items', variables.id] });
+      mutationSuccess('Item atualizado com sucesso.');
     },
+    onError: (error) => mutationError('Erro ao atualizar item.', error),
   });
 };
 
@@ -60,6 +65,8 @@ export const useDeleteItem = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['items'] });
+      mutationSuccess('Item removido com sucesso.');
     },
+    onError: (error) => mutationError('Erro ao remover item.', error),
   });
 };

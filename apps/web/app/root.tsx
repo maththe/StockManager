@@ -12,6 +12,7 @@ import "./app.css";
 import { queryClient } from './services/tanStackQuery/queryClient';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { ThemeToggle } from "./components/theme-toggle";
+import { Toaster } from "./components/ui/toast";
 
 export const links: Route.LinksFunction = () => [
   { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
@@ -50,6 +51,7 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <Outlet />
+      <Toaster />
     </QueryClientProvider>
   );
 }
