@@ -1,6 +1,7 @@
 import { MoonStar, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "~/components/ui/button";
+import { cn } from "~/lib/utils";
 
 type Theme = "light" | "dark";
 
@@ -18,7 +19,11 @@ const getPreferredTheme = (): Theme => {
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 };
 
-export function ThemeToggle() {
+interface ThemeToggleProps {
+  className?: string;
+}
+
+export function ThemeToggle({ className }: ThemeToggleProps) {
   const [theme, setTheme] = useState<Theme>("light");
 
   useEffect(() => {
@@ -41,7 +46,7 @@ export function ThemeToggle() {
       variant="outline"
       size="icon"
       onClick={toggleTheme}
-      className="fixed right-5 top-5 z-50 rounded-full border-primary/40 bg-background/70 backdrop-blur-md shadow-md hover:bg-background"
+      className={cn("rounded-full border-primary/40 bg-background/70 backdrop-blur-md shadow-md hover:bg-background", className)}
       aria-label="Alternar tema"
       title="Alternar tema"
     >

@@ -11,7 +11,6 @@ import type { Route } from "./+types/root";
 import "./app.css";
 import { queryClient } from './services/tanStackQuery/queryClient';
 import { QueryClientProvider } from '@tanstack/react-query';
-import { ThemeToggle } from "./components/theme-toggle";
 import { Toaster } from "./components/ui/toast";
 
 export const links: Route.LinksFunction = () => [
@@ -38,7 +37,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Links />
       </head>
       <body>
-        <ThemeToggle />
         {children}
         <ScrollRestoration />
         <Scripts />
