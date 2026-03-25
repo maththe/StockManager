@@ -47,6 +47,12 @@ export class EventsController {
     return this.eventsService.update(id, updateEventDto, user.tenantUuid);
   }
 
+  @Patch(':id/cancel')
+  async cancel(@Param('id') id: string, @Req() req: Request) {
+    const user = (req as any).user;
+    return this.eventsService.cancel(id, user.tenantUuid);
+  }
+
   @Delete(':id')
   async remove(@Param('id') id: string, @Req() req: Request) {
     const user = (req as any).user;
