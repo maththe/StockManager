@@ -41,3 +41,15 @@ export const useCreateCategory = () => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
     }});
 };
+
+export const useDeleteCategory = () => {
+  return useMutation({
+    mutationFn: async (id: string) => {
+      await api.delete(`/categories/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
+      queryClient.invalidateQueries({ queryKey: ['items'] });
+    },
+  });
+};

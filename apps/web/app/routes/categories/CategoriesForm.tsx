@@ -36,7 +36,7 @@ export function CategoriesForm({
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="sm:max-w-[480px] rounded-2xl bg-white/75 dark:bg-[#071427]/60 backdrop-blur-md">
+            <DialogContent className="sm:max-w-[480px] rounded-2xl bg-card/75 dark:bg-card/60 backdrop-blur-md">
                 <DialogHeader>
                     <DialogTitle>
                         Criar Nova Categoria

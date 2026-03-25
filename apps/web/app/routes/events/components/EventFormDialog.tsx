@@ -45,23 +45,23 @@ export function EventFormDialog({
   const form = useForm<CreateEventInput>({
     values: event
       ? {
-          eventName: event.eventName,
-          startDate: toDateTimeLocal(event.startDate),
-          endDate: toDateTimeLocal(event.endDate),
-          eventLocation: event.eventLocation,
-          status: event.status,
-          clientId: event.clientId,
-          inventoryCountConfirmed: false,
-        }
+        eventName: event.eventName,
+        startDate: toDateTimeLocal(event.startDate),
+        endDate: toDateTimeLocal(event.endDate),
+        eventLocation: event.eventLocation,
+        status: event.status,
+        clientId: event.clientId,
+        inventoryCountConfirmed: false,
+      }
       : {
-          eventName: "",
-          startDate: "",
-          endDate: "",
-          eventLocation: "",
-          status: "PLANNING",
-          clientId: "",
-          inventoryCountConfirmed: false,
-        },
+        eventName: "",
+        startDate: "",
+        endDate: "",
+        eventLocation: "",
+        status: "PLANNING",
+        clientId: "",
+        inventoryCountConfirmed: false,
+      },
   });
 
   const currentStatus = form.watch("status");
@@ -79,7 +79,7 @@ export function EventFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl rounded-2xl bg-white/75 backdrop-blur-md">
+      <DialogContent className="max-w-2xl rounded-2xl bg-card/75 backdrop-blur-md">
         <DialogHeader>
           <DialogTitle>{event ? "Editar Evento" : "Novo Evento"}</DialogTitle>
         </DialogHeader>
@@ -95,9 +95,9 @@ export function EventFormDialog({
             </div>
 
             {needsInventoryConfirmation && (
-              <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+              <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-4">
                 <div className="space-y-2">
-                  <p className="text-sm font-medium text-amber-900">
+                  <p className="text-sm font-medium text-destructive">
                     Antes de concluir o evento, confirme que a contagem física dos itens foi realizada.
                   </p>
                   <div className="flex items-center gap-2">
@@ -110,7 +110,7 @@ export function EventFormDialog({
                           value || "Confirme a contagem dos itens para finalizar o evento.",
                       })}
                     />
-                    <Label htmlFor="inventoryCountConfirmed" className="cursor-pointer text-sm text-amber-900">
+                    <Label htmlFor="inventoryCountConfirmed" className="cursor-pointer text-sm text-destructive">
                       Confirmo que realizei a contagem dos itens e validei o retorno ao estoque.
                     </Label>
                   </div>

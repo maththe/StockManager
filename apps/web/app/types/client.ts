@@ -12,3 +12,9 @@ export interface CreateClientInput {
   taxId: string;
   contactName?: string;
 }
+
+export interface UpdateClientInput {
+  companyName?: string;
+  taxId?: string;
+  contactName?: string;
+}

@@ -7,7 +7,7 @@ export const useUsers = () => {
   return useQuery({
     queryKey: ['users'],
     queryFn: async () => {
-      const response = await api.get<User[]>('/users');
+      const response = await api.get<User[]>('/users/lista');
       return response.data;
     },
   });
@@ -39,7 +39,7 @@ export const useCreateUser = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (data: CreateUserInput) => {
-      const response = await api.post<User>('/users', data);
+      const response = await api.post<User>('/users/tenant', data);
       return response.data;
     },
     onSuccess: () => {

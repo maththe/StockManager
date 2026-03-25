@@ -4,43 +4,44 @@ import { Loader2 } from "lucide-react";
 import { InputForm } from "~/components/Form/InputForm";
 import { Button } from "~/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "~/components/ui/dialog";
-import type { Client, CreateClientInput, UpdateClientInput } from "~/types/client";
+import type { CreateUserInput, UpdateUserInput, User } from "~/types/user";
 
-interface ClientFormDialogProps {
+interface UserFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  client?: Client | null;
-  onSubmit: (data: CreateClientInput | UpdateClientInput) => Promise<void>;
+  user?: User | null;
+  onSubmit: (data: CreateUserInput | UpdateUserInput) => Promise<void>;
   isLoading?: boolean;
 }
 
-function getDefaultValues(client?: Client | null): CreateClientInput {
+function getDefaultValues(user?: User | null): CreateUserInput {
   return {
-    companyName: client?.companyName ?? "",
-    taxId: client?.taxId ?? "",
-    contactName: client?.contactName ?? "",
+    name: user?.name ?? "",
+    email: user?.email ?? "",
+    senha: "",
   };
 }
 
-export function ClientFormDialog({
+export function UserFormDialog({
   open,
   onOpenChange,
-  client,
+  user,
   onSubmit,
   isLoading = false,
-}: ClientFormDialogProps) {
-  const form = useForm<CreateClientInput>({
-    defaultValues: getDefaultValues(client),
+}: UserFormDialogProps) {
+  const form = useForm<CreateUserInput>({
+    defaultValues: getDefaultValues(user),
   });
 
   useEffect(() => {
     if (open) {
-      form.reset(getDefaultValues(client));
+      form.reset(getDefaultValues(user));
     }
-  }, [client, form, open]);
+  }, [form, open, user]);
 
-  const handleSubmit = async (data: CreateClientInput) => {
-    await onSubmit(data);
+  const handleSubmit = async (data: CreateUserInput) => {
+    const payload = user && !data.senha ? { name: data.name, email: data.email } : data;
+    await onSubmit(payload);
     form.reset();
     onOpenChange(false);
   };
@@ -49,14 +50,20 @@ export function ClientFormDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md rounded-2xl bg-card/75 backdrop-blur-md">
         <DialogHeader>
-          <DialogTitle>{client ? "Editar Cliente" : "Novo Cliente"}</DialogTitle>
+          <DialogTitle>{user ? "Editar Usuario" : "Novo Usuario"}</DialogTitle>
         </DialogHeader>
 
         <FormProvider {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 px-4 py-2">
-            <InputForm name="companyName" label="Empresa" placeholder="Empresa cliente" required />
-            <InputForm name="taxId" label="CNPJ/CPF" placeholder="00.000.000/0000-00" required />
-            <InputForm name="contactName" label="Contato" placeholder="Nome do responsável" />
+            <InputForm name="name" label="Nome" placeholder="Nome do usuario" required />
+            <InputForm name="email" label="Email" placeholder="usuario@empresa.com" required type="email" />
+            <InputForm
+              name="senha"
+              label={user ? "Nova senha" : "Senha"}
+              placeholder={user ? "Deixe em branco para manter a atual" : "Digite a senha"}
+              type="password"
+              required={!user}
+            />
 
             <DialogFooter className="flex justify-end gap-2 pt-4">
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isLoading}>
@@ -64,7 +71,7 @@ export function ClientFormDialog({
               </Button>
               <Button type="submit" className="bg-gradient-to-r from-primary to-secondary text-white" disabled={isLoading}>
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {client ? "Salvar cliente" : "Criar cliente"}
+                {user ? "Salvar usuario" : "Criar usuario"}
               </Button>
             </DialogFooter>
           </form>

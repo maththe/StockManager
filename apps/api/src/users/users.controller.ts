@@ -33,6 +33,13 @@ export class UsersController {
     return this.sanitize(user);
   }
 
+  @Post('tenant')
+  async createForTenant(@Body() createUserDto: CreateUserInput, @Req() req: Request) {
+    const user = (req as any).user;
+    const created = await this.usersService.create(createUserDto, user?.tenantUuid);
+    return this.sanitize(created);
+  }
+
   @Get("lista")
   async findAll(@Req() req: Request) {
     const user = (req as any).user;

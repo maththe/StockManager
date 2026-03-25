@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect } from "react";
 import { FormProvider, useForm } from "react-hook-form";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "~/components/ui/dialog";
 import { Button } from "~/components/ui/button";
@@ -13,38 +13,50 @@ interface ItemFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   item?: Item | null;
+  initialCategoryId?: string | null;
   onSubmit: (data: CreateItemInput | UpdateItemInput) => Promise<void>;
   isLoading?: boolean;
+}
+
+function getDefaultValues(item?: Item | null, initialCategoryId?: string | null) {
+  return item
+    ? {
+      skuCode: item.skuCode,
+      name: item.name,
+      totalQuantity: item.totalQuantity,
+      availableQuantity: item.availableQuantity,
+      unitCost: item.unitCost,
+      categoryId: item.categoryId,
+    }
+    : {
+      skuCode: "",
+      name: "",
+      totalQuantity: 0,
+      availableQuantity: 0,
+      unitCost: 0,
+      categoryId: initialCategoryId ?? "",
+    };
 }
 
 export function ItemFormDialog({
   open,
   onOpenChange,
   item,
+  initialCategoryId,
   onSubmit,
   isLoading = false,
 }: ItemFormDialogProps) {
   const form = useForm({
-    defaultValues: item
-      ? {
-          skuCode: item.skuCode,
-          name: item.name,
-          totalQuantity: item.totalQuantity,
-          availableQuantity: item.availableQuantity,
-          unitCost: item.unitCost,
-          categoryId: item.categoryId,
-        }
-      : {
-          skuCode: "",
-          name: "",
-          totalQuantity: 0,
-          availableQuantity: 0,
-          unitCost: 0,
-          categoryId: "",
-        },
+    defaultValues: getDefaultValues(item, initialCategoryId),
   });
 
   const { data: categories = [] } = useCategories();
+
+  useEffect(() => {
+    if (open) {
+      form.reset(getDefaultValues(item, initialCategoryId));
+    }
+  }, [form, initialCategoryId, item, open]);
 
   const handleSubmit = async (data: any) => {
     await onSubmit(data);
@@ -54,7 +66,7 @@ export function ItemFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md rounded-2xl bg-white/75 dark:bg-[#071427]/60 backdrop-blur-md">
+      <DialogContent className="max-w-md rounded-2xl bg-card/75 dark:bg-card/60 backdrop-blur-md">
         <DialogHeader>
           <DialogTitle>{item ? "Editar Item" : "Novo Item"}</DialogTitle>
         </DialogHeader>
