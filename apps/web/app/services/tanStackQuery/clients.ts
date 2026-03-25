@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "~/services/axios/api";
 import type { Client, CreateClientInput, UpdateClientInput } from "~/types/client";
+import { mutationError, mutationSuccess } from "./mutationToast";
 
 export const useClients = () => {
   return useQuery({
@@ -21,7 +22,9 @@ export const useCreateClient = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["clients"] });
+      mutationSuccess("Cliente criado com sucesso.");
     },
+    onError: (error) => mutationError("Erro ao criar cliente.", error),
   });
 };
 
@@ -36,7 +39,9 @@ export const useUpdateClient = () => {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["clients"] });
       queryClient.invalidateQueries({ queryKey: ["clients", variables.id] });
+      mutationSuccess("Cliente atualizado com sucesso.");
     },
+    onError: (error) => mutationError("Erro ao atualizar cliente.", error),
   });
 };
 
@@ -49,6 +54,8 @@ export const useDeleteClient = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["clients"] });
+      mutationSuccess("Cliente removido com sucesso.");
     },
+    onError: (error) => mutationError("Erro ao remover cliente.", error),
   });
 };

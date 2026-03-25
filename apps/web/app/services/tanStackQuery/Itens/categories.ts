@@ -1,6 +1,7 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { api } from '~/services/axios/api';
 import { queryClient } from '../queryClient';
+import { mutationError, mutationSuccess } from '../mutationToast';
 
 
 export interface Category {
@@ -39,7 +40,10 @@ export const useCreateCategory = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
-    }});
+      mutationSuccess('Categoria criada com sucesso.');
+    },
+    onError: (error) => mutationError('Erro ao criar categoria.', error),
+  });
 };
 
 export const useDeleteCategory = () => {
@@ -50,6 +54,8 @@ export const useDeleteCategory = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
       queryClient.invalidateQueries({ queryKey: ['items'] });
+      mutationSuccess('Categoria removida com sucesso.');
     },
+    onError: (error) => mutationError('Erro ao remover categoria.', error),
   });
 };
