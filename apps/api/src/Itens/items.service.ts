@@ -34,9 +34,20 @@ export class ItemsService {
     });
   }
 
-  async findAll(tenantUuid: string): Promise<Item[]> {
+  async findAll(tenantUuid: string, search?: string): Promise<Item[]> {
+    const where: any = { tenantUuid };
+
+    if (search && search.trim()) {
+      const searchTerm = search.trim().toLowerCase();
+      where.OR = [
+        { name: { contains: searchTerm, mode: 'insensitive' } },
+        { skuCode: { contains: searchTerm, mode: 'insensitive' } },
+        { category: { name: { contains: searchTerm, mode: 'insensitive' } } },
+      ];
+    }
+
     return this.prisma.item.findMany({
-      where: { tenantUuid },
+      where,
       include: { category: true },
     });
   }

@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Client } from '@prisma/client';
 import { PrismaService } from 'src/services/prisma.service';
+import { matchesSearch } from 'src/common/search.util';
 import { CreateClientInput } from './dto/create-client.input';
 import { UpdateClientInput } from './dto/update-client.input';
 
@@ -18,10 +19,14 @@ export class ClientsService {
     });
   }
 
-  async findAll(): Promise<Client[]> {
-    return this.prisma.client.findMany({
+  async findAll(search?: string): Promise<Client[]> {
+    const clients = await this.prisma.client.findMany({
       orderBy: { companyName: 'asc' },
     });
+
+    return clients.filter((client) =>
+      matchesSearch([client.companyName, client.taxId, client.contactName], search),
+    );
   }
 
   async findOne(id: string): Promise<Client | null> {

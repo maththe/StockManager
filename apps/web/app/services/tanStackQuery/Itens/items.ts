@@ -4,11 +4,12 @@ import type { CreateItemInput, Item, UpdateItemInput } from '~/types/item';
 import { mutationError, mutationSuccess } from '../mutationToast';
 
 // Queries
-export const useItems = () => {
+export const useItems = (search?: string) => {
   return useQuery({
-    queryKey: ['items'],
+    queryKey: ['items', search || ''],
     queryFn: async () => {
-      const response = await api.get<Item[]>('/items');
+      const params = search ? { search } : {};
+      const response = await api.get<Item[]>('/items', { params });
       return response.data;
     },
   });

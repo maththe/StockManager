@@ -12,11 +12,12 @@ export interface Category {
   updatedAt: string;
 }
 
-export const useCategories = () => {
+export const useCategories = (search?: string) => {
   return useQuery({
-    queryKey: ['categories'],
+    queryKey: ['categories', search || ''],
     queryFn: async () => {
-      const response = await api.get<Category[]>('/categories');
+      const params = search ? { search } : {};
+      const response = await api.get<Category[]>('/categories', { params });
       return response.data;
     },
   });
@@ -43,6 +44,20 @@ export const useCreateCategory = () => {
       mutationSuccess('Categoria criada com sucesso.');
     },
     onError: (error) => mutationError('Erro ao criar categoria.', error),
+  });
+};
+
+export const useUpdateCategory = () => {
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Omit<Category, 'id' | 'createdAt' | 'updatedAt'> }) => {
+      const response = await api.patch<Category>(`/categories/${id}`, data);
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
+      mutationSuccess('Categoria atualizada com sucesso.');
+    },
+    onError: (error) => mutationError('Erro ao atualizar categoria.', error),
   });
 };
 

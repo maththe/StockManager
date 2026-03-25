@@ -10,11 +10,12 @@ import type {
   UpdateEventItemInput,
 } from "~/types/event";
 
-export const useEvents = () => {
+export const useEvents = (search?: string) => {
   return useQuery({
-    queryKey: ["events"],
+    queryKey: ["events", search || ""],
     queryFn: async () => {
-      const response = await api.get<Event[]>("/events");
+      const params = search ? { search } : {};
+      const response = await api.get<Event[]>("/events", { params });
       return response.data;
     },
   });

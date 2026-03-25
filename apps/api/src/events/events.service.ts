@@ -69,9 +69,19 @@ export class EventsService {
     });
   }
 
-  async findAll(tenantUuid: string) {
+  async findAll(tenantUuid: string, search?: string) {
+    const where: any = { tenantUuid };
+
+    if (search && search.trim()) {
+      const searchTerm = search.trim().toLowerCase();
+      where.OR = [
+        { eventName: { contains: searchTerm, mode: 'insensitive' } },
+        { client: { companyName: { contains: searchTerm, mode: 'insensitive' } } },
+      ];
+    }
+
     return this.prisma.event.findMany({
-      where: { tenantUuid },
+      where,
       include: {
         client: true,
         eventItems: {

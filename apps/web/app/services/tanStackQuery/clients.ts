@@ -3,11 +3,12 @@ import { api } from "~/services/axios/api";
 import type { Client, CreateClientInput, UpdateClientInput } from "~/types/client";
 import { mutationError, mutationSuccess } from "./mutationToast";
 
-export const useClients = () => {
+export const useClients = (search?: string) => {
   return useQuery({
-    queryKey: ["clients"],
+    queryKey: ['clients', search || ''],
     queryFn: async () => {
-      const response = await api.get<Client[]>("/clients");
+      const params = search ? { search } : {};
+      const response = await api.get<Client[]>('/clients', { params });
       return response.data;
     },
   });

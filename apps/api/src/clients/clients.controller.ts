@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
 } from '@nestjs/common';
 import { ClientsService } from './clients.service';
 import { CreateClientInput } from './dto/create-client.input';
@@ -21,8 +22,8 @@ export class ClientsController {
   }
 
   @Get()
-  async findAll() {
-    return this.clientsService.findAll();
+  async findAll(@Query('search') search?: string) {
+    return this.clientsService.findAll(search);
   }
 
   @Get(':id')

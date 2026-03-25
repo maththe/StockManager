@@ -1,69 +1,68 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState } from "react"
 
-type ToastVariant = "success" | "error";
+type ToastVariant = "success" | "error"
 
 interface ToastMessage {
-  id: number;
-  title: string;
-  variant: ToastVariant;
+  id: number
+  title: string
+  variant: ToastVariant
 }
 
-interface ToastEventDetail {
-  title: string;
-  variant: ToastVariant;
+const TOAST_EVENT = "app:toast"
+
+const dispatchToast = (title: string, variant: ToastVariant) => {
+  window.dispatchEvent(
+    new CustomEvent("app:toast", { detail: { title, variant } })
+  )
 }
-
-const TOAST_EVENT = "app:toast";
-
-const dispatchToast = (detail: ToastEventDetail) => {
-  window.dispatchEvent(new CustomEvent<ToastEventDetail>(TOAST_EVENT, { detail }));
-};
 
 export const showSuccessToast = (title: string) => {
-  dispatchToast({ title, variant: "success" });
-};
+  dispatchToast(title, "success")
+}
 
 export const showErrorToast = (title: string) => {
-  dispatchToast({ title, variant: "error" });
-};
+  dispatchToast(title, "error")
+}
 
 export function Toaster() {
-  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const [toasts, setToasts] = useState<ToastMessage[]>([])
 
   useEffect(() => {
     const handleToast = (event: Event) => {
-      const customEvent = event as CustomEvent<ToastEventDetail>;
+      const customEvent = event as CustomEvent<{
+        title: string
+        variant: ToastVariant
+      }>
       const newToast: ToastMessage = {
-        id: Date.now() + Math.floor(Math.random() * 1000),
+        id: Date.now() + Math.random(),
         title: customEvent.detail.title,
         variant: customEvent.detail.variant,
-      };
+      }
 
-      setToasts((previous) => [...previous, newToast]);
+      setToasts((prev) => [...prev, newToast])
+      setTimeout(() => {
+        setToasts((prev) => prev.filter((t) => t.id !== newToast.id))
+      }, 3000)
+    }
 
-      window.setTimeout(() => {
-        setToasts((previous) => previous.filter((toast) => toast.id !== newToast.id));
-      }, 4000);
-    };
-
-    window.addEventListener(TOAST_EVENT, handleToast);
-    return () => window.removeEventListener(TOAST_EVENT, handleToast);
-  }, []);
+    window.addEventListener(TOAST_EVENT, handleToast)
+    return () => window.removeEventListener(TOAST_EVENT, handleToast)
+  }, [])
 
   return (
-    <div className="fixed right-4 top-4 z-50 flex w-full max-w-sm flex-col gap-2">
+    <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2">
       {toasts.map((toast) => (
         <div
           key={toast.id}
-          className={`rounded-md border px-4 py-3 text-sm shadow-lg backdrop-blur-sm ${
+          className={`px-4 py-3 rounded-lg text-sm font-medium text-white animate-in fade-in slide-in-from-bottom-2 ${
             toast.variant === "success"
-              ? "border-emerald-300 bg-emerald-50 text-emerald-900 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-100"
-              : "border-red-300 bg-red-50 text-red-900 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-100"
+              ? "bg-green-600"
+              : "bg-red-600"
           }`}
         >
           {toast.title}
         </div>
       ))}
     </div>
-  );
+  )
 }

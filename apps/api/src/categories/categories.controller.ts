@@ -7,6 +7,7 @@ import {
   Body,
   Param,
   Req,
+  Query,
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { CategoriesService } from './categories.service';
@@ -24,9 +25,9 @@ export class CategoriesController {
   }
 
   @Get()
-  async findAll(@Req() req: Request) {
+  async findAll(@Req() req: Request, @Query('search') search?: string) {
     const user = (req as any).user;
-    return this.categoriesService.findAll(user.tenantUuid);
+    return this.categoriesService.findAll(user.tenantUuid, search);
   }
 
   @Get(':id')

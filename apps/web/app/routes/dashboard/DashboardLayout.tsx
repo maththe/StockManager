@@ -1,10 +1,11 @@
-import { Boxes, CalendarDays, PanelLeftClose, ShieldUser, Users } from "lucide-react";
+import { Box, CalendarDays, PanelLeftClose, ShieldUser, Users } from "lucide-react";
 import { NavLink, Outlet } from "react-router";
 import { ThemeToggle } from "~/components/theme-toggle";
 import { useMe } from "~/services/tanStackQuery/users";
 
+
 const navItems = [
-  { to: "/dashboard/items", label: "Itens", icon: Boxes },
+  {to: "/dashboard/inventory", icon: Box, label: "Inventário"},
   { to: "/dashboard/clients", label: "Clientes", icon: Users },
   { to: "/dashboard/users", label: "Usuarios", icon: ShieldUser },
   { to: "/dashboard/events", label: "Eventos", icon: CalendarDays },
@@ -35,6 +36,10 @@ export default function DashboardLayout() {
           </div>
 
           <nav className="space-y-2">
+            
+            
+            <div className="my-4 border-t" />
+            
             {navItems.map(({ to, label, icon: Icon }) => (
               <NavLink
                 key={to}

@@ -149,16 +149,6 @@ export function EventsList() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <Link to="/dashboard/items">
-              <Button variant="outline">
-                <Warehouse className="mr-2 h-4 w-4" />
-                Itens
-              </Button>
-            </Link>
-            <Button variant="outline" onClick={() => setClientDialogOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              Novo Cliente
-            </Button>
             <Button onClick={() => handleOpenDialog()} className="bg-gradient-to-r from-primary to-secondary text-white shadow-sm">
               <Plus className="mr-2 h-4 w-4" />
               Novo Evento
@@ -243,17 +233,6 @@ export function EventsList() {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleManageItems(event);
-                      }}
-                    >
-                      <Boxes className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
                       className="text-destructive hover:text-destructive"
                       onClick={(e) => {
                         e.stopPropagation();
@@ -286,23 +265,6 @@ export function EventsList() {
         isLoading={createEvent.isPending || updateEvent.isPending}
       />
 
-      <ClientFormDialog
-        open={clientDialogOpen}
-        onOpenChange={setClientDialogOpen}
-        onSubmit={handleCreateClient}
-        isLoading={createClient.isPending}
-      />
-
-      <EventItemsDialog
-        open={eventItemsDialogOpen}
-        onOpenChange={(open) => {
-          setEventItemsDialogOpen(open);
-          if (!open) {
-            setItemsEvent(null);
-          }
-        }}
-        event={itemsEvent}
-      />
     </div>
   );
 }

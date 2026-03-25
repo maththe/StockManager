@@ -4,11 +4,12 @@ import type { CreateUserInput, UpdateUserInput, User } from '../../types/user';
 import { mutationError, mutationSuccess } from './mutationToast';
 
 // Queries
-export const useUsers = () => {
+export const useUsers = (search?: string) => {
   return useQuery({
-    queryKey: ['users'],
+    queryKey: ['users', search || ''],
     queryFn: async () => {
-      const response = await api.get<User[]>('/users/lista');
+      const params = search ? { search } : {};
+      const response = await api.get<User[]>('/users/lista', { params });
       return response.data;
     },
   });

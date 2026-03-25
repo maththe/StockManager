@@ -7,6 +7,7 @@ import {
   Body,
   Param,
   Req,
+  Query,
 } from '@nestjs/common';
 import type { Request } from 'express';
 import crypto from 'crypto';
@@ -41,9 +42,9 @@ export class UsersController {
   }
 
   @Get("lista")
-  async findAll(@Req() req: Request) {
+  async findAll(@Req() req: Request, @Query('search') search?: string) {
     const user = (req as any).user;
-    const users = await this.usersService.findAll(user?.tenantUuid);
+    const users = await this.usersService.findAll(user?.tenantUuid, search);
     return users.map((user) => this.sanitize(user));
   }
 
