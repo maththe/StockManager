@@ -66,6 +66,24 @@ export const useDeleteEvent = () => {
   });
 };
 
+export const useCancelEvent = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const response = await api.patch<Event>(`/events/${id}/cancel`);
+      return response.data;
+    },
+    onSuccess: (_, eventId) => {
+      queryClient.invalidateQueries({ queryKey: ["events"] });
+      queryClient.invalidateQueries({ queryKey: ["events", eventId] });
+      queryClient.invalidateQueries({ queryKey: ["event-items", eventId] });
+      queryClient.invalidateQueries({ queryKey: ["items"] });
+      mutationSuccess("Evento cancelado e itens devolvidos ao estoque.");
+    },
+    onError: (error) => mutationError("Erro ao cancelar evento.", error),
+  });
+};
+
 export const useEventItems = (eventId?: string) => {
   return useQuery({
     queryKey: ["event-items", eventId],
