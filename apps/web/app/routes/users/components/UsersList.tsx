@@ -1,8 +1,9 @@
-import { useMemo, useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 import { Edit2, Loader2, Plus, Trash2 } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "~/components/ui/table";
+import { matchesSearch } from "~/lib/search";
 import { useCreateUser, useDeleteUser, useUpdateUser, useUsers } from "~/services/tanStackQuery/users";
 import type { CreateUserInput, UpdateUserInput, User } from "~/types/user";
 import { UserFormDialog } from "./UserFormDialog";
@@ -12,23 +13,18 @@ export function UsersList() {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [search, setSearch] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const deferredSearch = useDeferredValue(search);
+  const normalizedSearch = deferredSearch.trim() || undefined;
 
   const { data: users = [], isLoading } = useUsers();
   const createUser = useCreateUser();
   const updateUser = useUpdateUser();
   const deleteUser = useDeleteUser();
-
-  const filteredUsers = useMemo(() => {
-    const normalizedSearch = search.trim().toLowerCase();
-
-    if (!normalizedSearch) {
-      return users;
-    }
-
-    return users.filter((user) =>
-      [user.name, user.email].some((value) => value.toLowerCase().includes(normalizedSearch)),
-    );
-  }, [search, users]);
+  const filteredUsers = useMemo(
+    () =>
+      users.filter((user) => matchesSearch([user.name, user.email], normalizedSearch)),
+    [normalizedSearch, users],
+  );
 
   const handleOpenDialog = (user?: User) => {
     setSelectedUser(user ?? null);

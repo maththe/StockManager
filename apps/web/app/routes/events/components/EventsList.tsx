@@ -1,10 +1,10 @@
 import { useMemo, useState } from "react";
-import { Boxes, CalendarDays, Edit2, Loader2, MapPin, Plus, Trash2, Warehouse } from "lucide-react";
+import { Ban, Boxes, CalendarDays, Edit2, Loader2, MapPin, Plus, Trash2, Warehouse } from "lucide-react";
 import { Link, useNavigate } from "react-router";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
 import { useClients, useCreateClient } from "~/services/tanStackQuery/clients";
-import { useCreateEvent, useDeleteEvent, useEvents, useUpdateEvent } from "~/services/tanStackQuery/events";
+import { useCancelEvent, useCreateEvent, useDeleteEvent, useEvents, useUpdateEvent } from "~/services/tanStackQuery/events";
 import type { Event } from "~/types/event";
 import { ClientFormDialog } from "./ClientFormDialog";
 import { EventFormDialog } from "./EventFormDialog";
@@ -41,12 +41,14 @@ export function EventsList() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [clientDialogOpen, setClientDialogOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
 
   const { data: events = [], isLoading } = useEvents();
   const { data: clients = [] } = useClients();
   const createEvent = useCreateEvent();
   const updateEvent = useUpdateEvent();
   const deleteEvent = useDeleteEvent();
+  const cancelEvent = useCancelEvent();
   const createClient = useCreateClient();
 
   const stats = useMemo(() => {
@@ -94,6 +96,19 @@ export function EventsList() {
     }
   };
 
+  const handleCancel = async (id: string) => {
+    if (!confirm("Tem certeza que deseja cancelar este evento? Todos os itens reservados voltarão ao estoque.")) {
+      return;
+    }
+
+    try {
+      setCancellingId(id);
+      await cancelEvent.mutateAsync(id);
+    } finally {
+      setCancellingId(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="grid gap-4 md:grid-cols-3">
@@ -128,16 +143,6 @@ export function EventsList() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <Link to="/dashboard/items">
-              <Button variant="outline">
-                <Warehouse className="mr-2 h-4 w-4" />
-                Itens
-              </Button>
-            </Link>
-            <Button variant="outline" onClick={() => setClientDialogOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              Novo Cliente
-            </Button>
             <Button onClick={() => handleOpenDialog()} className="bg-gradient-to-r from-primary to-secondary text-white shadow-sm">
               <Plus className="mr-2 h-4 w-4" />
               Novo Evento
@@ -198,6 +203,19 @@ export function EventsList() {
                       type="button"
                       variant="ghost"
                       size="sm"
+                      className="text-amber-600 hover:text-amber-600"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleCancel(event.id);
+                      }}
+                      disabled={event.status === "CANCELLED" || cancellingId === event.id}
+                    >
+                      {cancellingId === event.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Ban className="h-4 w-4" />}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleOpenDialog(event);
@@ -239,13 +257,6 @@ export function EventsList() {
         clients={clients}
         onSubmit={handleSubmit}
         isLoading={createEvent.isPending || updateEvent.isPending}
-      />
-
-      <ClientFormDialog
-        open={clientDialogOpen}
-        onOpenChange={setClientDialogOpen}
-        onSubmit={handleCreateClient}
-        isLoading={createClient.isPending}
       />
 
     </div>

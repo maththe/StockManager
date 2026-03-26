@@ -18,9 +18,19 @@ export class CategoriesService {
     });
   }
 
-  async findAll(tenantUuid: string): Promise<Category[]> {
+  async findAll(tenantUuid: string, search?: string): Promise<Category[]> {
+    const where: any = { tenantUuid };
+
+    if (search && search.trim()) {
+      const searchTerm = search.trim().toLowerCase();
+      where.OR = [
+        { name: { contains: searchTerm, mode: 'insensitive' } },
+        { description: { contains: searchTerm, mode: 'insensitive' } },
+      ];
+    }
+
     return this.prisma.category.findMany({
-      where: { tenantUuid },
+      where,
     });
   }
 

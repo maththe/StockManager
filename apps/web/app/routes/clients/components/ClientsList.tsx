@@ -1,8 +1,9 @@
-import { useMemo, useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 import { Edit2, Loader2, Plus, Trash2 } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "~/components/ui/table";
+import { matchesSearch } from "~/lib/search";
 import { useClients, useCreateClient, useDeleteClient, useUpdateClient } from "~/services/tanStackQuery/clients";
 import type { Client, CreateClientInput, UpdateClientInput } from "~/types/client";
 import { ClientFormDialog } from "~/routes/events/components/ClientFormDialog";
@@ -12,25 +13,20 @@ export function ClientsList() {
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [search, setSearch] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const deferredSearch = useDeferredValue(search);
+  const normalizedSearch = deferredSearch.trim() || undefined;
 
   const { data: clients = [], isLoading } = useClients();
   const createClient = useCreateClient();
   const updateClient = useUpdateClient();
   const deleteClient = useDeleteClient();
-
-  const filteredClients = useMemo(() => {
-    const normalizedSearch = search.trim().toLowerCase();
-
-    if (!normalizedSearch) {
-      return clients;
-    }
-
-    return clients.filter((client) =>
-      [client.companyName, client.taxId, client.contactName ?? ""].some((value) =>
-        value.toLowerCase().includes(normalizedSearch),
+  const filteredClients = useMemo(
+    () =>
+      clients.filter((client) =>
+        matchesSearch([client.companyName, client.taxId, client.contactName], normalizedSearch),
       ),
-    );
-  }, [clients, search]);
+    [clients, normalizedSearch],
+  );
 
   const handleOpenDialog = (client?: Client) => {
     setSelectedClient(client ?? null);

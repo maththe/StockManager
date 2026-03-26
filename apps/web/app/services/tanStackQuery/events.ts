@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "~/services/axios/api";
+import { mutationError, mutationSuccess } from "./mutationToast";
 import type {
   CreateEventInput,
   CreateEventItemInput,
@@ -9,11 +10,12 @@ import type {
   UpdateEventItemInput,
 } from "~/types/event";
 
-export const useEvents = () => {
+export const useEvents = (search?: string) => {
   return useQuery({
-    queryKey: ["events"],
+    queryKey: ["events", search || ""],
     queryFn: async () => {
-      const response = await api.get<Event[]>("/events");
+      const params = search ? { search } : {};
+      const response = await api.get<Event[]>("/events", { params });
       return response.data;
     },
   });
@@ -28,7 +30,9 @@ export const useCreateEvent = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["events"] });
+      mutationSuccess("Evento criado com sucesso.");
     },
+    onError: (error) => mutationError("Erro ao criar evento.", error),
   });
 };
 
@@ -43,7 +47,9 @@ export const useUpdateEvent = () => {
       queryClient.invalidateQueries({ queryKey: ["events"] });
       queryClient.invalidateQueries({ queryKey: ["events", variables.id] });
       queryClient.invalidateQueries({ queryKey: ["event-items", variables.id] });
+      mutationSuccess("Evento atualizado com sucesso.");
     },
+    onError: (error) => mutationError("Erro ao atualizar evento.", error),
   });
 };
 
@@ -55,7 +61,27 @@ export const useDeleteEvent = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["events"] });
+      mutationSuccess("Evento removido com sucesso.");
     },
+    onError: (error) => mutationError("Erro ao remover evento.", error),
+  });
+};
+
+export const useCancelEvent = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const response = await api.patch<Event>(`/events/${id}/cancel`);
+      return response.data;
+    },
+    onSuccess: (_, eventId) => {
+      queryClient.invalidateQueries({ queryKey: ["events"] });
+      queryClient.invalidateQueries({ queryKey: ["events", eventId] });
+      queryClient.invalidateQueries({ queryKey: ["event-items", eventId] });
+      queryClient.invalidateQueries({ queryKey: ["items"] });
+      mutationSuccess("Evento cancelado e itens devolvidos ao estoque.");
+    },
+    onError: (error) => mutationError("Erro ao cancelar evento.", error),
   });
 };
 
@@ -82,7 +108,9 @@ export const useCreateEventItem = () => {
       queryClient.invalidateQueries({ queryKey: ["event-items", variables.eventId] });
       queryClient.invalidateQueries({ queryKey: ["events"] });
       queryClient.invalidateQueries({ queryKey: ["items"] });
+      mutationSuccess("Item adicionado ao evento com sucesso.");
     },
+    onError: (error) => mutationError("Erro ao adicionar item ao evento.", error),
   });
 };
 
@@ -106,7 +134,9 @@ export const useUpdateEventItem = () => {
       queryClient.invalidateQueries({ queryKey: ["event-items", variables.eventId] });
       queryClient.invalidateQueries({ queryKey: ["events"] });
       queryClient.invalidateQueries({ queryKey: ["items"] });
+      mutationSuccess("Item do evento atualizado com sucesso.");
     },
+    onError: (error) => mutationError("Erro ao atualizar item do evento.", error),
   });
 };
 
@@ -121,6 +151,8 @@ export const useDeleteEventItem = () => {
       queryClient.invalidateQueries({ queryKey: ["event-items", variables.eventId] });
       queryClient.invalidateQueries({ queryKey: ["events"] });
       queryClient.invalidateQueries({ queryKey: ["items"] });
+      mutationSuccess("Item removido do evento com sucesso.");
     },
+    onError: (error) => mutationError("Erro ao remover item do evento.", error),
   });
 };

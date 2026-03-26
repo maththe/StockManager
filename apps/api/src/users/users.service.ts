@@ -4,6 +4,7 @@ import { CreateUserInput } from './dto/create-user.input';
 import { UpdateUserInput } from './dto/update-user.input';
 import { PrismaService } from 'src/services/prisma.service';
 import { User } from '@prisma/client';
+import { matchesSearch } from 'src/common/search.util';
 
 @Injectable()
 export class UsersService {
@@ -22,10 +23,13 @@ export class UsersService {
     });
   }
 
-  async findAll(tenantUuid?: string): Promise<User[]> {
-    return this.prisma.user.findMany({
+  async findAll(tenantUuid?: string, search?: string): Promise<User[]> {
+    const users = await this.prisma.user.findMany({
       where: tenantUuid ? { tenantUuid } : undefined,
+      orderBy: { name: 'asc' },
     });
+
+    return users.filter((user) => matchesSearch([user.name, user.email], search));
   }
 
   async findOne(id: string, tenantUuid?: string): Promise<User | null> {

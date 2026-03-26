@@ -1,13 +1,15 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../axios/api';
 import type { CreateUserInput, UpdateUserInput, User } from '../../types/user';
+import { mutationError, mutationSuccess } from './mutationToast';
 
 // Queries
-export const useUsers = () => {
+export const useUsers = (search?: string) => {
   return useQuery({
-    queryKey: ['users'],
+    queryKey: ['users', search || ''],
     queryFn: async () => {
-      const response = await api.get<User[]>('/users/lista');
+      const params = search ? { search } : {};
+      const response = await api.get<User[]>('/users/lista', { params });
       return response.data;
     },
   });
@@ -44,7 +46,9 @@ export const useCreateUser = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
+      mutationSuccess('Usuário criado com sucesso.');
     },
+    onError: (error) => mutationError('Erro ao criar usuário.', error),
   });
 };
 
@@ -55,10 +59,12 @@ export const useUpdateUser = () => {
       const response = await api.patch<User>(`/users/${id}`, data);
       return response.data;
     },
-    onSuccess: (data, variables) => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
       queryClient.invalidateQueries({ queryKey: ['users', variables.id] });
+      mutationSuccess('Usuário atualizado com sucesso.');
     },
+    onError: (error) => mutationError('Erro ao atualizar usuário.', error),
   });
 };
 
@@ -70,6 +76,8 @@ export const useDeleteUser = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
+      mutationSuccess('Usuário removido com sucesso.');
     },
+    onError: (error) => mutationError('Erro ao remover usuário.', error),
   });
 };

@@ -1,5 +1,4 @@
 export interface CreateItemInput {
-  skuCode: string;
   name: string;
   totalQuantity: number;
   availableQuantity: number;
@@ -8,7 +7,6 @@ export interface CreateItemInput {
 }
 
 export interface UpdateItemInput {
-  skuCode?: string;
   name?: string;
   totalQuantity?: number;
   availableQuantity?: number;
@@ -18,8 +16,9 @@ export interface UpdateItemInput {
 
 export interface Item {
   id: string;
-  skuCode: string;
   name: string;
+  imageUrl?: string | null;
+  image?: string | null;
   totalQuantity: number;
   availableQuantity: number;
   unitCost: number;

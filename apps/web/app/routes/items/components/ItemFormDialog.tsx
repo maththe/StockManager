@@ -1,13 +1,13 @@
 import { useEffect } from "react";
 import { FormProvider, useForm } from "react-hook-form";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "~/components/ui/dialog";
-import { Button } from "~/components/ui/button";
-import { InputForm } from "~/components/Form/InputForm";
-import { Label } from "~/components/ui/label";
 import { Loader2 } from "lucide-react";
-import type { CreateItemInput, UpdateItemInput, Item } from "~/types/item";
-import { useCategories } from "~/services/tanStackQuery/Itens/categories";
+import { InputForm } from "~/components/Form/InputForm";
 import { SelectForm } from "~/components/Form/SelectForm";
+import { Button } from "~/components/ui/button";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "~/components/ui/dialog";
+import { Label } from "~/components/ui/label";
+import { useCategories } from "~/services/tanStackQuery/Itens/categories";
+import type { CreateItemInput, Item, UpdateItemInput } from "~/types/item";
 
 interface ItemFormDialogProps {
   open: boolean;
@@ -21,7 +21,6 @@ interface ItemFormDialogProps {
 function getDefaultValues(item?: Item | null, initialCategoryId?: string | null) {
   return item
     ? {
-      skuCode: item.skuCode,
       name: item.name,
       totalQuantity: item.totalQuantity,
       availableQuantity: item.availableQuantity,
@@ -29,7 +28,6 @@ function getDefaultValues(item?: Item | null, initialCategoryId?: string | null)
       categoryId: item.categoryId,
     }
     : {
-      skuCode: "",
       name: "",
       totalQuantity: 0,
       availableQuantity: 0,
@@ -58,7 +56,7 @@ export function ItemFormDialog({
     }
   }, [form, initialCategoryId, item, open]);
 
-  const handleSubmit = async (data: any) => {
+  const handleSubmit = async (data: CreateItemInput | UpdateItemInput) => {
     await onSubmit(data);
     form.reset();
     onOpenChange(false);
@@ -66,22 +64,13 @@ export function ItemFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md rounded-2xl bg-card/75 dark:bg-card/60 backdrop-blur-md">
+      <DialogContent className="max-w-md rounded-2xl bg-card/75 backdrop-blur-md dark:bg-card/60">
         <DialogHeader>
           <DialogTitle>{item ? "Editar Item" : "Novo Item"}</DialogTitle>
         </DialogHeader>
 
         <FormProvider {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 px-4 py-2">
-            <div className="grid gap-2">
-              <Label htmlFor="skuCode">Código SKU</Label>
-              <InputForm
-                name="skuCode"
-                placeholder="EX: SKU-001"
-                required
-              />
-            </div>
-
             <div className="grid gap-2">
               <Label htmlFor="name">Nome do Item</Label>
               <InputForm
@@ -103,7 +92,7 @@ export function ItemFormDialog({
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="availableQuantity">Quantidade Disponível</Label>
+                <Label htmlFor="availableQuantity">Quantidade Disponivel</Label>
                 <InputForm
                   name="availableQuantity"
                   type="number"
@@ -115,7 +104,7 @@ export function ItemFormDialog({
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="unitCost">Custo Unitário</Label>
+              <Label htmlFor="unitCost">Custo Unitario</Label>
               <InputForm
                 name="unitCost"
                 type="number"
@@ -139,7 +128,7 @@ export function ItemFormDialog({
               />
             </div>
 
-            <DialogFooter className="pt-4 flex justify-end gap-2">
+            <DialogFooter className="flex justify-end gap-2 pt-4">
               <Button
                 type="button"
                 variant="outline"
@@ -148,7 +137,11 @@ export function ItemFormDialog({
               >
                 Cancelar
               </Button>
-              <Button type="submit" className="bg-gradient-to-r from-primary to-secondary text-white" disabled={isLoading}>
+              <Button
+                type="submit"
+                className="bg-gradient-to-r from-primary to-secondary text-white"
+                disabled={isLoading}
+              >
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {item ? "Atualizar" : "Criar"}
               </Button>

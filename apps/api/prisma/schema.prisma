@@ -71,7 +71,6 @@ model Client {
 
 model Item {
   id                String   @id @default(uuid())
-  skuCode           String   @unique
   name              String
   totalQuantity     Int      @default(0)
   availableQuantity Int      @default(0)

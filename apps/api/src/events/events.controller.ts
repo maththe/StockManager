@@ -7,6 +7,7 @@ import {
   Patch,
   Post,
   Req,
+  Query,
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { CreateEventInput } from './dto/create-event.input';
@@ -26,9 +27,9 @@ export class EventsController {
   }
 
   @Get()
-  async findAll(@Req() req: Request) {
+  async findAll(@Req() req: Request, @Query('search') search?: string) {
     const user = (req as any).user;
-    return this.eventsService.findAll(user.tenantUuid);
+    return this.eventsService.findAll(user.tenantUuid, search);
   }
 
   @Get(':id')
@@ -45,6 +46,12 @@ export class EventsController {
   ) {
     const user = (req as any).user;
     return this.eventsService.update(id, updateEventDto, user.tenantUuid);
+  }
+
+  @Patch(':id/cancel')
+  async cancel(@Param('id') id: string, @Req() req: Request) {
+    const user = (req as any).user;
+    return this.eventsService.cancel(id, user.tenantUuid);
   }
 
   @Delete(':id')

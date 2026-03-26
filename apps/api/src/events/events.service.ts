@@ -69,9 +69,19 @@ export class EventsService {
     });
   }
 
-  async findAll(tenantUuid: string) {
+  async findAll(tenantUuid: string, search?: string) {
+    const where: any = { tenantUuid };
+
+    if (search && search.trim()) {
+      const searchTerm = search.trim().toLowerCase();
+      where.OR = [
+        { eventName: { contains: searchTerm, mode: 'insensitive' } },
+        { client: { companyName: { contains: searchTerm, mode: 'insensitive' } } },
+      ];
+    }
+
     return this.prisma.event.findMany({
-      where: { tenantUuid },
+      where,
       include: {
         client: true,
         eventItems: {
@@ -144,6 +154,44 @@ export class EventsService {
     return this.prisma.event.delete({
       where: { id },
       include: { client: true },
+    });
+  }
+
+  async cancel(id: string, tenantUuid: string) {
+    const event = await this.prisma.event.findFirst({
+      where: { id, tenantUuid },
+      include: {
+        eventItems: true,
+      },
+    });
+
+    if (!event) {
+      throw new NotFoundException('Evento não encontrado.');
+    }
+
+    if (event.status === EventStatus.CANCELLED) {
+      throw new BadRequestException('Este evento já está cancelado.');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      for (const eventItem of event.eventItems) {
+        await tx.item.update({
+          where: { id: eventItem.itemId },
+          data: {
+            availableQuantity: {
+              increment: eventItem.plannedQuantity,
+            },
+          },
+        });
+      }
+
+      return tx.event.update({
+        where: { id },
+        data: {
+          status: EventStatus.CANCELLED,
+        },
+        include: { client: true },
+      });
     });
   }
 

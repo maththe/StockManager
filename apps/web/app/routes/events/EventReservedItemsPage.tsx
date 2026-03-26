@@ -207,7 +207,6 @@ export default function EventReservedItemsPage() {
                   const isSaving = savingItemId === eventItem.id;
                   const isDirty = Number(draftValue) !== eventItem.plannedQuantity;
                   const { minimum, maximum } = getPlannedQuantityBounds(eventItem);
-                  const isLowStock = eventItem.item.availableQuantity < 5;
 
                   return (
                     <div
@@ -223,51 +222,15 @@ export default function EventReservedItemsPage() {
                                 <h3 className="font-semibold text-foreground text-base">
                                   {eventItem.item.name}
                                 </h3>
-                                {isLowStock && (
-                                  <span className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-1 text-xs font-medium text-destructive">
-                                    <AlertCircle className="h-3 w-3" />
-                                    Baixo
-                                  </span>
-                                )}
-                              </div>
-                              <p className="text-xs text-muted-foreground">SKU: {eventItem.item.skuCode}</p>
-                            </div>
-                          </div>
-
-                          {/* Info Cards */}
-                          <div className="grid grid-cols-3 gap-3">
-                            <div className="rounded-lg bg-muted p-3">
-                              <div className="text-xs font-medium text-muted-foreground mb-1">Planejado</div>
-                              <div className="flex items-baseline gap-1">
-                                <span className="text-xl font-bold text-foreground">{draftValue}</span>
-                                <span className="text-xs text-muted-foreground">unid.</span>
-                              </div>
-                            </div>
-                            <div className="rounded-lg bg-primary/10 p-3">
-                              <div className="text-xs font-medium text-primary mb-1">Enviado</div>
-                              <div className="flex items-baseline gap-1">
-                                <span className="text-xl font-bold text-primary">{eventItem.shippedQuantity}</span>
-                                <span className="text-xs text-primary/70">unid.</span>
-                              </div>
-                            </div>
-                            <div className="rounded-lg bg-accent/10 p-3">
-                              <div className="text-xs font-medium text-accent mb-1">Retornado</div>
-                              <div className="flex items-baseline gap-1">
-                                <span className="text-xl font-bold text-accent">{eventItem.returnedQuantity}</span>
-                                <span className="text-xs text-accent/70">unid.</span>
                               </div>
                             </div>
                           </div>
 
-                          <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                            <div className="rounded bg-muted px-2.5 py-1">
-                              Estoque: {eventItem.item.availableQuantity} {isLowStock && "⚠"}
-                            </div>
-                            <div className="rounded bg-muted px-2.5 py-1">
-                              Máximo: {maximum}
-                            </div>
-                            <div className="rounded bg-muted px-2.5 py-1">
-                              Mínimo: {minimum}
+                          <div className="rounded-lg bg-muted p-3">
+                            <div className="text-xs font-medium text-muted-foreground mb-1">Quantidade reservada</div>
+                            <div className="flex items-baseline gap-1">
+                              <span className="text-xl font-bold text-foreground">{eventItem.plannedQuantity}</span>
+                              <span className="text-xs text-muted-foreground">unid.</span>
                             </div>
                           </div>
 
