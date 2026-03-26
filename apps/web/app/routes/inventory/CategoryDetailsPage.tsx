@@ -27,7 +27,7 @@ export default function CategoryDetailsPage() {
   const categoryItems = items.filter((item) => item.categoryId === categoryId);
 
   const filteredItems = categoryItems.filter((item) =>
-    [item.name, item.skuCode].some((value) =>
+    [item.name].some((value) =>
       value.toLowerCase().includes(search.trim().toLowerCase())
     )
   );
@@ -166,7 +166,7 @@ export default function CategoryDetailsPage() {
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Pesquisar por SKU ou nome..."
+                placeholder="Pesquisar por nome..."
                 className="w-64 rounded-lg border border-input bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-ring/30"
               />
             </div>
@@ -188,7 +188,6 @@ export default function CategoryDetailsPage() {
               <Table>
                 <TableHeader className="bg-muted/20">
                   <TableRow>
-                    <TableHead>SKU</TableHead>
                     <TableHead>Nome</TableHead>
                     <TableHead className="text-right">Quantidade</TableHead>
                     <TableHead className="text-right">Disponível</TableHead>
@@ -203,7 +202,6 @@ export default function CategoryDetailsPage() {
                       key={item.id}
                       className={index % 2 === 0 ? "bg-background/30" : "bg-muted/10 hover:bg-muted/20"}
                     >
-                      <TableCell className="font-mono text-sm">{item.skuCode}</TableCell>
                       <TableCell className="font-medium">{item.name}</TableCell>
                       <TableCell className="text-right">{item.totalQuantity}</TableCell>
                       <TableCell className="text-right">{item.availableQuantity}</TableCell>

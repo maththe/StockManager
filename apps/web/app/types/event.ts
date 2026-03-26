@@ -20,7 +20,8 @@ export interface EventItem {
   item: {
     id: string;
     name: string;
-    skuCode: string;
+    imageUrl?: string | null;
+    image?: string | null;
     availableQuantity: number;
     totalQuantity: number;
   };

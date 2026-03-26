@@ -1,5 +1,4 @@
 export class CreateItemInput {
-  skuCode!: string;
   name!: string;
   totalQuantity!: number;
   availableQuantity!: number;

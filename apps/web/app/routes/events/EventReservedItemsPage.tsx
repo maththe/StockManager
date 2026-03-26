@@ -223,7 +223,6 @@ export default function EventReservedItemsPage() {
                                   {eventItem.item.name}
                                 </h3>
                               </div>
-                              <p className="text-xs text-muted-foreground">SKU: {eventItem.item.skuCode}</p>
                             </div>
                           </div>
 

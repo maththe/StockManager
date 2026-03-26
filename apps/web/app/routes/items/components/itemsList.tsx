@@ -117,7 +117,6 @@ export function ItemsList() {
               <Table>
                 <TableHeader className="bg-muted/20">
                   <TableRow>
-                    <TableHead>SKU</TableHead>
                     <TableHead>Nome</TableHead>
                     <TableHead>Categoria</TableHead>
                     <TableHead className="text-right">Quantidade</TableHead>
@@ -132,7 +131,6 @@ export function ItemsList() {
                       key={item.id}
                       className={index % 2 === 0 ? "bg-background/30" : "bg-muted/10 hover:bg-muted/20"}
                     >
-                      <TableCell className="font-mono text-sm">{item.skuCode}</TableCell>
                       <TableCell className="font-medium">{item.name}</TableCell>
                       <TableCell className="text-sm">{getCategoryName(item.categoryId)}</TableCell>
                       <TableCell className="text-right">{item.totalQuantity}</TableCell>

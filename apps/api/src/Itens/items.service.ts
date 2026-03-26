@@ -23,7 +23,6 @@ export class ItemsService {
 
     return this.prisma.item.create({
       data: {
-        skuCode: createItemInput.skuCode,
         name: createItemInput.name,
         totalQuantity: createItemInput.totalQuantity,
         availableQuantity: createItemInput.availableQuantity,
@@ -41,7 +40,6 @@ export class ItemsService {
       const searchTerm = search.trim().toLowerCase();
       where.OR = [
         { name: { contains: searchTerm, mode: 'insensitive' } },
-        { skuCode: { contains: searchTerm, mode: 'insensitive' } },
         { category: { name: { contains: searchTerm, mode: 'insensitive' } } },
       ];
     }
