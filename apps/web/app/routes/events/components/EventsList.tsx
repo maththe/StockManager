@@ -40,8 +40,6 @@ export function EventsList() {
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [clientDialogOpen, setClientDialogOpen] = useState(false);
-  const [eventItemsDialogOpen, setEventItemsDialogOpen] = useState(false);
-  const [itemsEvent, setItemsEvent] = useState<Event | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const { data: events = [], isLoading } = useEvents();
@@ -82,10 +80,6 @@ export function EventsList() {
     await createClient.mutateAsync(data);
   };
 
-  const handleManageItems = (event: Event) => {
-    setItemsEvent(event);
-    setEventItemsDialogOpen(true);
-  };
 
   const handleDelete = async (id: string) => {
     if (!confirm("Tem certeza que deseja deletar este evento?")) {
@@ -215,17 +209,6 @@ export function EventsList() {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleManageItems(event);
-                      }}
-                    >
-                      <Boxes className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
                       className="text-destructive hover:text-destructive"
                       onClick={(e) => {
                         e.stopPropagation();
@@ -265,16 +248,6 @@ export function EventsList() {
         isLoading={createClient.isPending}
       />
 
-      <EventItemsDialog
-        open={eventItemsDialogOpen}
-        onOpenChange={(open) => {
-          setEventItemsDialogOpen(open);
-          if (!open) {
-            setItemsEvent(null);
-          }
-        }}
-        event={itemsEvent}
-      />
     </div>
   );
 }

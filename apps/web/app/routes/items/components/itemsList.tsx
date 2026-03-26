@@ -188,7 +188,6 @@ export function ItemsList() {
                 <div className="flex items-center gap-3">
                   <Button variant="outline" size="sm" onClick={() => setSelectedCategoryId(null)}>
                     <ArrowLeft className="mr-2 h-4 w-4" />
-                    Voltar para categorias
                   </Button>
                   <div>
                     <div className="flex items-center gap-2 text-base font-semibold">
