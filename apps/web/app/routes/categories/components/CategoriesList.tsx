@@ -67,91 +67,88 @@ export function CategoriesList() {
 
   return (
     <div className="space-y-6">
-      <Card className="bg-transparent shadow-none">
-        <CardHeader className="flex flex-row items-center justify-between gap-4">
+      <Card className="border border-border/50 bg-card/50 shadow-sm backdrop-blur-sm">
+        <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between pb-4">
           <div>
-            <CardTitle className="text-xl">Gerenciar Categorias</CardTitle>
-            <CardDescription className="text-sm text-muted-foreground">
+            <CardTitle className="text-2xl font-bold">Gerenciar Categorias</CardTitle>
+            <CardDescription className="text-sm text-muted-foreground mt-1">
               Total de {categories.length} categor
-              {categories.length !== 1 ? 'ias' : 'ia'}
+              {categories.length !== 1 ? 'ias' : 'ia'} cadastrada
+              {categories.length !== 1 ? 's' : ''}
             </CardDescription>
           </div>
 
-          <div className="flex items-center gap-2">
-            <div className="hidden sm:block">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="w-full sm:w-auto">
               <input
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Pesquisar categorias..."
-                className="w-64 rounded-lg border border-input bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-ring/30"
+                className="w-full sm:w-64 rounded-lg border border-input bg-background px-4 py-2.5 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
               />
             </div>
 
             <Button
               onClick={() => handleOpenDialog()}
-              className="bg-gradient-to-r from-primary to-secondary text-white shadow-sm"
+              className="bg-gradient-to-r from-primary to-secondary text-white font-medium shadow-md hover:shadow-lg transition-all w-full sm:w-auto"
             >
-              <Plus className="mr-2 h-4 w-4" />
+              <Plus className="mr-2 h-5 w-5" />
               Nova Categoria
             </Button>
           </div>
         </CardHeader>
 
-        <CardContent className="pt-2">
+        <CardContent className="pt-4">
           {isLoading ? (
-            <div className="flex justify-center py-12">
+            <div className="flex justify-center py-16">
               <Loader2 className="h-10 w-10 animate-spin text-muted-foreground" />
             </div>
           ) : categories.length === 0 ? (
-            <div className="py-12 text-center text-muted-foreground">
-              <div className="mb-2 text-lg font-semibold">
+            <div className="py-16 text-center">
+              <div className="mb-3 text-lg font-semibold text-foreground">
                 Nenhuma categoria encontrada
               </div>
-              <div>
+              <div className="text-muted-foreground">
                 Clique em "Nova Categoria" para começar a organizar seus itens.
               </div>
             </div>
           ) : (
-            <div className="overflow-hidden rounded-2xl border border-border/80 bg-card/70 shadow-sm backdrop-blur-sm">
+            <div className="overflow-hidden rounded-xl border border-border/50 bg-gradient-to-b from-muted/5 to-background shadow-sm">
               <Table>
-                <TableHeader className="bg-muted/20">
-                  <TableRow>
-                    <TableHead>Nome</TableHead>
-                    <TableHead>Descrição</TableHead>
-                    <TableHead className="text-center">Ações</TableHead>
+                <TableHeader className="bg-muted/30">
+                  <TableRow className="hover:bg-muted/30">
+                    <TableHead className="font-semibold">Nome</TableHead>
+                    <TableHead className="font-semibold hidden sm:table-cell">Descrição</TableHead>
+                    <TableHead className="text-center font-semibold">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {categories.map((category, index) => (
                     <TableRow
                       key={category.id}
-                      className={
-                        index % 2 === 0
-                          ? 'bg-background/30'
-                          : 'bg-muted/10 hover:bg-muted/20'
-                      }
+                      className="border-border/30 hover:bg-muted/20 transition-colors"
                     >
-                      <TableCell className="font-semibold">
+                      <TableCell className="font-semibold text-foreground py-4">
                         {category.name}
                       </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
+                      <TableCell className="text-sm text-muted-foreground py-4 hidden sm:table-cell">
                         {category.description || '-'}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="py-4">
                         <div className="flex justify-center gap-2">
                           <Button
-                            variant="ghost"
+                            variant="outline"
                             size="sm"
                             onClick={() => handleOpenDialog(category)}
-                            className="hover:bg-muted/50"
+                            className="border-border/50 hover:bg-primary/10 hover:text-primary transition-colors"
                           >
                             <Edit2 className="h-4 w-4" />
                           </Button>
                           <Button
-                            variant="ghost"
+                            variant="outline"
                             size="sm"
-                            className="text-destructive hover:text-destructive"
+                            className="border-destructive/30 text-destructive hover:bg-destructive/10 transition-colors"
                             onClick={() => handleDelete(category.id)}
                             disabled={deletingId === category.id}
                           >

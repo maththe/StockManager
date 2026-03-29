@@ -84,85 +84,88 @@ export function UsersList() {
 
   return (
     <div className="space-y-6">
-      <Card className="bg-transparent shadow-none">
-        <CardHeader className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      <Card className="border border-border/50 bg-card/50 shadow-sm backdrop-blur-sm">
+        <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between pb-4">
           <div>
-            <CardTitle className="text-xl">Usuarios</CardTitle>
-            <CardDescription>
-              {filteredUsers.length} usuario
-              {filteredUsers.length !== 1 ? 's' : ''} listado
+            <CardTitle className="text-2xl font-bold">Gerenciar Usuários</CardTitle>
+            <CardDescription className="text-sm text-muted-foreground mt-1">
+              Total de {filteredUsers.length} usuário
+              {filteredUsers.length !== 1 ? 's' : ''} cadastrado
               {filteredUsers.length !== 1 ? 's' : ''}
             </CardDescription>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Pesquisar usuarios..."
-              className="w-72 rounded-lg border border-input bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-ring/30"
-            />
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="w-full sm:w-auto">
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Pesquisar usuários..."
+                className="w-full sm:w-80 rounded-lg border border-input bg-background px-4 py-2.5 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+              />
+            </div>
 
             <Button
               onClick={() => handleOpenDialog()}
-              className="bg-gradient-to-r from-primary to-secondary text-white shadow-sm"
+              className="bg-gradient-to-r from-primary to-secondary text-white font-medium shadow-md hover:shadow-lg transition-all w-full sm:w-auto"
             >
-              <Plus className="mr-2 h-4 w-4" />
-              Novo Usuario
+              <Plus className="mr-2 h-5 w-5" />
+              Novo Usuário
             </Button>
           </div>
         </CardHeader>
 
-        <CardContent className="pt-2">
+        <CardContent className="pt-4">
           {isLoading ? (
-            <div className="flex justify-center py-12">
+            <div className="flex justify-center py-16">
               <Loader2 className="h-10 w-10 animate-spin text-muted-foreground" />
             </div>
           ) : filteredUsers.length === 0 ? (
-            <div className="rounded-3xl border border-dashed border-border bg-card/70 px-6 py-14 text-center backdrop-blur-sm">
-              <div className="text-lg font-semibold">
-                Nenhum usuario encontrado
+            <div className="py-16 text-center">
+              <div className="mb-3 text-lg font-semibold text-foreground">
+                Nenhum usuário encontrado
               </div>
-              <div className="mt-2 text-sm text-muted-foreground">
-                Cadastre um novo usuario ou ajuste o filtro de pesquisa.
+              <div className="text-muted-foreground">
+                Cadastre um novo usuário ou ajuste o filtro de pesquisa.
               </div>
             </div>
           ) : (
-            <div className="overflow-hidden rounded-2xl border border-border/80 bg-card/70 shadow-sm backdrop-blur-sm">
+            <div className="overflow-hidden rounded-xl border border-border/50 bg-gradient-to-b from-muted/5 to-background shadow-sm">
               <Table>
-                <TableHeader className="bg-muted/20">
-                  <TableRow>
-                    <TableHead>Nome</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead className="text-center">Acoes</TableHead>
+                <TableHeader className="bg-muted/30">
+                  <TableRow className="hover:bg-muted/30">
+                    <TableHead className="font-semibold">Nome</TableHead>
+                    <TableHead className="font-semibold hidden sm:table-cell">Email</TableHead>
+                    <TableHead className="text-center font-semibold">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredUsers.map((user, index) => (
+                  {filteredUsers.map((user) => (
                     <TableRow
                       key={user.id}
-                      className={
-                        index % 2 === 0
-                          ? 'bg-background/30'
-                          : 'bg-muted/10 hover:bg-muted/20'
-                      }
+                      className="border-border/30 hover:bg-muted/20 transition-colors"
                     >
-                      <TableCell className="font-medium">{user.name}</TableCell>
-                      <TableCell>{user.email}</TableCell>
-                      <TableCell>
+                      <TableCell className="font-semibold text-foreground py-4">
+                        {user.name}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground py-4 hidden sm:table-cell">
+                        {user.email}
+                      </TableCell>
+                      <TableCell className="py-4">
                         <div className="flex justify-center gap-2">
                           <Button
-                            variant="ghost"
+                            variant="outline"
                             size="sm"
                             onClick={() => handleOpenDialog(user)}
+                            className="border-border/50 hover:bg-primary/10 hover:text-primary transition-colors"
                           >
                             <Edit2 className="h-4 w-4" />
                           </Button>
                           <Button
-                            variant="ghost"
+                            variant="outline"
                             size="sm"
-                            className="text-destructive hover:text-destructive"
+                            className="border-destructive/30 text-destructive hover:bg-destructive/10 transition-colors"
                             onClick={() => handleDelete(user.id)}
                             disabled={deletingId === user.id}
                           >

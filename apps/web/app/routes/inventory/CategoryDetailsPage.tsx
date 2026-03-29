@@ -114,20 +114,22 @@ export default function CategoryDetailsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-4">
           <Button
             variant="outline"
+            size="icon"
+            className="border-border/50 hover:bg-muted"
             onClick={() => navigate('/dashboard/inventory')}
           >
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
-            <h1 className="text-2xl font-bold">{category.name}</h1>
+            <h1 className="text-3xl font-bold text-foreground">{category.name}</h1>
             {category.description && (
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-muted-foreground mt-1">
                 {category.description}
               </p>
             )}
@@ -136,34 +138,34 @@ export default function CategoryDetailsPage() {
 
         <Button
           onClick={() => handleOpenDialog()}
-          className="bg-gradient-to-r from-primary to-secondary text-white shadow-sm"
+          className="bg-gradient-to-r from-primary to-secondary text-white font-medium shadow-md hover:shadow-lg transition-all w-full sm:w-auto"
         >
-          <Plus className="mr-2 h-4 w-4" />
+          <Plus className="mr-2 h-5 w-5" />
           Novo Item
         </Button>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
+        <Card className="border-primary/30 bg-gradient-to-br from-primary/10 to-primary/5 shadow-sm">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-xs font-bold text-primary uppercase tracking-wider">
               Total de Itens
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{categoryItems.length}</p>
+            <p className="text-3xl font-bold text-primary">{categoryItems.length}</p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+        <Card className="border-accent/30 bg-gradient-to-br from-accent/10 to-accent/5 shadow-sm">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-xs font-bold text-accent uppercase tracking-wider">
               Quantidade Disponível
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">
+            <p className="text-3xl font-bold text-accent">
               {categoryItems.reduce(
                 (sum, item) => sum + item.availableQuantity,
                 0,
@@ -172,14 +174,14 @@ export default function CategoryDetailsPage() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+        <Card className="border-secondary/30 bg-gradient-to-br from-secondary/10 to-secondary/5 shadow-sm">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-xs font-bold text-secondary uppercase tracking-wider">
               Valor em Estoque
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">
+            <p className="text-3xl font-bold text-secondary">
               R${' '}
               {categoryItems
                 .reduce(
@@ -194,75 +196,71 @@ export default function CategoryDetailsPage() {
       </div>
 
       {/* Items Table */}
-      <Card className="bg-transparent shadow-none">
-        <CardHeader>
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <CardTitle>Itens</CardTitle>
-              <CardDescription>
-                {categoryItems.length} item
-                {categoryItems.length !== 1 ? 'ns' : ''}
-              </CardDescription>
-            </div>
+      <Card className="border border-border/50 bg-card/50 shadow-sm backdrop-blur-sm">
+        <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between pb-4">
+          <div>
+            <CardTitle className="text-2xl font-bold">Itens</CardTitle>
+            <CardDescription className="text-sm text-muted-foreground mt-1">
+              {categoryItems.length} item
+              {categoryItems.length !== 1 ? 'ns' : ''} nesta categoria
+            </CardDescription>
+          </div>
 
-            <div className="hidden sm:block">
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Pesquisar por nome..."
-                className="w-64 rounded-lg border border-input bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-ring/30"
-              />
-            </div>
+          <div className="w-full sm:w-auto">
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Pesquisar por nome..."
+              className="w-full sm:w-80 rounded-lg border border-input bg-background px-4 py-2.5 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+            />
           </div>
         </CardHeader>
 
-        <CardContent>
+        <CardContent className="pt-4">
           {isLoading ? (
-            <div className="flex justify-center py-12">
+            <div className="flex justify-center py-16">
               <Loader2 className="h-10 w-10 animate-spin text-muted-foreground" />
             </div>
           ) : categoryItems.length === 0 ? (
-            <div className="py-12 text-center text-muted-foreground">
-              <div className="mb-2 text-lg font-semibold">
+            <div className="py-16 text-center">
+              <div className="mb-3 text-lg font-semibold text-foreground">
                 Nenhum item nesta categoria
               </div>
-              <div>Clique em "Novo Item" para adicionar um item.</div>
+              <div className="text-muted-foreground">Clique em "Novo Item" para adicionar um item.</div>
             </div>
           ) : (
-            <div className="overflow-hidden rounded-2xl border border-border/80 bg-card/70 shadow-sm backdrop-blur-sm">
+            <div className="overflow-hidden rounded-xl border border-border/50 bg-gradient-to-b from-muted/5 to-background shadow-sm">
               <Table>
-                <TableHeader className="bg-muted/20">
-                  <TableRow>
-                    <TableHead>Nome</TableHead>
-                    <TableHead className="text-right">Quantidade</TableHead>
-                    <TableHead className="text-right">Disponível</TableHead>
-                    <TableHead className="text-right">Custo Unit.</TableHead>
-                    <TableHead className="text-right">Subtotal</TableHead>
-                    <TableHead className="text-center">Ações</TableHead>
+                <TableHeader className="bg-muted/30">
+                  <TableRow className="hover:bg-muted/30">
+                    <TableHead className="font-semibold">Nome</TableHead>
+                    <TableHead className="text-right font-semibold hidden sm:table-cell">Quantidade</TableHead>
+                    <TableHead className="text-right font-semibold hidden md:table-cell">Disponível</TableHead>
+                    <TableHead className="text-right font-semibold hidden lg:table-cell">Custo Unit.</TableHead>
+                    <TableHead className="text-right font-semibold">Subtotal</TableHead>
+                    <TableHead className="text-center font-semibold">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredItems.map((item, index) => (
+                  {filteredItems.map((item) => (
                     <TableRow
                       key={item.id}
-                      className={
-                        index % 2 === 0
-                          ? 'bg-background/30'
-                          : 'bg-muted/10 hover:bg-muted/20'
-                      }
+                      className="border-border/30 hover:bg-muted/20 transition-colors py-4"
                     >
-                      <TableCell className="font-medium">{item.name}</TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="font-semibold text-foreground">
+                        {item.name}
+                      </TableCell>
+                      <TableCell className="text-right text-muted-foreground hidden sm:table-cell">
                         {item.totalQuantity}
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-right text-muted-foreground hidden md:table-cell">
                         {item.availableQuantity}
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-right text-muted-foreground hidden lg:table-cell">
                         R$ {Number(item.unitCost).toFixed(2)}
                       </TableCell>
-                      <TableCell className="text-right font-semibold">
+                      <TableCell className="text-right font-semibold text-foreground">
                         R${' '}
                         {(
                           item.availableQuantity * Number(item.unitCost)
@@ -271,17 +269,17 @@ export default function CategoryDetailsPage() {
                       <TableCell>
                         <div className="flex justify-center gap-2">
                           <Button
-                            variant="ghost"
+                            variant="outline"
                             size="sm"
                             onClick={() => handleOpenDialog(item)}
-                            className="hover:bg-muted/50"
+                            className="border-border/50 hover:bg-primary/10 hover:text-primary transition-colors"
                           >
                             <Edit2 className="h-4 w-4" />
                           </Button>
                           <Button
-                            variant="ghost"
+                            variant="outline"
                             size="sm"
-                            className="text-destructive hover:text-destructive"
+                            className="border-destructive/30 text-destructive hover:bg-destructive/10 transition-colors"
                             onClick={() => handleDelete(item.id)}
                             disabled={deletingId === item.id}
                           >

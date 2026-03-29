@@ -133,84 +133,78 @@ export function EventsList() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card
-          className={[...statsCardClassName, 'border-primary/20'].join(' ')}
-        >
-          <CardHeader className="pb-2">
-            <CardDescription className="text-primary">
+    <div className="space-y-8">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
+        <Card className="border-primary/30 bg-gradient-to-br from-primary/10 to-primary/5 shadow-sm">
+          <CardHeader className="pb-3">
+            <CardDescription className="text-primary font-semibold uppercase tracking-wider text-xs">
               Total de eventos
             </CardDescription>
-            <CardTitle className="text-3xl text-primary">
+            <CardTitle className="text-4xl font-bold text-primary mt-2">
               {stats.total}
             </CardTitle>
           </CardHeader>
         </Card>
-        <Card
-          className={[...statsCardClassName, 'border-secondary/20'].join(' ')}
-        >
-          <CardHeader className="pb-2">
-            <CardDescription className="text-secondary">
+        <Card className="border-secondary/30 bg-gradient-to-br from-secondary/10 to-secondary/5 shadow-sm">
+          <CardHeader className="pb-3">
+            <CardDescription className="text-secondary font-semibold uppercase tracking-wider text-xs">
               Em planejamento
             </CardDescription>
-            <CardTitle className="text-3xl text-secondary">
+            <CardTitle className="text-4xl font-bold text-secondary mt-2">
               {stats.planning}
             </CardTitle>
           </CardHeader>
         </Card>
-        <Card className={[...statsCardClassName, 'border-accent/20'].join(' ')}>
-          <CardHeader className="pb-2">
-            <CardDescription className="text-accent">
+        <Card className="border-accent/30 bg-gradient-to-br from-accent/10 to-accent/5 shadow-sm">
+          <CardHeader className="pb-3">
+            <CardDescription className="text-accent font-semibold uppercase tracking-wider text-xs">
               Em andamento
             </CardDescription>
-            <CardTitle className="text-3xl text-accent">
+            <CardTitle className="text-4xl font-bold text-accent mt-2">
               {stats.active}
             </CardTitle>
           </CardHeader>
         </Card>
       </div>
 
-      <Card className="bg-transparent shadow-none">
-        <CardHeader className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      <Card className="border border-border/50 bg-card/50 shadow-sm backdrop-blur-sm">
+        <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between pb-4">
           <div>
-            <CardTitle className="flex items-center gap-2 text-xl">
-              <CalendarDays className="h-5 w-5" />
-              Agenda de Eventos
-            </CardTitle>
-            <CardDescription>
-              Clique em um evento para abrir a tela com os itens reservados
+            <div className="flex items-center gap-2">
+              <CalendarDays className="h-6 w-6 text-primary" />
+              <CardTitle className="text-2xl font-bold">Agenda de Eventos</CardTitle>
+            </div>
+            <CardDescription className="text-sm text-muted-foreground mt-2">
+              Clique em um evento para visualizar e gerenciar os itens reservados
             </CardDescription>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              onClick={() => handleOpenDialog()}
-              className="bg-gradient-to-r from-primary to-secondary text-white shadow-sm"
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Novo Evento
-            </Button>
-          </div>
+          <Button
+            onClick={() => handleOpenDialog()}
+            className="bg-gradient-to-r from-primary to-secondary text-white font-medium shadow-md hover:shadow-lg transition-all w-full sm:w-auto"
+          >
+            <Plus className="mr-2 h-5 w-5" />
+            Novo Evento
+          </Button>
         </CardHeader>
 
-        <CardContent className="space-y-6 pt-2">
+        <CardContent className="pt-6">
           {isLoading ? (
-            <div className="flex justify-center py-12">
+            <div className="flex justify-center py-16">
               <Loader2 className="h-10 w-10 animate-spin text-muted-foreground" />
             </div>
           ) : events.length === 0 ? (
-            <div className="rounded-3xl border border-dashed border-border bg-card/70 px-6 py-14 text-center backdrop-blur-sm">
-              <div className="text-lg font-semibold">
+            <div className="py-16 text-center">
+              <CalendarDays className="h-14 w-14 text-muted-foreground/50 mx-auto mb-4" />
+              <div className="mb-3 text-lg font-semibold text-foreground">
                 Nenhum evento cadastrado
               </div>
-              <div className="mt-2 text-sm text-muted-foreground">
-                Crie o primeiro evento e vincule-o a um cliente para comecar a
-                operacao.
+              <div className="text-muted-foreground mb-6">
+                Crie o primeiro evento e vincule-o a um cliente para começar a operação.
               </div>
             </div>
           ) : (
-            <div className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
+            <div className="grid gap-4 grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3">
               {events.map((event) => (
                 <div
                   key={event.id}
@@ -225,41 +219,43 @@ export function EventsList() {
                       navigate(`/dashboard/events/${event.id}/items`);
                     }
                   }}
-                  className="rounded-2xl border border-border/80 bg-card/70 p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  className="group rounded-lg border border-border/50 bg-card/50 hover:bg-card/70 p-5 text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md hover:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/30 cursor-pointer backdrop-blur-sm"
                 >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="min-w-0">
-                      <div className="truncate text-lg font-semibold">
+                  <div className="flex items-start justify-between gap-4 mb-4">
+                    <div className="min-w-0 flex-1">
+                      <div className="text-lg font-bold text-foreground group-hover:text-primary transition-colors line-clamp-1">
                         {event.eventName}
                       </div>
-                      <div className="mt-1 text-sm text-muted-foreground">
-                        Cliente: {event.client?.companyName ?? '-'}
+                      <div className="mt-2 text-sm text-muted-foreground line-clamp-1">
+                        {event.client?.companyName ?? 'Cliente não assignado'}
                       </div>
                     </div>
                     <span
-                      className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${statusClassName[event.status]}`}
+                      className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold flex-shrink-0 ${statusClassName[event.status]}`}
                     >
                       {statusLabel[event.status]}
                     </span>
                   </div>
 
-                  <div className="mt-5 space-y-2 text-sm text-muted-foreground">
-                    <div>
-                      {formatDate(event.startDate)} ate{' '}
-                      {formatDate(event.endDate)}
+                  <div className="space-y-2 border-t border-border/30 pt-4">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <CalendarDays className="h-4 w-4 flex-shrink-0" />
+                      <span className="line-clamp-1">
+                        {formatDate(event.startDate)} até {formatDate(event.endDate)}
+                      </span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <MapPin className="h-4 w-4" />
-                      <span className="truncate">{event.eventLocation}</span>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <MapPin className="h-4 w-4 flex-shrink-0" />
+                      <span className="line-clamp-1">{event.eventLocation}</span>
                     </div>
                   </div>
 
-                  <div className="mt-5 flex flex-wrap gap-2">
+                  <div className="mt-4 flex flex-wrap gap-2 border-t border-border/30 pt-4">
                     <Button
                       type="button"
-                      variant="ghost"
+                      variant="outline"
                       size="sm"
-                      className="text-amber-600 hover:text-amber-600"
+                      className="border-amber-200/50 text-amber-600 hover:bg-amber-50 dark:border-amber-900/50 dark:hover:bg-amber-950 hover:text-amber-700 transition-colors"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleCancel(event.id);
@@ -277,8 +273,9 @@ export function EventsList() {
                     </Button>
                     <Button
                       type="button"
-                      variant="ghost"
+                      variant="outline"
                       size="sm"
+                      className="border-border/50 hover:bg-primary/10 hover:text-primary transition-colors"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleOpenDialog(event);
@@ -288,9 +285,9 @@ export function EventsList() {
                     </Button>
                     <Button
                       type="button"
-                      variant="ghost"
+                      variant="outline"
                       size="sm"
-                      className="text-destructive hover:text-destructive"
+                      className="border-destructive/30 text-destructive hover:bg-destructive/10 transition-colors"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleDelete(event.id);
@@ -310,6 +307,7 @@ export function EventsList() {
           )}
         </CardContent>
       </Card>
+
 
       <EventFormDialog
         open={dialogOpen}

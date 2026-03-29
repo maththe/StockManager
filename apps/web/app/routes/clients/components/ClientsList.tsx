@@ -91,89 +91,92 @@ export function ClientsList() {
 
   return (
     <div className="space-y-6">
-      <Card className="bg-transparent shadow-none">
-        <CardHeader className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      <Card className="border border-border/50 bg-card/50 shadow-sm backdrop-blur-sm">
+        <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between pb-4">
           <div>
-            <CardTitle className="text-xl">Clientes</CardTitle>
-            <CardDescription>
-              {filteredClients.length} cliente
-              {filteredClients.length !== 1 ? 's' : ''} listado
+            <CardTitle className="text-2xl font-bold">Gerenciar Clientes</CardTitle>
+            <CardDescription className="text-sm text-muted-foreground mt-1">
+              Total de {filteredClients.length} cliente
+              {filteredClients.length !== 1 ? 's' : ''} cadastrado
               {filteredClients.length !== 1 ? 's' : ''}
             </CardDescription>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Pesquisar clientes..."
-              className="w-72 rounded-lg border border-input bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-ring/30"
-            />
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="w-full sm:w-auto">
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Pesquisar clientes..."
+                className="w-full sm:w-80 rounded-lg border border-input bg-background px-4 py-2.5 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+              />
+            </div>
 
             <Button
               onClick={() => handleOpenDialog()}
-              className="bg-gradient-to-r from-primary to-secondary text-white shadow-sm"
+              className="bg-gradient-to-r from-primary to-secondary text-white font-medium shadow-md hover:shadow-lg transition-all w-full sm:w-auto"
             >
-              <Plus className="mr-2 h-4 w-4" />
+              <Plus className="mr-2 h-5 w-5" />
               Novo Cliente
             </Button>
           </div>
         </CardHeader>
 
-        <CardContent className="pt-2">
+        <CardContent className="pt-4">
           {isLoading ? (
-            <div className="flex justify-center py-12">
+            <div className="flex justify-center py-16">
               <Loader2 className="h-10 w-10 animate-spin text-muted-foreground" />
             </div>
           ) : filteredClients.length === 0 ? (
-            <div className="rounded-3xl border border-dashed border-border bg-card/70 px-6 py-14 text-center backdrop-blur-sm">
-              <div className="text-lg font-semibold">
+            <div className="py-16 text-center">
+              <div className="mb-3 text-lg font-semibold text-foreground">
                 Nenhum cliente encontrado
               </div>
-              <div className="mt-2 text-sm text-muted-foreground">
+              <div className="text-muted-foreground">
                 Crie um novo cliente ou ajuste o filtro de pesquisa.
               </div>
             </div>
           ) : (
-            <div className="overflow-hidden rounded-2xl border border-border/80 bg-card/70 shadow-sm backdrop-blur-sm">
+            <div className="overflow-hidden rounded-xl border border-border/50 bg-gradient-to-b from-muted/5 to-background shadow-sm">
               <Table>
-                <TableHeader className="bg-muted/20">
-                  <TableRow>
-                    <TableHead>Empresa</TableHead>
-                    <TableHead>CNPJ/CPF</TableHead>
-                    <TableHead>Contato</TableHead>
-                    <TableHead className="text-center">Acoes</TableHead>
+                <TableHeader className="bg-muted/30">
+                  <TableRow className="hover:bg-muted/30">
+                    <TableHead className="font-semibold">Empresa</TableHead>
+                    <TableHead className="font-semibold hidden sm:table-cell">CNPJ/CPF</TableHead>
+                    <TableHead className="font-semibold hidden md:table-cell">Contato</TableHead>
+                    <TableHead className="text-center font-semibold">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredClients.map((client, index) => (
+                  {filteredClients.map((client) => (
                     <TableRow
                       key={client.id}
-                      className={
-                        index % 2 === 0
-                          ? 'bg-background/30'
-                          : 'bg-muted/10 hover:bg-muted/20'
-                      }
+                      className="border-border/30 hover:bg-muted/20 transition-colors"
                     >
-                      <TableCell className="font-medium">
+                      <TableCell className="font-semibold text-foreground py-4">
                         {client.companyName}
                       </TableCell>
-                      <TableCell>{client.taxId}</TableCell>
-                      <TableCell>{client.contactName || '-'}</TableCell>
-                      <TableCell>
+                      <TableCell className="text-sm text-muted-foreground py-4 hidden sm:table-cell">
+                        {client.taxId}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground py-4 hidden md:table-cell">
+                        {client.contactName || '-'}
+                      </TableCell>
+                      <TableCell className="py-4">
                         <div className="flex justify-center gap-2">
                           <Button
-                            variant="ghost"
+                            variant="outline"
                             size="sm"
                             onClick={() => handleOpenDialog(client)}
+                            className="border-border/50 hover:bg-primary/10 hover:text-primary transition-colors"
                           >
                             <Edit2 className="h-4 w-4" />
                           </Button>
                           <Button
-                            variant="ghost"
+                            variant="outline"
                             size="sm"
-                            className="text-destructive hover:text-destructive"
+                            className="border-destructive/30 text-destructive hover:bg-destructive/10 transition-colors"
                             onClick={() => handleDelete(client.id)}
                             disabled={deletingId === client.id}
                           >

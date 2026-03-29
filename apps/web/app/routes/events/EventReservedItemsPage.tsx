@@ -27,27 +27,41 @@ export default function EventReservedItemsPage() {
 
   if (!event) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Evento nao encontrado</CardTitle>
-          <CardDescription>
-            O evento solicitado nao existe ou nao esta disponivel.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+      <div className="space-y-4">
+        <div className="flex items-center gap-3">
           <Link to="/dashboard/events">
-            <Button variant="outline">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Voltar para eventos
+            <Button
+              variant="outline"
+              size="icon"
+              className="border-border/50 hover:bg-muted"
+            >
+              <ArrowLeft className="h-5 w-5" />
             </Button>
           </Link>
-        </CardContent>
-      </Card>
+          <h1 className="text-2xl font-bold text-foreground">Evento não encontrado</h1>
+        </div>
+        <Card className="border-destructive/30 bg-destructive/10">
+          <CardHeader>
+            <CardTitle className="text-destructive">Erro ao carregar evento</CardTitle>
+            <CardDescription>
+              O evento solicitado não existe ou não está disponível.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Link to="/dashboard/events">
+              <Button variant="outline" className="border-border/50">
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Voltar para eventos
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
   return (
-    <div >
+    <div className="space-y-6">
       <EventItemsDialog event={event} />
     </div>
   );
