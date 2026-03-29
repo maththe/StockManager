@@ -1,8 +1,8 @@
-import { EventsList } from "./components/EventsList";
+import { EventsList } from './components/EventsList';
 
 export default function EventsPage() {
   return (
-    <div className="py-2">
+    <div>
       <EventsList />
     </div>
   );

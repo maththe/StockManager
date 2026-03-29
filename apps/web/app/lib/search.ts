@@ -1,11 +1,11 @@
 const removeDiacritics = (value: string) =>
-  value.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  value.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
 export const normalizeSearchValue = (value?: string | null) =>
-  removeDiacritics((value ?? "").trim().toLowerCase());
+  removeDiacritics((value ?? '').trim().toLowerCase());
 
 export const compactSearchValue = (value?: string | null) =>
-  normalizeSearchValue(value).replace(/[^a-z0-9]/g, "");
+  normalizeSearchValue(value).replace(/[^a-z0-9]/g, '');
 
 export const matchesSearch = (
   values: Array<string | null | undefined>,
@@ -26,7 +26,8 @@ export const matchesSearch = (
 
     return (
       normalizedValues.some((value) => value.includes(token)) ||
-      (!!compactToken && compactValues.some((value) => value.includes(compactToken)))
+      (!!compactToken &&
+        compactValues.some((value) => value.includes(compactToken)))
     );
   });
 };

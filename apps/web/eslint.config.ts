@@ -1,31 +1,50 @@
-import globals from "globals";
-import tseslint from "typescript-eslint";
-import reactPlugin from "eslint-plugin-react";
-import reactHooks from "eslint-plugin-react-hooks";
-import { defineConfig } from "eslint/config";
+import js from "@eslint/js";
+import eslintConfigPrettier from "eslint-config-prettier";
+import importPlugin from "eslint-plugin-import";
+import prettierPlugin from "eslint-plugin-prettier";
+import simpleImportSort from "eslint-plugin-simple-import-sort";
+import unusedImports from "eslint-plugin-unused-imports";
 
-export default defineConfig([
+export default [
+  js.configs.recommended,
+
   {
-    files: ["**/*.{ts,tsx,js,jsx}"],
+    files: ["**/*.js", "**/*.ts", "**/*.tsx"],
     languageOptions: {
-      parser: tseslint.parser,
-      globals: globals.browser,
-    },
-  },
+      ecmaVersion: "latest",
+      sourceType: "module",
+      parserOptions: {
+        ecmaFeatures: {
+          jsx: true,
+        },
+      },
 
-  ...tseslint.configs.recommended,
-  reactPlugin.configs.flat.recommended,
-  reactHooks.configs.flat.recommended, 
+      plugins: {
+        prettier: prettierPlugin,
+        import: importPlugin,
+        "unused-imports": unusedImports,
+        "simple-import-sort": simpleImportSort,
+      },
 
-  {
-    settings: {
-      react: {
-        version: "detect",
+      rules: {
+        "prettier/prettier": "error",
+        "unused-imports/no-unused-imports": "error",
+        "simple-import-sort/imports": "error",
+        "simple-import-sort/exports": "error",
+        "no-console": "warn",
+        "no-unused-vars": "off",
+        "unused-imports/no-unused-vars": [
+          "warn",
+          {
+            vars: "all",
+            varsIgnorePattern: "^_",
+            args: "after-used",
+            argsIgnorePattern: "^_",
+          },
+        ],
       },
     },
-    rules: {
-      "react/react-in-jsx-scope": "off",
-      "@typescript-eslint/no-unused-vars": "warn",
-    },
   },
-]);
+
+  eslintConfigPrettier,
+];

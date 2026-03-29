@@ -1,17 +1,34 @@
-import { useState } from "react";
-import { Edit2, Loader2, Plus, Trash2 } from "lucide-react";
-import { Button } from "~/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "~/components/ui/table";
-import { useCategories } from "~/services/tanStackQuery/Itens/categories";
-import { useCreateItem, useDeleteItem, useItems, useUpdateItem } from "~/services/tanStackQuery/Itens/items";
-import type { CreateItemInput, Item, UpdateItemInput } from "~/types/item";
-import { ItemFormDialog } from "./ItemFormDialog";
-
+import { useState } from 'react';
+import { Edit2, Loader2, Plus, Trash2 } from 'lucide-react';
+import { Button } from '~/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '~/components/ui/card';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '~/components/ui/table';
+import { useCategories } from '~/services/tanStackQuery/Itens/categories';
+import {
+  useCreateItem,
+  useDeleteItem,
+  useItems,
+  useUpdateItem,
+} from '~/services/tanStackQuery/Itens/items';
+import type { CreateItemInput, Item, UpdateItemInput } from '~/types/item';
+import { ItemFormDialog } from './ItemFormDialog';
 
 export function ItemsList() {
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -22,7 +39,7 @@ export function ItemsList() {
   const deleteItem = useDeleteItem();
 
   const getCategoryName = (categoryId: string) => {
-    return categories.find((cat) => cat.id === categoryId)?.name || "-";
+    return categories.find((cat) => cat.id === categoryId)?.name || '-';
   };
 
   const handleOpenDialog = (item?: Item) => {
@@ -53,17 +70,17 @@ export function ItemsList() {
 
       handleCloseDialog();
     } catch (error) {
-      console.error("Error saving item:", error);
+      console.error('Error saving item:', error);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm("Tem certeza que deseja deletar este item?")) {
+    if (confirm('Tem certeza que deseja deletar este item?')) {
       try {
         setDeletingId(id);
         await deleteItem.mutateAsync(id);
       } catch (error) {
-        console.error("Error deleting item:", error);
+        console.error('Error deleting item:', error);
       } finally {
         setDeletingId(null);
       }
@@ -77,7 +94,7 @@ export function ItemsList() {
           <div>
             <CardTitle className="text-xl">Gerenciar Itens</CardTitle>
             <CardDescription className="text-sm text-muted-foreground">
-              Total de {items.length} item{items.length !== 1 ? "ns" : ""}
+              Total de {items.length} item{items.length !== 1 ? 'ns' : ''}
             </CardDescription>
           </div>
 
@@ -109,8 +126,12 @@ export function ItemsList() {
             </div>
           ) : items.length === 0 ? (
             <div className="py-12 text-center text-muted-foreground">
-              <div className="mb-2 text-lg font-semibold">Nenhum item encontrado</div>
-              <div>Clique em "Novo Item" para adicionar produtos ao seu estoque.</div>
+              <div className="mb-2 text-lg font-semibold">
+                Nenhum item encontrado
+              </div>
+              <div>
+                Clique em "Novo Item" para adicionar produtos ao seu estoque.
+              </div>
             </div>
           ) : (
             <div className="overflow-hidden rounded-2xl border border-border/80 bg-card/70 shadow-sm backdrop-blur-sm">
@@ -129,13 +150,25 @@ export function ItemsList() {
                   {items.map((item, index) => (
                     <TableRow
                       key={item.id}
-                      className={index % 2 === 0 ? "bg-background/30" : "bg-muted/10 hover:bg-muted/20"}
+                      className={
+                        index % 2 === 0
+                          ? 'bg-background/30'
+                          : 'bg-muted/10 hover:bg-muted/20'
+                      }
                     >
                       <TableCell className="font-medium">{item.name}</TableCell>
-                      <TableCell className="text-sm">{getCategoryName(item.categoryId)}</TableCell>
-                      <TableCell className="text-right">{item.totalQuantity}</TableCell>
-                      <TableCell className="text-right">{item.availableQuantity}</TableCell>
-                      <TableCell className="text-right">R$ {item.unitCost}</TableCell>
+                      <TableCell className="text-sm">
+                        {getCategoryName(item.categoryId)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {item.totalQuantity}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {item.availableQuantity}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        R$ {item.unitCost}
+                      </TableCell>
                       <TableCell>
                         <div className="flex justify-center gap-2">
                           <Button

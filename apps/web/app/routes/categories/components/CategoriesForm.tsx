@@ -1,23 +1,28 @@
-import { useState } from "react";
-import { FormProvider, useForm } from "react-hook-form";
-import { InputForm } from "~/components/Form/InputForm";
-import { Button } from "~/components/ui/button";
-import { Loader2 } from "lucide-react";
-import { useCreateCategory, useUpdateCategory } from "~/services/tanStackQuery/Itens/categories";
-import type { Category } from "~/types/category";
-
+import { useState } from 'react';
+import { FormProvider, useForm } from 'react-hook-form';
+import { InputForm } from '~/components/Form/InputForm';
+import { Button } from '~/components/ui/button';
+import { Loader2 } from 'lucide-react';
+import {
+  useCreateCategory,
+  useUpdateCategory,
+} from '~/services/tanStackQuery/Itens/categories';
+import type { Category } from '~/types/category';
 
 interface CategoriesFormProps {
   category?: Category | null;
   onSubmitSuccess?: () => void;
 }
 
-export function CategoriesForm({ category, onSubmitSuccess }: CategoriesFormProps) {
+export function CategoriesForm({
+  category,
+  onSubmitSuccess,
+}: CategoriesFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const form = useForm({
     defaultValues: {
-      name: category?.name || "",
-      description: category?.description || "",
+      name: category?.name || '',
+      description: category?.description || '',
     },
   });
 
@@ -66,7 +71,7 @@ export function CategoriesForm({ category, onSubmitSuccess }: CategoriesFormProp
           disabled={isSubmitting}
         >
           {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {category ? "Atualizar Categoria" : "Criar Categoria"}
+          {category ? 'Atualizar Categoria' : 'Criar Categoria'}
         </Button>
       </form>
     </FormProvider>

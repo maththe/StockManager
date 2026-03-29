@@ -1,13 +1,19 @@
-import { useEffect } from "react";
-import { FormProvider, useForm } from "react-hook-form";
-import { Loader2 } from "lucide-react";
-import { InputForm } from "~/components/Form/InputForm";
-import { SelectForm } from "~/components/Form/SelectForm";
-import { Button } from "~/components/ui/button";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "~/components/ui/dialog";
-import { Label } from "~/components/ui/label";
-import { useCategories } from "~/services/tanStackQuery/Itens/categories";
-import type { CreateItemInput, Item, UpdateItemInput } from "~/types/item";
+import { useEffect } from 'react';
+import { FormProvider, useForm } from 'react-hook-form';
+import { Loader2 } from 'lucide-react';
+import { InputForm } from '~/components/Form/InputForm';
+import { SelectForm } from '~/components/Form/SelectForm';
+import { Button } from '~/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '~/components/ui/dialog';
+import { Label } from '~/components/ui/label';
+import { useCategories } from '~/services/tanStackQuery/Itens/categories';
+import type { CreateItemInput, Item, UpdateItemInput } from '~/types/item';
 
 interface ItemFormDialogProps {
   open: boolean;
@@ -18,22 +24,25 @@ interface ItemFormDialogProps {
   isLoading?: boolean;
 }
 
-function getDefaultValues(item?: Item | null, initialCategoryId?: string | null) {
+function getDefaultValues(
+  item?: Item | null,
+  initialCategoryId?: string | null,
+) {
   return item
     ? {
-      name: item.name,
-      totalQuantity: item.totalQuantity,
-      availableQuantity: item.availableQuantity,
-      unitCost: item.unitCost,
-      categoryId: item.categoryId,
-    }
+        name: item.name,
+        totalQuantity: item.totalQuantity,
+        availableQuantity: item.availableQuantity,
+        unitCost: item.unitCost,
+        categoryId: item.categoryId,
+      }
     : {
-      name: "",
-      totalQuantity: 0,
-      availableQuantity: 0,
-      unitCost: 0,
-      categoryId: initialCategoryId ?? "",
-    };
+        name: '',
+        totalQuantity: 0,
+        availableQuantity: 0,
+        unitCost: 0,
+        categoryId: initialCategoryId ?? '',
+      };
 }
 
 export function ItemFormDialog({
@@ -64,20 +73,19 @@ export function ItemFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md rounded-2xl bg-card/75 backdrop-blur-md dark:bg-card/60">
+      <DialogContent className="max-w-lg rounded-2xl bg-card/75 backdrop-blur-md dark:bg-card/60">
         <DialogHeader>
-          <DialogTitle>{item ? "Editar Item" : "Novo Item"}</DialogTitle>
+          <DialogTitle>{item ? 'Editar Item' : 'Novo Item'}</DialogTitle>
         </DialogHeader>
 
         <FormProvider {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 px-4 py-2">
+          <form
+            onSubmit={form.handleSubmit(handleSubmit)}
+            className="space-y-4 px-4 py-2"
+          >
             <div className="grid gap-2">
               <Label htmlFor="name">Nome do Item</Label>
-              <InputForm
-                name="name"
-                placeholder="Nome do item"
-                required
-              />
+              <InputForm name="name" placeholder="Nome do item" required />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -143,7 +151,7 @@ export function ItemFormDialog({
                 disabled={isLoading}
               >
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {item ? "Atualizar" : "Criar"}
+                {item ? 'Atualizar' : 'Criar'}
               </Button>
             </DialogFooter>
           </form>

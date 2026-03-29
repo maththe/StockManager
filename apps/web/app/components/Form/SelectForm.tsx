@@ -1,12 +1,12 @@
-import { useFormContext } from "react-hook-form";
-import { Label } from "~/components/ui/label";
+import { useFormContext } from 'react-hook-form';
+import { Label } from '~/components/ui/label';
 
 export function SelectForm({
   label,
   name,
   id,
   options = [],
-  placeholder = "Selecione...",
+  placeholder = 'Selecione...',
   ...props
 }: any) {
   const { register } = useFormContext();
@@ -21,7 +21,7 @@ export function SelectForm({
         {...props}
         className="border rounded-md px-3 py-2 bg-gray-50/50 dark:bg-gray-900/50"
       >
-          <option value="">{placeholder}</option>
+        <option value="">{placeholder}</option>
 
         {options.map((option: any) => (
           <option key={option.value} value={option.value}>

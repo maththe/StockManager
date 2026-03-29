@@ -1,17 +1,35 @@
-import { useDeferredValue, useMemo, useState } from "react";
-import { Edit2, Loader2, Plus, Trash2 } from "lucide-react";
-import { Button } from "~/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "~/components/ui/table";
-import { matchesSearch } from "~/lib/search";
-import { useCreateUser, useDeleteUser, useUpdateUser, useUsers } from "~/services/tanStackQuery/users";
-import type { CreateUserInput, UpdateUserInput, User } from "~/types/user";
-import { UserFormDialog } from "./UserFormDialog";
+import { useDeferredValue, useMemo, useState } from 'react';
+import { Edit2, Loader2, Plus, Trash2 } from 'lucide-react';
+import { Button } from '~/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '~/components/ui/card';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '~/components/ui/table';
+import { matchesSearch } from '~/lib/search';
+import {
+  useCreateUser,
+  useDeleteUser,
+  useUpdateUser,
+  useUsers,
+} from '~/services/tanStackQuery/users';
+import type { CreateUserInput, UpdateUserInput, User } from '~/types/user';
+import { UserFormDialog } from './UserFormDialog';
 
 export function UsersList() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const deferredSearch = useDeferredValue(search);
   const normalizedSearch = deferredSearch.trim() || undefined;
@@ -22,7 +40,9 @@ export function UsersList() {
   const deleteUser = useDeleteUser();
   const filteredUsers = useMemo(
     () =>
-      users.filter((user) => matchesSearch([user.name, user.email], normalizedSearch)),
+      users.filter((user) =>
+        matchesSearch([user.name, user.email], normalizedSearch),
+      ),
     [normalizedSearch, users],
   );
 
@@ -50,7 +70,7 @@ export function UsersList() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Tem certeza que deseja excluir este usuario?")) {
+    if (!confirm('Tem certeza que deseja excluir este usuario?')) {
       return;
     }
 
@@ -69,7 +89,9 @@ export function UsersList() {
           <div>
             <CardTitle className="text-xl">Usuarios</CardTitle>
             <CardDescription>
-              {filteredUsers.length} usuario{filteredUsers.length !== 1 ? "s" : ""} listado{filteredUsers.length !== 1 ? "s" : ""}
+              {filteredUsers.length} usuario
+              {filteredUsers.length !== 1 ? 's' : ''} listado
+              {filteredUsers.length !== 1 ? 's' : ''}
             </CardDescription>
           </div>
 
@@ -82,7 +104,10 @@ export function UsersList() {
               className="w-72 rounded-lg border border-input bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-ring/30"
             />
 
-            <Button onClick={() => handleOpenDialog()} className="bg-gradient-to-r from-primary to-secondary text-white shadow-sm">
+            <Button
+              onClick={() => handleOpenDialog()}
+              className="bg-gradient-to-r from-primary to-secondary text-white shadow-sm"
+            >
               <Plus className="mr-2 h-4 w-4" />
               Novo Usuario
             </Button>
@@ -96,7 +121,9 @@ export function UsersList() {
             </div>
           ) : filteredUsers.length === 0 ? (
             <div className="rounded-3xl border border-dashed border-border bg-card/70 px-6 py-14 text-center backdrop-blur-sm">
-              <div className="text-lg font-semibold">Nenhum usuario encontrado</div>
+              <div className="text-lg font-semibold">
+                Nenhum usuario encontrado
+              </div>
               <div className="mt-2 text-sm text-muted-foreground">
                 Cadastre um novo usuario ou ajuste o filtro de pesquisa.
               </div>
@@ -113,12 +140,23 @@ export function UsersList() {
                 </TableHeader>
                 <TableBody>
                   {filteredUsers.map((user, index) => (
-                    <TableRow key={user.id} className={index % 2 === 0 ? "bg-background/30" : "bg-muted/10 hover:bg-muted/20"}>
+                    <TableRow
+                      key={user.id}
+                      className={
+                        index % 2 === 0
+                          ? 'bg-background/30'
+                          : 'bg-muted/10 hover:bg-muted/20'
+                      }
+                    >
                       <TableCell className="font-medium">{user.name}</TableCell>
                       <TableCell>{user.email}</TableCell>
                       <TableCell>
                         <div className="flex justify-center gap-2">
-                          <Button variant="ghost" size="sm" onClick={() => handleOpenDialog(user)}>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleOpenDialog(user)}
+                          >
                             <Edit2 className="h-4 w-4" />
                           </Button>
                           <Button
@@ -128,7 +166,11 @@ export function UsersList() {
                             onClick={() => handleDelete(user.id)}
                             disabled={deletingId === user.id}
                           >
-                            {deletingId === user.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                            {deletingId === user.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-4 w-4" />
+                            )}
                           </Button>
                         </div>
                       </TableCell>

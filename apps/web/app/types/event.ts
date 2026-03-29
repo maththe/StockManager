@@ -1,4 +1,8 @@
-export type EventStatus = "PLANNING" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
+export type EventStatus =
+  | 'PLANNING'
+  | 'IN_PROGRESS'
+  | 'COMPLETED'
+  | 'CANCELLED';
 
 export interface EventClient {
   id: string;

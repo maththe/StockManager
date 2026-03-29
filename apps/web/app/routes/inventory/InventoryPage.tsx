@@ -1,20 +1,32 @@
-import { useState } from "react";
-import { Package, Plus, Trash2, Edit2, Loader2 } from "lucide-react";
-import { useNavigate } from "react-router";
-import { Button } from "~/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
-import { useCategories, useDeleteCategory } from "~/services/tanStackQuery/Itens/categories";
-import { useItems } from "~/services/tanStackQuery/Itens/items";
-import type { Category } from "~/types/category";
-import { CategoriesDialog } from "~/routes/categories/components/CategoriesDialog";
+import { useState } from 'react';
+import { Package, Plus, Trash2, Edit2, Loader2 } from 'lucide-react';
+import { useNavigate } from 'react-router';
+import { Button } from '~/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '~/components/ui/card';
+import {
+  useCategories,
+  useDeleteCategory,
+} from '~/services/tanStackQuery/Itens/categories';
+import { useItems } from '~/services/tanStackQuery/Itens/items';
+import type { Category } from '~/types/category';
+import { CategoriesDialog } from '~/routes/categories/components/CategoriesDialog';
 
 export default function InventoryPage() {
   const navigate = useNavigate();
-  const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<Category | null>(
+    null,
+  );
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const { data: categories = [], isLoading: categoriesLoading } = useCategories();
+  const { data: categories = [], isLoading: categoriesLoading } =
+    useCategories();
   const { data: items = [] } = useItems();
   const deleteCategory = useDeleteCategory();
 
@@ -26,7 +38,7 @@ export default function InventoryPage() {
       acc[item.categoryId].push(item);
       return acc;
     },
-    {} as Record<string, typeof items>
+    {} as Record<string, typeof items>,
   );
 
   const handleOpenDialog = (category?: Category) => {
@@ -45,8 +57,8 @@ export default function InventoryPage() {
 
   const handleDelete = async (categoryId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    
-    if (!confirm("Tem certeza que deseja excluir esta categoria?")) {
+
+    if (!confirm('Tem certeza que deseja excluir esta categoria?')) {
       return;
     }
 
@@ -54,7 +66,7 @@ export default function InventoryPage() {
       setDeletingId(categoryId);
       await deleteCategory.mutateAsync(categoryId);
     } catch (error) {
-      console.error("Error deleting category:", error);
+      console.error('Error deleting category:', error);
     } finally {
       setDeletingId(null);
     }
@@ -107,7 +119,10 @@ export default function InventoryPage() {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {categories.map((category) => {
             const categoryItems = itemsByCategory[category.id] || [];
-            const totalQuantity = categoryItems.reduce((sum, item) => sum + item.availableQuantity, 0);
+            const totalQuantity = categoryItems.reduce(
+              (sum, item) => sum + item.availableQuantity,
+              0,
+            );
 
             return (
               <Card
@@ -159,10 +174,14 @@ export default function InventoryPage() {
                   <div className="grid grid-cols-2 gap-2">
                     <div className="rounded-lg bg-muted/50 p-3">
                       <p className="text-xs text-muted-foreground">Itens</p>
-                      <p className="text-xl font-semibold">{categoryItems.length}</p>
+                      <p className="text-xl font-semibold">
+                        {categoryItems.length}
+                      </p>
                     </div>
                     <div className="rounded-lg bg-muted/50 p-3">
-                      <p className="text-xs text-muted-foreground">Disponíveis</p>
+                      <p className="text-xs text-muted-foreground">
+                        Disponíveis
+                      </p>
                       <p className="text-xl font-semibold">{totalQuantity}</p>
                     </div>
                   </div>
@@ -173,7 +192,11 @@ export default function InventoryPage() {
         </div>
       )}
 
-      <CategoriesDialog isOpen={dialogOpen} onClose={handleCloseDialog} category={selectedCategory} />
+      <CategoriesDialog
+        isOpen={dialogOpen}
+        onClose={handleCloseDialog}
+        category={selectedCategory}
+      />
     </div>
   );
 }

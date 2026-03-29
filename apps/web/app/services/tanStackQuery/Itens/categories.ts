@@ -3,7 +3,6 @@ import { api } from '~/services/axios/api';
 import { queryClient } from '../queryClient';
 import { mutationError, mutationSuccess } from '../mutationToast';
 
-
 export interface Category {
   id: string;
   name: string;
@@ -35,7 +34,9 @@ export const useCategory = (id: string) => {
 };
 export const useCreateCategory = () => {
   return useMutation({
-    mutationFn: async (payload: Omit<Category, 'id' | 'createdAt' | 'updatedAt'>) => {
+    mutationFn: async (
+      payload: Omit<Category, 'id' | 'createdAt' | 'updatedAt'>,
+    ) => {
       const response = await api.post<Category>('/categories', payload);
       return response.data;
     },
@@ -49,7 +50,13 @@ export const useCreateCategory = () => {
 
 export const useUpdateCategory = () => {
   return useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: Omit<Category, 'id' | 'createdAt' | 'updatedAt'> }) => {
+    mutationFn: async ({
+      id,
+      data,
+    }: {
+      id: string;
+      data: Omit<Category, 'id' | 'createdAt' | 'updatedAt'>;
+    }) => {
       const response = await api.patch<Category>(`/categories/${id}`, data);
       return response.data;
     },

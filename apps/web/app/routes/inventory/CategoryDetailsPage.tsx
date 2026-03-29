@@ -1,13 +1,34 @@
-import { ArrowLeft, Edit2, Loader2, Plus, Trash2 } from "lucide-react";
-import { useState } from "react";
-import { useNavigate, useParams } from "react-router";
-import { Button } from "~/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "~/components/ui/table";
-import { useCategories, useDeleteCategory } from "~/services/tanStackQuery/Itens/categories";
-import { useCreateItem, useDeleteItem, useItems, useUpdateItem } from "~/services/tanStackQuery/Itens/items";
-import type { CreateItemInput, Item, UpdateItemInput } from "~/types/item";
-import { ItemFormDialog } from "~/routes/items/components/ItemFormDialog";
+import { ArrowLeft, Edit2, Loader2, Plus, Trash2 } from 'lucide-react';
+import { useState } from 'react';
+import { useNavigate, useParams } from 'react-router';
+import { Button } from '~/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '~/components/ui/card';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '~/components/ui/table';
+import {
+  useCategories,
+  useDeleteCategory,
+} from '~/services/tanStackQuery/Itens/categories';
+import {
+  useCreateItem,
+  useDeleteItem,
+  useItems,
+  useUpdateItem,
+} from '~/services/tanStackQuery/Itens/items';
+import type { CreateItemInput, Item, UpdateItemInput } from '~/types/item';
+import { ItemFormDialog } from '~/routes/items/components/ItemFormDialog';
 
 export default function CategoryDetailsPage() {
   const navigate = useNavigate();
@@ -15,7 +36,7 @@ export default function CategoryDetailsPage() {
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState('');
 
   const { data: categories = [] } = useCategories();
   const { data: items = [], isLoading } = useItems();
@@ -28,8 +49,8 @@ export default function CategoryDetailsPage() {
 
   const filteredItems = categoryItems.filter((item) =>
     [item.name].some((value) =>
-      value.toLowerCase().includes(search.trim().toLowerCase())
-    )
+      value.toLowerCase().includes(search.trim().toLowerCase()),
+    ),
   );
 
   const handleOpenDialog = (item?: Item) => {
@@ -58,17 +79,17 @@ export default function CategoryDetailsPage() {
       }
       handleCloseDialog();
     } catch (error) {
-      console.error("Error saving item:", error);
+      console.error('Error saving item:', error);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm("Tem certeza que deseja deletar este item?")) {
+    if (confirm('Tem certeza que deseja deletar este item?')) {
       try {
         setDeletingId(id);
         await deleteItem.mutateAsync(id);
       } catch (error) {
-        console.error("Error deleting item:", error);
+        console.error('Error deleting item:', error);
       } finally {
         setDeletingId(null);
       }
@@ -78,7 +99,10 @@ export default function CategoryDetailsPage() {
   if (!category) {
     return (
       <div className="space-y-4">
-        <Button variant="outline" onClick={() => navigate("/dashboard/inventory")}>
+        <Button
+          variant="outline"
+          onClick={() => navigate('/dashboard/inventory')}
+        >
           <ArrowLeft className="mr-2 h-4 w-4" />
           Voltar
         </Button>
@@ -94,13 +118,18 @@ export default function CategoryDetailsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Button variant="outline" onClick={() => navigate("/dashboard/inventory")}>
+          <Button
+            variant="outline"
+            onClick={() => navigate('/dashboard/inventory')}
+          >
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
             <h1 className="text-2xl font-bold">{category.name}</h1>
             {category.description && (
-              <p className="text-sm text-muted-foreground">{category.description}</p>
+              <p className="text-sm text-muted-foreground">
+                {category.description}
+              </p>
             )}
           </div>
         </div>
@@ -118,7 +147,9 @@ export default function CategoryDetailsPage() {
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total de Itens</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Total de Itens
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold">{categoryItems.length}</p>
@@ -127,24 +158,36 @@ export default function CategoryDetailsPage() {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Quantidade Disponível</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Quantidade Disponível
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold">
-              {categoryItems.reduce((sum, item) => sum + item.availableQuantity, 0)}
+              {categoryItems.reduce(
+                (sum, item) => sum + item.availableQuantity,
+                0,
+              )}
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Valor em Estoque</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Valor em Estoque
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold">
-              R$ {(
-                categoryItems.reduce((sum, item) => sum + item.availableQuantity * Number(item.unitCost), 0)
-              ).toFixed(2)}
+              R${' '}
+              {categoryItems
+                .reduce(
+                  (sum, item) =>
+                    sum + item.availableQuantity * Number(item.unitCost),
+                  0,
+                )
+                .toFixed(2)}
             </p>
           </CardContent>
         </Card>
@@ -157,7 +200,8 @@ export default function CategoryDetailsPage() {
             <div>
               <CardTitle>Itens</CardTitle>
               <CardDescription>
-                {categoryItems.length} item{categoryItems.length !== 1 ? "ns" : ""}
+                {categoryItems.length} item
+                {categoryItems.length !== 1 ? 'ns' : ''}
               </CardDescription>
             </div>
 
@@ -180,7 +224,9 @@ export default function CategoryDetailsPage() {
             </div>
           ) : categoryItems.length === 0 ? (
             <div className="py-12 text-center text-muted-foreground">
-              <div className="mb-2 text-lg font-semibold">Nenhum item nesta categoria</div>
+              <div className="mb-2 text-lg font-semibold">
+                Nenhum item nesta categoria
+              </div>
               <div>Clique em "Novo Item" para adicionar um item.</div>
             </div>
           ) : (
@@ -200,14 +246,27 @@ export default function CategoryDetailsPage() {
                   {filteredItems.map((item, index) => (
                     <TableRow
                       key={item.id}
-                      className={index % 2 === 0 ? "bg-background/30" : "bg-muted/10 hover:bg-muted/20"}
+                      className={
+                        index % 2 === 0
+                          ? 'bg-background/30'
+                          : 'bg-muted/10 hover:bg-muted/20'
+                      }
                     >
                       <TableCell className="font-medium">{item.name}</TableCell>
-                      <TableCell className="text-right">{item.totalQuantity}</TableCell>
-                      <TableCell className="text-right">{item.availableQuantity}</TableCell>
-                      <TableCell className="text-right">R$ {Number(item.unitCost).toFixed(2)}</TableCell>
+                      <TableCell className="text-right">
+                        {item.totalQuantity}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {item.availableQuantity}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        R$ {Number(item.unitCost).toFixed(2)}
+                      </TableCell>
                       <TableCell className="text-right font-semibold">
-                        R$ {(item.availableQuantity * Number(item.unitCost)).toFixed(2)}
+                        R${' '}
+                        {(
+                          item.availableQuantity * Number(item.unitCost)
+                        ).toFixed(2)}
                       </TableCell>
                       <TableCell>
                         <div className="flex justify-center gap-2">

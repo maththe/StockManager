@@ -1,19 +1,39 @@
-import { useState } from "react";
-import { Edit2, Loader2, Plus, Trash2 } from "lucide-react";
-import { Button } from "~/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "~/components/ui/table";
-import { useCategories, useDeleteCategory } from "~/services/tanStackQuery/Itens/categories";
-import { CategoriesDialog } from "./CategoriesDialog";
-import type { Category } from "~/types/category";
+import { useState } from 'react';
+import { Edit2, Loader2, Plus, Trash2 } from 'lucide-react';
+import { Button } from '~/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '~/components/ui/card';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '~/components/ui/table';
+import {
+  useCategories,
+  useDeleteCategory,
+} from '~/services/tanStackQuery/Itens/categories';
+import { CategoriesDialog } from './CategoriesDialog';
+import type { Category } from '~/types/category';
 
 export function CategoriesList() {
-  const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<Category | null>(
+    null,
+  );
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState('');
 
-  const { data: categories = [], isLoading } = useCategories(search || undefined);
+  const { data: categories = [], isLoading } = useCategories(
+    search || undefined,
+  );
   const deleteCategory = useDeleteCategory();
 
   const handleOpenDialog = (category?: Category) => {
@@ -31,7 +51,7 @@ export function CategoriesList() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Tem certeza que deseja excluir esta categoria?")) {
+    if (!confirm('Tem certeza que deseja excluir esta categoria?')) {
       return;
     }
 
@@ -39,7 +59,7 @@ export function CategoriesList() {
       setDeletingId(id);
       await deleteCategory.mutateAsync(id);
     } catch (error) {
-      console.error("Error deleting category:", error);
+      console.error('Error deleting category:', error);
     } finally {
       setDeletingId(null);
     }
@@ -52,7 +72,8 @@ export function CategoriesList() {
           <div>
             <CardTitle className="text-xl">Gerenciar Categorias</CardTitle>
             <CardDescription className="text-sm text-muted-foreground">
-              Total de {categories.length} categor{categories.length !== 1 ? "ias" : "ia"}
+              Total de {categories.length} categor
+              {categories.length !== 1 ? 'ias' : 'ia'}
             </CardDescription>
           </div>
 
@@ -84,8 +105,12 @@ export function CategoriesList() {
             </div>
           ) : categories.length === 0 ? (
             <div className="py-12 text-center text-muted-foreground">
-              <div className="mb-2 text-lg font-semibold">Nenhuma categoria encontrada</div>
-              <div>Clique em "Nova Categoria" para começar a organizar seus itens.</div>
+              <div className="mb-2 text-lg font-semibold">
+                Nenhuma categoria encontrada
+              </div>
+              <div>
+                Clique em "Nova Categoria" para começar a organizar seus itens.
+              </div>
             </div>
           ) : (
             <div className="overflow-hidden rounded-2xl border border-border/80 bg-card/70 shadow-sm backdrop-blur-sm">
@@ -101,11 +126,17 @@ export function CategoriesList() {
                   {categories.map((category, index) => (
                     <TableRow
                       key={category.id}
-                      className={index % 2 === 0 ? "bg-background/30" : "bg-muted/10 hover:bg-muted/20"}
+                      className={
+                        index % 2 === 0
+                          ? 'bg-background/30'
+                          : 'bg-muted/10 hover:bg-muted/20'
+                      }
                     >
-                      <TableCell className="font-semibold">{category.name}</TableCell>
+                      <TableCell className="font-semibold">
+                        {category.name}
+                      </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
-                        {category.description || "-"}
+                        {category.description || '-'}
                       </TableCell>
                       <TableCell>
                         <div className="flex justify-center gap-2">

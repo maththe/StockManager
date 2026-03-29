@@ -1,38 +1,63 @@
-import { useMemo, useState } from "react";
-import { Ban, Boxes, CalendarDays, Edit2, Loader2, MapPin, Plus, Trash2, Warehouse } from "lucide-react";
-import { Link, useNavigate } from "react-router";
-import { Button } from "~/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
-import { useClients, useCreateClient } from "~/services/tanStackQuery/clients";
-import { useCancelEvent, useCreateEvent, useDeleteEvent, useEvents, useUpdateEvent } from "~/services/tanStackQuery/events";
-import type { Event } from "~/types/event";
-import { ClientFormDialog } from "./ClientFormDialog";
-import { EventFormDialog } from "./EventFormDialog";
-import { EventItemsDialog } from "./EventItemsDialog";
+import { useMemo, useState } from 'react';
+import {
+  Ban,
+  Boxes,
+  CalendarDays,
+  Edit2,
+  Loader2,
+  MapPin,
+  Plus,
+  Trash2,
+  Warehouse,
+} from 'lucide-react';
+import { useNavigate } from 'react-router';
+import { Button } from '~/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '~/components/ui/card';
+import { useClients, useCreateClient } from '~/services/tanStackQuery/clients';
+import {
+  useCancelEvent,
+  useCreateEvent,
+  useDeleteEvent,
+  useEvents,
+  useUpdateEvent,
+} from '~/services/tanStackQuery/events';
+import type { Event } from '~/types/event';
+import { ClientFormDialog } from './ClientFormDialog';
+import { EventFormDialog } from './EventFormDialog';
 
 const statusLabel: Record<string, string> = {
-  PLANNING: "Planejamento",
-  IN_PROGRESS: "Em andamento",
-  COMPLETED: "Concluido",
-  CANCELLED: "Cancelado",
+  PLANNING: 'Planejamento',
+  IN_PROGRESS: 'Em andamento',
+  COMPLETED: 'Concluido',
+  CANCELLED: 'Cancelado',
 };
 
 const statusClassName: Record<string, string> = {
-  PLANNING: "bg-secondary/10 text-secondary ring-1 ring-secondary/30 dark:bg-secondary/20 dark:text-secondary",
-  IN_PROGRESS: "bg-primary/10 text-primary ring-1 ring-primary/30 dark:bg-primary/20 dark:text-primary",
-  COMPLETED: "bg-accent/10 text-accent ring-1 ring-accent/30 dark:bg-accent/20 dark:text-accent",
-  CANCELLED: "bg-destructive/10 text-destructive ring-1 ring-destructive/30 dark:bg-destructive/20 dark:text-destructive",
+  PLANNING:
+    'bg-secondary/10 text-secondary ring-1 ring-secondary/30 dark:bg-secondary/20 dark:text-secondary',
+  IN_PROGRESS:
+    'bg-primary/10 text-primary ring-1 ring-primary/30 dark:bg-primary/20 dark:text-primary',
+  COMPLETED:
+    'bg-accent/10 text-accent ring-1 ring-accent/30 dark:bg-accent/20 dark:text-accent',
+  CANCELLED:
+    'bg-destructive/10 text-destructive ring-1 ring-destructive/30 dark:bg-destructive/20 dark:text-destructive',
 };
 
 const statsCardClassName = [
-  "border shadow-sm",
-  "bg-gradient-to-br from-card to-muted/20",
+  'border shadow-sm',
+  'bg-gradient-to-br from-card to-muted/20',
 ];
 
 const formatDate = (value: string) =>
-  new Intl.DateTimeFormat("pt-BR", {
-    dateStyle: "short",
-    timeStyle: "short",
+  new Intl.DateTimeFormat('pt-BR', {
+    dateStyle: 'short',
+    timeStyle: 'short',
   }).format(new Date(value));
 
 export function EventsList() {
@@ -54,8 +79,8 @@ export function EventsList() {
   const stats = useMemo(() => {
     return {
       total: events.length,
-      active: events.filter((event) => event.status === "IN_PROGRESS").length,
-      planning: events.filter((event) => event.status === "PLANNING").length,
+      active: events.filter((event) => event.status === 'IN_PROGRESS').length,
+      planning: events.filter((event) => event.status === 'PLANNING').length,
     };
   }, [events]);
 
@@ -82,9 +107,8 @@ export function EventsList() {
     await createClient.mutateAsync(data);
   };
 
-
   const handleDelete = async (id: string) => {
-    if (!confirm("Tem certeza que deseja deletar este evento?")) {
+    if (!confirm('Tem certeza que deseja deletar este evento?')) {
       return;
     }
 
@@ -97,7 +121,11 @@ export function EventsList() {
   };
 
   const handleCancel = async (id: string) => {
-    if (!confirm("Tem certeza que deseja cancelar este evento? Todos os itens reservados voltarão ao estoque.")) {
+    if (
+      !confirm(
+        'Tem certeza que deseja cancelar este evento? Todos os itens reservados voltarão ao estoque.',
+      )
+    ) {
       return;
     }
 
@@ -112,22 +140,38 @@ export function EventsList() {
   return (
     <div className="space-y-6">
       <div className="grid gap-4 md:grid-cols-3">
-        <Card className={[...statsCardClassName, "border-primary/20"].join(" ")}>
+        <Card
+          className={[...statsCardClassName, 'border-primary/20'].join(' ')}
+        >
           <CardHeader className="pb-2">
-            <CardDescription className="text-primary">Total de eventos</CardDescription>
-            <CardTitle className="text-3xl text-primary">{stats.total}</CardTitle>
+            <CardDescription className="text-primary">
+              Total de eventos
+            </CardDescription>
+            <CardTitle className="text-3xl text-primary">
+              {stats.total}
+            </CardTitle>
           </CardHeader>
         </Card>
-        <Card className={[...statsCardClassName, "border-secondary/20"].join(" ")}>
+        <Card
+          className={[...statsCardClassName, 'border-secondary/20'].join(' ')}
+        >
           <CardHeader className="pb-2">
-            <CardDescription className="text-secondary">Em planejamento</CardDescription>
-            <CardTitle className="text-3xl text-secondary">{stats.planning}</CardTitle>
+            <CardDescription className="text-secondary">
+              Em planejamento
+            </CardDescription>
+            <CardTitle className="text-3xl text-secondary">
+              {stats.planning}
+            </CardTitle>
           </CardHeader>
         </Card>
-        <Card className={[...statsCardClassName, "border-accent/20"].join(" ")}>
+        <Card className={[...statsCardClassName, 'border-accent/20'].join(' ')}>
           <CardHeader className="pb-2">
-            <CardDescription className="text-accent">Em andamento</CardDescription>
-            <CardTitle className="text-3xl text-accent">{stats.active}</CardTitle>
+            <CardDescription className="text-accent">
+              Em andamento
+            </CardDescription>
+            <CardTitle className="text-3xl text-accent">
+              {stats.active}
+            </CardTitle>
           </CardHeader>
         </Card>
       </div>
@@ -139,11 +183,16 @@ export function EventsList() {
               <CalendarDays className="h-5 w-5" />
               Agenda de Eventos
             </CardTitle>
-            <CardDescription>Clique em um evento para abrir a tela com os itens reservados</CardDescription>
+            <CardDescription>
+              Clique em um evento para abrir a tela com os itens reservados
+            </CardDescription>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <Button onClick={() => handleOpenDialog()} className="bg-gradient-to-r from-primary to-secondary text-white shadow-sm">
+            <Button
+              onClick={() => handleOpenDialog()}
+              className="bg-gradient-to-r from-primary to-secondary text-white shadow-sm"
+            >
               <Plus className="mr-2 h-4 w-4" />
               Novo Evento
             </Button>
@@ -157,9 +206,12 @@ export function EventsList() {
             </div>
           ) : events.length === 0 ? (
             <div className="rounded-3xl border border-dashed border-border bg-card/70 px-6 py-14 text-center backdrop-blur-sm">
-              <div className="text-lg font-semibold">Nenhum evento cadastrado</div>
+              <div className="text-lg font-semibold">
+                Nenhum evento cadastrado
+              </div>
               <div className="mt-2 text-sm text-muted-foreground">
-                Crie o primeiro evento e vincule-o a um cliente para comecar a operacao.
+                Crie o primeiro evento e vincule-o a um cliente para comecar a
+                operacao.
               </div>
             </div>
           ) : (
@@ -169,9 +221,11 @@ export function EventsList() {
                   key={event.id}
                   role="button"
                   tabIndex={0}
-                  onClick={() => navigate(`/dashboard/events/${event.id}/items`)}
+                  onClick={() =>
+                    navigate(`/dashboard/events/${event.id}/items`)
+                  }
                   onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
+                    if (e.key === 'Enter' || e.key === ' ') {
                       e.preventDefault();
                       navigate(`/dashboard/events/${event.id}/items`);
                     }
@@ -180,18 +234,25 @@ export function EventsList() {
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0">
-                      <div className="truncate text-lg font-semibold">{event.eventName}</div>
+                      <div className="truncate text-lg font-semibold">
+                        {event.eventName}
+                      </div>
                       <div className="mt-1 text-sm text-muted-foreground">
-                        Cliente: {event.client?.companyName ?? "-"}
+                        Cliente: {event.client?.companyName ?? '-'}
                       </div>
                     </div>
-                    <span className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${statusClassName[event.status]}`}>
+                    <span
+                      className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${statusClassName[event.status]}`}
+                    >
                       {statusLabel[event.status]}
                     </span>
                   </div>
 
                   <div className="mt-5 space-y-2 text-sm text-muted-foreground">
-                    <div>{formatDate(event.startDate)} ate {formatDate(event.endDate)}</div>
+                    <div>
+                      {formatDate(event.startDate)} ate{' '}
+                      {formatDate(event.endDate)}
+                    </div>
                     <div className="flex items-center gap-2">
                       <MapPin className="h-4 w-4" />
                       <span className="truncate">{event.eventLocation}</span>
@@ -208,9 +269,16 @@ export function EventsList() {
                         e.stopPropagation();
                         handleCancel(event.id);
                       }}
-                      disabled={event.status === "CANCELLED" || cancellingId === event.id}
+                      disabled={
+                        event.status === 'CANCELLED' ||
+                        cancellingId === event.id
+                      }
                     >
-                      {cancellingId === event.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Ban className="h-4 w-4" />}
+                      {cancellingId === event.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Ban className="h-4 w-4" />
+                      )}
                     </Button>
                     <Button
                       type="button"
@@ -234,7 +302,11 @@ export function EventsList() {
                       }}
                       disabled={deletingId === event.id}
                     >
-                      {deletingId === event.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                      {deletingId === event.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-4 w-4" />
+                      )}
                     </Button>
                   </div>
                 </div>
@@ -258,7 +330,6 @@ export function EventsList() {
         onSubmit={handleSubmit}
         isLoading={createEvent.isPending || updateEvent.isPending}
       />
-
     </div>
   );
 }
