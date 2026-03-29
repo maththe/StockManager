@@ -19,63 +19,86 @@ interface SelectedItemsSectionProps {
   onRemoveItem: (eventItemId: string) => void;
 }
 
-export function SelectedItemsSection(props: SelectedItemsSectionProps) {
-  const totalItems = props.groupedSelectedItems.reduce(
+export function SelectedItemsSection({
+  groupedSelectedItems,
+  categoryMap,
+  quantityDrafts,
+  savingItemId,
+  removingItemId,
+  isBusy,
+  isLoading,
+  onDraftChange,
+  onStepQuantity,
+  onSaveQuantity,
+  onRemoveItem,
+}: SelectedItemsSectionProps) {
+  const totalItems = groupedSelectedItems.reduce(
     (count, group) => count + group.items.length,
     0,
   );
 
   return (
-    <section className="flex min-h-[420px] flex-col border-b border-border/60 bg-gradient-to-b from-muted/30 via-background to-background xl:min-h-0 xl:border-r xl:border-b-0 dark:from-card/70 dark:via-background dark:to-background">
-      <div className="border-b border-border/60 px-4 py-5 sm:px-6">
-        <div className="flex items-center justify-between gap-3">
+    <section className="flex h-full min-h-0 flex-1 flex-col bg-gradient-to-b from-muted/30 via-background to-background dark:from-card/70 dark:via-background dark:to-background">
+      <header className="border-b border-border/60 px-4 py-4 sm:px-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h3 className="text-lg font-semibold text-foreground">
-              Itens Selecionados
-            </h3>
+            <div className='flex gap-2 items-center'>
+              <h3 className="text-lg font-semibold text-foreground">
+                Itens Selecionados
+
+              </h3>
+              <div className="rounded-full border border-border/70 bg-background px-3 py-1 text-xs font-medium text-muted-foreground shadow-sm">
+                Agrupado por categoria
+              </div>
+            </div>
             <p className="mt-1 text-sm text-muted-foreground">
-              {totalItems}{' '}
-              {totalItems === 1 ? 'item reservado' : 'itens reservados'}
+              {totalItems} {totalItems === 1 ? 'item reservado' : 'itens reservados'}
             </p>
+
           </div>
-          <div className="rounded-full border border-border/70 bg-background px-3 py-1 text-xs font-medium text-muted-foreground">
-            Agrupado por categoria
-          </div>
+
         </div>
-      </div>
-      <div className="flex-1 px-4 py-4 xl:min-h-0 xl:overflow-y-auto">
-        {props.isLoading ? (
-          <div className="flex min-h-[240px] items-center justify-center xl:h-full">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </header>
+
+      <div
+        className="flex-1 overflow-y-auto px-4 py-4 sm:px-6"
+        aria-live="polite"
+      >
+        {isLoading ? (
+          <div
+            className="flex h-full min-h-0 items-center justify-center py-12"
+            aria-busy="true"
+          >
+            <Loader2 className="size-8 animate-spin text-muted-foreground/60" />
           </div>
-        ) : props.groupedSelectedItems.length === 0 ? (
-          <div className="flex min-h-[240px] flex-col items-center justify-center rounded-3xl border border-dashed border-border/70 bg-background/70 px-8 text-center xl:h-full">
-            <div className="mb-4 rounded-2xl bg-primary/10 p-4">
-              <Package className="h-8 w-8 text-primary" />
+        ) : groupedSelectedItems.length === 0 ? (
+          <div className="flex h-full min-h-0 flex-col items-center justify-center rounded-3xl border border-dashed border-border/70 bg-background/70 px-6 py-12 text-center sm:px-10 animate-in fade-in duration-500">
+            <div className="mb-4 rounded-2xl bg-primary/10 p-4 ring-1 ring-primary/20">
+              <Package className="size-8 text-primary" />
             </div>
             <div className="text-lg font-semibold text-foreground">
               Nenhum item selecionado
             </div>
-            <p className="mt-2 max-w-sm text-sm leading-6 text-muted-foreground">
-              Use o catalogo ao lado para localizar o item pela imagem, revisar
+            <p className="mt-2 max-w-prose text-sm leading-6 text-muted-foreground">
+              Use o catálogo ao lado para localizar o item pela imagem, revisar
               o estoque e definir a quantidade antes de adicionar.
             </p>
           </div>
         ) : (
-          <div className="space-y-5">
-            {props.groupedSelectedItems.map((group) => (
+          <div className="space-y-5 animate-in fade-in duration-300">
+            {groupedSelectedItems.map((group) => (
               <SelectedGroup
                 key={group.categoryName}
                 group={group}
-                categoryMap={props.categoryMap}
-                quantityDrafts={props.quantityDrafts}
-                savingItemId={props.savingItemId}
-                removingItemId={props.removingItemId}
-                isBusy={props.isBusy}
-                onDraftChange={props.onDraftChange}
-                onStepQuantity={props.onStepQuantity}
-                onSaveQuantity={props.onSaveQuantity}
-                onRemoveItem={props.onRemoveItem}
+                categoryMap={categoryMap}
+                quantityDrafts={quantityDrafts}
+                savingItemId={savingItemId}
+                removingItemId={removingItemId}
+                isBusy={isBusy}
+                onDraftChange={onDraftChange}
+                onStepQuantity={onStepQuantity}
+                onSaveQuantity={onSaveQuantity}
+                onRemoveItem={onRemoveItem}
               />
             ))}
           </div>

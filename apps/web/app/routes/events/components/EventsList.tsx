@@ -28,7 +28,6 @@ import {
   useUpdateEvent,
 } from '~/services/tanStackQuery/events';
 import type { Event } from '~/types/event';
-import { ClientFormDialog } from './ClientFormDialog';
 import { EventFormDialog } from './EventFormDialog';
 
 const statusLabel: Record<string, string> = {
@@ -101,10 +100,6 @@ export function EventsList() {
       await createEvent.mutateAsync(data);
     }
     handleCloseDialog();
-  };
-
-  const handleCreateClient = async (data: any) => {
-    await createClient.mutateAsync(data);
   };
 
   const handleDelete = async (id: string) => {

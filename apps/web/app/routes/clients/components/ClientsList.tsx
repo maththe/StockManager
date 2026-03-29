@@ -28,7 +28,7 @@ import type {
   CreateClientInput,
   UpdateClientInput,
 } from '~/types/client';
-import { ClientFormDialog } from '~/routes/events/components/ClientFormDialog';
+import { ClientFormDialog } from '~/routes/clients/components/ClientFormDialog';
 
 export function ClientsList() {
   const [dialogOpen, setDialogOpen] = useState(false);

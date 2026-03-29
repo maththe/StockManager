@@ -23,9 +23,9 @@ export function SelectedItemCard(props: SelectedItemCardProps) {
   const { minimum, maximum } = getPlannedQuantityBounds(props.eventItem);
 
   return (
-    <article className="rounded-3xl border border-border/70 bg-background/92 p-3 shadow-sm">
-      <div className="flex gap-3">
-        <div className="h-20 w-20 shrink-0 overflow-hidden rounded-2xl border border-border/60 bg-muted">
+    <article className="rounded-3xl border border-border/70 bg-background/92 p-4 shadow-sm">
+      <div className="flex flex-col gap-4 sm:flex-row">
+        <div className="aspect-square w-full max-w-28 shrink-0 self-start overflow-hidden rounded-2xl border border-border/60 bg-muted">
           <ItemThumbnail
             item={props.eventItem.inventoryItem ?? props.eventItem.item}
             categoryName={props.categoryName}
@@ -56,8 +56,8 @@ export function SelectedItemCard(props: SelectedItemCardProps) {
               )}
             </Button>
           </div>
-          <div className="mt-4 flex flex-wrap items-center gap-2">
-            <div className="flex items-center rounded-2xl border border-border/70 bg-muted/30 p-1">
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+            <div className="flex w-full max-w-xs items-center rounded-2xl border border-border/70 bg-muted/30 p-1">
               <Button
                 type="button"
                 variant="ghost"
@@ -75,7 +75,7 @@ export function SelectedItemCard(props: SelectedItemCardProps) {
                     currentEvent.target.value,
                   )
                 }
-                className="h-9 w-16 border-0 bg-transparent px-2 text-center text-sm font-semibold shadow-none focus-visible:ring-0"
+                className="h-9 min-w-0 flex-1 border-0 bg-transparent px-2 text-center text-sm font-semibold shadow-none focus-visible:ring-0"
               />
               <Button
                 type="button"
@@ -90,7 +90,7 @@ export function SelectedItemCard(props: SelectedItemCardProps) {
             <Button
               type="button"
               size="sm"
-              className="rounded-full bg-foreground text-background hover:bg-foreground/90"
+              className="w-full rounded-full bg-foreground text-background hover:bg-foreground/90 sm:w-auto"
               onClick={() => props.onSaveQuantity(props.eventItem)}
               disabled={
                 !isDirty || Boolean(error) || props.isSaving || props.isBusy

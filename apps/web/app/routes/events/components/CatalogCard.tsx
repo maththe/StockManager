@@ -1,7 +1,5 @@
 import { Plus } from 'lucide-react';
-
 import { Button } from '~/components/ui/button';
-
 import type { EventCatalogItem } from '../utils/utils';
 import { ItemThumbnail } from './ItemThumbnail';
 
@@ -19,8 +17,8 @@ export function CatalogCard({
   isBusy,
 }: CatalogCardProps) {
   return (
-    <article className="group overflow-hidden rounded-[28px] border border-border/70 bg-background shadow-[0_10px_40px_rgba(15,23,42,0.06)] transition hover:-translate-y-1 hover:shadow-[0_18px_50px_rgba(15,23,42,0.12)]">
-      <div className="relative aspect-[4/3] overflow-hidden bg-muted">
+    <article className="group flex h-full flex-col overflow-hidden rounded-3xl border border-border/70 bg-background shadow-[0_10px_40px_rgba(15,23,42,0.06)] transition hover:-translate-y-1 hover:shadow-[0_18px_50px_rgba(15,23,42,0.12)]">
+      <div className="relative aspect-[5/4] overflow-hidden bg-muted">
         <ItemThumbnail
           item={item}
           categoryName={categoryName}
@@ -30,7 +28,7 @@ export function CatalogCard({
           {categoryName}
         </div>
       </div>
-      <div className="flex min-h-[40%] flex-col justify-between gap-4 p-4">
+      <div className="flex flex-1 flex-col justify-between gap-4 p-4">
         <div>
           <h4 className="line-clamp-2 text-base font-semibold text-foreground">
             {item.name}
@@ -44,7 +42,7 @@ export function CatalogCard({
         </div>
         <Button
           type="button"
-          className="h-10 rounded-full bg-gradient-to-r from-primary to-secondary text-white shadow-sm hover:opacity-90"
+          className="w-full rounded-full bg-gradient-to-r from-primary to-secondary text-white shadow-sm hover:opacity-90"
           onClick={() => openQuantityDialog(item)}
           disabled={item.availableQuantity <= 0 || isBusy}
         >
