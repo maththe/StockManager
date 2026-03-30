@@ -127,7 +127,9 @@ export default function CategoryDetailsPage() {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
-            <h1 className="text-3xl font-bold text-foreground">{category.name}</h1>
+            <h1 className="text-3xl font-bold text-foreground">
+              {category.name}
+            </h1>
             {category.description && (
               <p className="text-sm text-muted-foreground mt-1">
                 {category.description}
@@ -154,7 +156,9 @@ export default function CategoryDetailsPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-primary">{categoryItems.length}</p>
+            <p className="text-3xl font-bold text-primary">
+              {categoryItems.length}
+            </p>
           </CardContent>
         </Card>
 
@@ -227,7 +231,9 @@ export default function CategoryDetailsPage() {
               <div className="mb-3 text-lg font-semibold text-foreground">
                 Nenhum item nesta categoria
               </div>
-              <div className="text-muted-foreground">Clique em "Novo Item" para adicionar um item.</div>
+              <div className="text-muted-foreground">
+                Clique em "Novo Item" para adicionar um item.
+              </div>
             </div>
           ) : (
             <div className="overflow-hidden rounded-xl border border-border/50 bg-gradient-to-b from-muted/5 to-background shadow-sm">
@@ -235,11 +241,21 @@ export default function CategoryDetailsPage() {
                 <TableHeader className="bg-muted/30">
                   <TableRow className="hover:bg-muted/30">
                     <TableHead className="font-semibold">Nome</TableHead>
-                    <TableHead className="text-right font-semibold hidden sm:table-cell">Quantidade</TableHead>
-                    <TableHead className="text-right font-semibold hidden md:table-cell">Disponível</TableHead>
-                    <TableHead className="text-right font-semibold hidden lg:table-cell">Custo Unit.</TableHead>
-                    <TableHead className="text-right font-semibold">Subtotal</TableHead>
-                    <TableHead className="text-center font-semibold">Ações</TableHead>
+                    <TableHead className="text-right font-semibold hidden sm:table-cell">
+                      Quantidade
+                    </TableHead>
+                    <TableHead className="text-right font-semibold hidden md:table-cell">
+                      Disponível
+                    </TableHead>
+                    <TableHead className="text-right font-semibold hidden lg:table-cell">
+                      Custo Unit.
+                    </TableHead>
+                    <TableHead className="text-right font-semibold">
+                      Subtotal
+                    </TableHead>
+                    <TableHead className="text-center font-semibold">
+                      Ações
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

@@ -7,7 +7,6 @@ import type { EventCatalogItem } from '../utils/utils';
 import { CatalogCard } from './CatalogCard';
 import { Card } from '~/components/ui/card';
 
-
 interface CatalogSectionProps {
   search: string;
   setSearch: (value: string) => void;
@@ -62,7 +61,7 @@ export function CatalogSection(props: CatalogSectionProps) {
                     'rounded-full border px-4 py-2 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background',
                     isActive
                       ? 'border-foreground bg-foreground text-background shadow-sm'
-                      : 'border-border/70 bg-background text-muted-foreground hover:border-foreground/40 hover:text-foreground'
+                      : 'border-border/70 bg-background text-muted-foreground hover:border-foreground/40 hover:text-foreground',
                   )}
                   onClick={() => props.setActiveCategoryId(category.id)}
                 >
@@ -111,7 +110,9 @@ export function CatalogSection(props: CatalogSectionProps) {
               <CatalogCard
                 key={item.id}
                 item={item}
-                categoryName={props.categoryMap.get(item.categoryId) ?? 'Sem categoria'}
+                categoryName={
+                  props.categoryMap.get(item.categoryId) ?? 'Sem categoria'
+                }
                 openQuantityDialog={props.openQuantityDialog}
                 isBusy={props.isBusy}
               />

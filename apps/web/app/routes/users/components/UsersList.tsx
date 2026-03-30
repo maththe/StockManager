@@ -87,7 +87,9 @@ export function UsersList() {
       <Card className="border border-border/50 bg-card/50 shadow-sm backdrop-blur-sm">
         <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between pb-4">
           <div>
-            <CardTitle className="text-2xl font-bold">Gerenciar Usuários</CardTitle>
+            <CardTitle className="text-2xl font-bold">
+              Gerenciar Usuários
+            </CardTitle>
             <CardDescription className="text-sm text-muted-foreground mt-1">
               Total de {filteredUsers.length} usuário
               {filteredUsers.length !== 1 ? 's' : ''} cadastrado
@@ -136,8 +138,12 @@ export function UsersList() {
                 <TableHeader className="bg-muted/30">
                   <TableRow className="hover:bg-muted/30">
                     <TableHead className="font-semibold">Nome</TableHead>
-                    <TableHead className="font-semibold hidden sm:table-cell">Email</TableHead>
-                    <TableHead className="text-center font-semibold">Ações</TableHead>
+                    <TableHead className="font-semibold hidden sm:table-cell">
+                      Email
+                    </TableHead>
+                    <TableHead className="text-center font-semibold">
+                      Ações
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

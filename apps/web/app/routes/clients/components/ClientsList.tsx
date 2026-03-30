@@ -94,7 +94,9 @@ export function ClientsList() {
       <Card className="border border-border/50 bg-card/50 shadow-sm backdrop-blur-sm">
         <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between pb-4">
           <div>
-            <CardTitle className="text-2xl font-bold">Gerenciar Clientes</CardTitle>
+            <CardTitle className="text-2xl font-bold">
+              Gerenciar Clientes
+            </CardTitle>
             <CardDescription className="text-sm text-muted-foreground mt-1">
               Total de {filteredClients.length} cliente
               {filteredClients.length !== 1 ? 's' : ''} cadastrado
@@ -143,9 +145,15 @@ export function ClientsList() {
                 <TableHeader className="bg-muted/30">
                   <TableRow className="hover:bg-muted/30">
                     <TableHead className="font-semibold">Empresa</TableHead>
-                    <TableHead className="font-semibold hidden sm:table-cell">CNPJ/CPF</TableHead>
-                    <TableHead className="font-semibold hidden md:table-cell">Contato</TableHead>
-                    <TableHead className="text-center font-semibold">Ações</TableHead>
+                    <TableHead className="font-semibold hidden sm:table-cell">
+                      CNPJ/CPF
+                    </TableHead>
+                    <TableHead className="font-semibold hidden md:table-cell">
+                      Contato
+                    </TableHead>
+                    <TableHead className="text-center font-semibold">
+                      Ações
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

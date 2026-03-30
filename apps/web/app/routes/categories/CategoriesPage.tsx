@@ -5,7 +5,9 @@ export default function CategoriesPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-2">
         <h1 className="text-3xl font-bold text-foreground">Categorias</h1>
-        <p className="text-muted-foreground">Gerencie as categorias de produtos do seu inventário</p>
+        <p className="text-muted-foreground">
+          Gerencie as categorias de produtos do seu inventário
+        </p>
       </div>
       <CategoriesList />
     </div>

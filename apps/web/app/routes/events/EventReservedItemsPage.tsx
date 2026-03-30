@@ -38,11 +38,15 @@ export default function EventReservedItemsPage() {
               <ArrowLeft className="h-5 w-5" />
             </Button>
           </Link>
-          <h1 className="text-2xl font-bold text-foreground">Evento não encontrado</h1>
+          <h1 className="text-2xl font-bold text-foreground">
+            Evento não encontrado
+          </h1>
         </div>
         <Card className="border-destructive/30 bg-destructive/10">
           <CardHeader>
-            <CardTitle className="text-destructive">Erro ao carregar evento</CardTitle>
+            <CardTitle className="text-destructive">
+              Erro ao carregar evento
+            </CardTitle>
             <CardDescription>
               O evento solicitado não existe ou não está disponível.
             </CardDescription>

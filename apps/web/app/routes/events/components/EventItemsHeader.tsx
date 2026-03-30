@@ -26,7 +26,10 @@ export function EventItemsHeader({ event }: EventItemsHeaderProps) {
 
             {event?.eventName && (
               <p className="mt-1 text-sm text-muted-foreground">
-                Evento selecionado: <span className="font-medium text-foreground">{event.eventName}</span>
+                Evento selecionado:{' '}
+                <span className="font-medium text-foreground">
+                  {event.eventName}
+                </span>
               </p>
             )}
           </div>

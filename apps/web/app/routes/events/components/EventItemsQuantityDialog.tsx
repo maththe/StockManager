@@ -25,9 +25,7 @@ interface EventItemsQuantityDialogProps {
   onConfirmAdd: () => void;
 }
 
-export function EventItemsQuantityDialog(
-  props: EventItemsQuantityDialogProps,
-) {
+export function EventItemsQuantityDialog(props: EventItemsQuantityDialogProps) {
   return (
     <Dialog open={props.open} onOpenChange={props.onOpenChange}>
       <DialogContent className="max-w-2xl overflow-hidden border border-border/60 bg-background p-0">

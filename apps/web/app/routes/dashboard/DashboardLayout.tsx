@@ -36,10 +36,14 @@ export default function DashboardLayout() {
               className="hidden md:inline-flex hover:bg-muted"
               onClick={() => setIsSidebarOpen((current) => !current)}
               aria-label={
-                isSidebarOpen ? 'Fechar navegacao lateral' : 'Abrir navegacao lateral'
+                isSidebarOpen
+                  ? 'Fechar navegacao lateral'
+                  : 'Abrir navegacao lateral'
               }
               title={
-                isSidebarOpen ? 'Fechar navegacao lateral' : 'Abrir navegacao lateral'
+                isSidebarOpen
+                  ? 'Fechar navegacao lateral'
+                  : 'Abrir navegacao lateral'
               }
             >
               {isSidebarOpen ? (
@@ -52,7 +56,9 @@ export default function DashboardLayout() {
               <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
                 Stock Manager
               </h1>
-              <p className="text-xs text-muted-foreground">Gestão de Inventário</p>
+              <p className="text-xs text-muted-foreground">
+                Gestão de Inventário
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-4">
@@ -60,7 +66,9 @@ export default function DashboardLayout() {
               <span className="text-sm font-medium text-foreground">
                 {currentUser?.name ?? currentUser?.email ?? 'Usuario logado'}
               </span>
-              <span className="text-xs text-muted-foreground">Bem-vindo(a)</span>
+              <span className="text-xs text-muted-foreground">
+                Bem-vindo(a)
+              </span>
             </div>
             <div className="h-8 w-px bg-border hidden sm:block" />
             <ThemeToggle className="h-9 w-9" />
@@ -70,12 +78,14 @@ export default function DashboardLayout() {
 
       <div className="flex w-full">
         <aside
-          className={`sticky top-[73px] hidden h-[calc(100vh-73px)] shrink-0 overflow-hidden border-r bg-card/50 backdrop-blur transition-[width] duration-200 md:block ${isSidebarOpen ? 'w-64' : 'w-0 border-r-0'
-            }`}
+          className={`sticky top-[73px] hidden h-[calc(100vh-73px)] shrink-0 overflow-hidden border-r bg-card/50 backdrop-blur transition-[width] duration-200 md:block ${
+            isSidebarOpen ? 'w-64' : 'w-0 border-r-0'
+          }`}
         >
           <div
-            className={`h-full overflow-y-auto transition-opacity duration-150 ${isSidebarOpen ? 'opacity-100' : 'pointer-events-none opacity-0'
-              }`}
+            className={`h-full overflow-y-auto transition-opacity duration-150 ${
+              isSidebarOpen ? 'opacity-100' : 'pointer-events-none opacity-0'
+            }`}
           >
             <div className="px-6 py-6 text-xs font-bold text-muted-foreground uppercase tracking-wider">
               <div className="flex items-center gap-2">
@@ -90,9 +100,10 @@ export default function DashboardLayout() {
                   key={to}
                   to={to}
                   className={({ isActive }) =>
-                    `flex items-center gap-3 rounded-md px-4 py-3 text-sm font-medium transition-all duration-150 ${isActive
-                      ? 'bg-primary text-primary-foreground shadow-md'
-                      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                    `flex items-center gap-3 rounded-md px-4 py-3 text-sm font-medium transition-all duration-150 ${
+                      isActive
+                        ? 'bg-primary text-primary-foreground shadow-md'
+                        : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                     }`
                   }
                 >

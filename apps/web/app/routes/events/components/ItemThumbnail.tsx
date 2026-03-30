@@ -2,7 +2,6 @@ import { ImageOff } from 'lucide-react';
 import { cn } from '~/lib/utils';
 import { getItemImage, getItemInitials } from '../utils/utils';
 
-
 interface ItemThumbnailProps {
   item: { name: string; imageUrl?: string | null; image?: string | null };
   categoryName: string;

@@ -42,21 +42,19 @@ export function SelectedItemsSection({
       <header className="border-b border-border/60 px-4 py-4 sm:px-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <div className='flex gap-2 items-center'>
+            <div className="flex gap-2 items-center">
               <h3 className="text-lg font-semibold text-foreground">
                 Itens Selecionados
-
               </h3>
               <div className="rounded-full border border-border/70 bg-background px-3 py-1 text-xs font-medium text-muted-foreground shadow-sm">
                 Agrupado por categoria
               </div>
             </div>
             <p className="mt-1 text-sm text-muted-foreground">
-              {totalItems} {totalItems === 1 ? 'item reservado' : 'itens reservados'}
+              {totalItems}{' '}
+              {totalItems === 1 ? 'item reservado' : 'itens reservados'}
             </p>
-
           </div>
-
         </div>
       </header>
 

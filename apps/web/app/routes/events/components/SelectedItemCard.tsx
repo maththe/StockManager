@@ -2,7 +2,11 @@ import { Check, Loader2, Minus, Plus, Trash2 } from 'lucide-react';
 import { Button } from '~/components/ui/button';
 import { Input } from '~/components/ui/input';
 import { ItemThumbnail } from './ItemThumbnail';
-import { type SelectedEventItem, getPlannedQuantityError, getPlannedQuantityBounds } from '../utils/utils';
+import {
+  type SelectedEventItem,
+  getPlannedQuantityError,
+  getPlannedQuantityBounds,
+} from '../utils/utils';
 
 interface SelectedItemCardProps {
   eventItem: SelectedEventItem;

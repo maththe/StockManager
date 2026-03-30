@@ -84,12 +84,18 @@ export default function InventoryPage() {
     <div className="space-y-8">
       <div className="flex flex-col gap-2">
         <h1 className="text-3xl font-bold text-foreground">Inventário</h1>
-        <p className="text-muted-foreground">Gerencie suas categorias e visualize os itens em estoque</p>
+        <p className="text-muted-foreground">
+          Gerencie suas categorias e visualize os itens em estoque
+        </p>
       </div>
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex-1 text-sm text-muted-foreground">
-          Total: <span className="font-semibold text-foreground">{categories.length}</span> categoria{categories.length !== 1 ? 's' : ''}
+          Total:{' '}
+          <span className="font-semibold text-foreground">
+            {categories.length}
+          </span>{' '}
+          categoria{categories.length !== 1 ? 's' : ''}
         </div>
         <Button
           onClick={() => handleOpenDialog()}
@@ -104,7 +110,9 @@ export default function InventoryPage() {
         <Card className="border-2 border-dashed border-border/50 bg-card/50">
           <CardContent className="flex flex-col items-center justify-center py-16">
             <Package className="h-14 w-14 text-muted-foreground/50 mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Nenhuma categoria criada</h3>
+            <h3 className="text-lg font-semibold mb-2">
+              Nenhuma categoria criada
+            </h3>
             <p className="text-sm text-muted-foreground mb-6 text-center max-w-xs">
               Crie sua primeira categoria para começar a organizar seus itens
             </p>
@@ -176,17 +184,25 @@ export default function InventoryPage() {
                 <CardContent className="pt-4 space-y-4">
                   <div className="grid grid-cols-2 gap-3">
                     <div className="rounded-lg bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 p-4 text-center">
-                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Itens</p>
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                        Itens
+                      </p>
                       <p className="text-2xl font-bold text-foreground mt-1">
                         {categoryItems.length}
                       </p>
                     </div>
                     <div className="rounded-lg bg-gradient-to-br from-accent/10 to-accent/5 border border-accent/20 p-4 text-center">
-                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Disponíveis</p>
-                      <p className="text-2xl font-bold text-foreground mt-1">{totalQuantity}</p>
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                        Disponíveis
+                      </p>
+                      <p className="text-2xl font-bold text-foreground mt-1">
+                        {totalQuantity}
+                      </p>
                     </div>
                   </div>
-                  <p className="text-xs text-muted-foreground text-center">Clique para visualizar detalhes</p>
+                  <p className="text-xs text-muted-foreground text-center">
+                    Clique para visualizar detalhes
+                  </p>
                 </CardContent>
               </Card>
             );
