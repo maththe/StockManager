@@ -79,6 +79,7 @@ model Item {
 
   categoryId String
   category   Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  imageUrl   String?  @map("image_url")
 
   eventItems EventItem[]
 
