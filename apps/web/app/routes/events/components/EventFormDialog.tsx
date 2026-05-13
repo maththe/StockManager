@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import { Loader2 } from 'lucide-react';
+import { InputDate } from '~/components/Form/InputDate';
 import { InputForm } from '~/components/Form/InputForm';
 import { SelectForm } from '~/components/Form/SelectForm';
 import { Button } from '~/components/ui/button';
@@ -204,18 +205,8 @@ export function EventFormDialog({
             />
 
             <div className="grid gap-4 md:grid-cols-2">
-              <InputForm
-                name="startDate"
-                label="Início"
-                type="datetime-local"
-                required
-              />
-              <InputForm
-                name="endDate"
-                label="Fim"
-                type="datetime-local"
-                required
-              />
+              <InputDate name="startDate" label="Início" required />
+              <InputDate name="endDate" label="Fim" required />
             </div>
 
             {needsInventoryConfirmation && (
