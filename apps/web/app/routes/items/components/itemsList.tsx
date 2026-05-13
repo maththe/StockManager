@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Edit2, Eye, Loader2, Plus, Trash2 } from 'lucide-react';
 import { Button } from '~/components/ui/button';
 import {
@@ -25,45 +25,68 @@ import {
 } from '~/services/tanStackQuery/Itens/items';
 import type { CreateItemInput, Item, UpdateItemInput } from '~/types/item';
 import { ItemFormDialog } from './ItemFormDialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '~/components/ui/dialog';
 
-export function ItemsList() {
+interface ItemsListProps {
+  categoryId?: string;
+  title?: string;
+  description?: string;
+  searchPlaceholder?: string;
+  emptyTitle?: string;
+  emptyDescription?: string;
+  showCategoryColumn?: boolean;
+  showSubtotalColumn?: boolean;
+  showImageAction?: boolean;
+  cardClassName?: string;
+  tableWrapperClassName?: string;
+}
+
+export function ItemsList({
+  categoryId,
+  title = 'Gerenciar Itens',
+  description,
+  searchPlaceholder = 'Pesquisar itens...',
+  emptyTitle = 'Nenhum item encontrado',
+  emptyDescription = 'Clique em "Novo Item" para adicionar produtos ao seu estoque.',
+  showCategoryColumn = true,
+  showSubtotalColumn = false,
+  showImageAction = true,
+  cardClassName = 'bg-transparent shadow-none',
+  tableWrapperClassName = 'overflow-hidden rounded-2xl border border-border/80 bg-card/70 shadow-sm backdrop-blur-sm',
+}: ItemsListProps) {
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [search, setSearch] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
 
-  const { data: items = [], isLoading } = useItems(search || undefined);
+  const { data: items = [], isLoading } = useItems(search.trim() || undefined);
   const { data: categories = [] } = useCategories();
   const createItem = useCreateItem();
   const updateItem = useUpdateItem();
   const deleteItem = useDeleteItem();
 
-  const getCategoryName = (categoryId: string) => {
-    return categories.find((cat) => cat.id === categoryId)?.name || '-';
+  const scopedItems = categoryId
+    ? items.filter((item) => item.categoryId === categoryId)
+    : items;
+
+  const getCategoryName = (itemCategoryId: string) => {
+    return categories.find((cat) => cat.id === itemCategoryId)?.name || '-';
   };
 
   const handleOpenDialog = (item?: Item) => {
-    if (item) {
-      setSelectedItem(item);
-    } else {
-      setSelectedItem(null);
-    }
-
+    setSelectedItem(item ?? null);
     setDialogOpen(true);
   };
 
-  const handleOpenImg = (url?: any) => {
-    useEffect(() => {
-      if (url) {
-        const img = new Image();
-        img.src = url;
-        const imgWindow = window.open('');
-        if (imgWindow) {
-          imgWindow.document.write(img.outerHTML);
-        }
-      }
-    }, [url]);
-  } 
+  const handleOpenImage = (url?: string | null) => {
+    if (!url) {
+      return;
+    }
+
+    setSelectedImageUrl(url);
+  };
+
   const handleCloseDialog = () => {
     setSelectedItem(null);
     setDialogOpen(false);
@@ -87,26 +110,32 @@ export function ItemsList() {
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm('Tem certeza que deseja deletar este item?')) {
-      try {
-        setDeletingId(id);
-        await deleteItem.mutateAsync(id);
-      } catch (error) {
-        console.error('Error deleting item:', error);
-      } finally {
-        setDeletingId(null);
-      }
+    if (!confirm('Tem certeza que deseja deletar este item?')) {
+      return;
+    }
+
+    try {
+      setDeletingId(id);
+      await deleteItem.mutateAsync(id);
+    } catch (error) {
+      console.error('Error deleting item:', error);
+    } finally {
+      setDeletingId(null);
     }
   };
 
+  const resolvedDescription =
+    description ??
+    `Total de ${scopedItems.length} item${scopedItems.length !== 1 ? 'ns' : ''}`;
+
   return (
     <div className="space-y-6">
-      <Card className="bg-transparent shadow-none">
+      <Card className={cardClassName}>
         <CardHeader className="flex flex-row items-center justify-between gap-4">
           <div>
-            <CardTitle className="text-xl">Gerenciar Itens</CardTitle>
+            <CardTitle className="text-xl">{title}</CardTitle>
             <CardDescription className="text-sm text-muted-foreground">
-              Total de {items.length} item{items.length !== 1 ? 'ns' : ''}
+              {resolvedDescription}
             </CardDescription>
           </div>
 
@@ -116,7 +145,7 @@ export function ItemsList() {
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Pesquisar itens..."
+                placeholder={searchPlaceholder}
                 className="w-64 rounded-lg border border-input bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-ring/30"
               />
             </div>
@@ -136,30 +165,28 @@ export function ItemsList() {
             <div className="flex justify-center py-12">
               <Loader2 className="h-10 w-10 animate-spin text-muted-foreground" />
             </div>
-          ) : items.length === 0 ? (
+          ) : scopedItems.length === 0 ? (
             <div className="py-12 text-center text-muted-foreground">
-              <div className="mb-2 text-lg font-semibold">
-                Nenhum item encontrado
-              </div>
-              <div>
-                Clique em "Novo Item" para adicionar produtos ao seu estoque.
-              </div>
+              <div className="mb-2 text-lg font-semibold">{emptyTitle}</div>
+              <div>{emptyDescription}</div>
             </div>
           ) : (
-            <div className="overflow-hidden rounded-2xl border border-border/80 bg-card/70 shadow-sm backdrop-blur-sm">
+            <div className={tableWrapperClassName}>
               <Table>
                 <TableHeader className="bg-muted/20">
                   <TableRow>
                     <TableHead>Nome</TableHead>
-                    <TableHead>Categoria</TableHead>
                     <TableHead className="text-right">Quantidade</TableHead>
-                    <TableHead className="text-right">Disponível</TableHead>
+                    <TableHead className="text-right">Disponivel</TableHead>
                     <TableHead className="text-right">Custo Unit.</TableHead>
-                    <TableHead className="text-center">Ações</TableHead>
+                    {showSubtotalColumn && (
+                      <TableHead className="text-right">Subtotal</TableHead>
+                    )}
+                    <TableHead className="text-center">Acoes</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {items.map((item, index) => (
+                  {scopedItems.map((item, index) => (
                     <TableRow
                       key={item.id}
                       className={
@@ -169,9 +196,6 @@ export function ItemsList() {
                       }
                     >
                       <TableCell className="font-medium">{item.name}</TableCell>
-                      <TableCell className="text-sm">
-                        {getCategoryName(item.categoryId)}
-                      </TableCell>
                       <TableCell className="text-right">
                         {item.totalQuantity}
                       </TableCell>
@@ -179,8 +203,16 @@ export function ItemsList() {
                         {item.availableQuantity}
                       </TableCell>
                       <TableCell className="text-right">
-                        R$ {item.unitCost}
+                        R$ {Number(item.unitCost).toFixed(2)}
                       </TableCell>
+                      {showSubtotalColumn && (
+                        <TableCell className="text-right">
+                          R${' '}
+                          {(item.availableQuantity * Number(item.unitCost)).toFixed(
+                            2,
+                          )}
+                        </TableCell>
+                      )}
                       <TableCell>
                         <div className="flex justify-center gap-2">
                           <Button
@@ -204,14 +236,16 @@ export function ItemsList() {
                               <Trash2 className="h-4 w-4" />
                             )}
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleOpenImg(item.imageUrl)}
-                            className="hover:bg-muted/50"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
+                          {item.imageUrl && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleOpenImage(item.imageUrl)}
+                              className="hover:bg-muted/50"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -225,15 +259,41 @@ export function ItemsList() {
 
       <ItemFormDialog
         open={dialogOpen}
-        onOpenChange={(open: any) => {
+        onOpenChange={(open) => {
           if (!open) {
             handleCloseDialog();
           }
         }}
         item={selectedItem}
+        initialCategoryId={categoryId}
         onSubmit={handleSubmit}
         isLoading={createItem.isPending || updateItem.isPending}
       />
+
+      <Dialog
+        open={!!selectedImageUrl}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSelectedImageUrl(null);
+          }
+        }}
+      >
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Visualização da imagem</DialogTitle>
+          </DialogHeader>
+
+          {selectedImageUrl && (
+            <div className="flex justify-center">
+              <img
+                src={selectedImageUrl}
+                alt="Imagem selecionada"
+                className="max-h-[80vh] max-w-full rounded-md object-contain"
+              />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
