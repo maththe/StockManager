@@ -15,6 +15,13 @@ enum EventStatus {
   CANCELLED
 }
 
+enum RentalStatus {
+  DRAFT
+  ACTIVE
+  RETURNED
+  CANCELLED
+}
+
 // Define se a divergência foi porque sumiu ou porque quebrou
 enum DivergenceType {
   MISSING
@@ -62,6 +69,7 @@ model Client {
   taxId       String   @unique
   contactName String?
   events      Event[]
+  rentals     Rental[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -83,7 +91,8 @@ model Item {
   thumbnailImageUrl String?  @map("thumbnail_image_url")
   modalImageUrl     String?  @map("modal_image_url")
 
-  eventItems EventItem[]
+  eventItems  EventItem[]
+  rentalItems RentalItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -105,7 +114,7 @@ model Event {
   clientId String
   client   Client @relation(fields: [clientId], references: [id], onDelete: Restrict)
 
-  eventItems EventItem[]
+  eventItems  EventItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -135,6 +144,53 @@ model EventItem {
   @@index([eventId])
   @@index([itemId])
   @@map("event_items")
+}
+
+model Rental {
+  id             String       @id @default(uuid())
+  rentalCode     String
+  startDate      DateTime
+  expectedReturn DateTime
+  returnedAt     DateTime?
+  location       String?
+  notes          String?
+  status         RentalStatus @default(DRAFT)
+  tenantUuid     String
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Restrict)
+
+  rentalItems RentalItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantUuid, rentalCode])
+  @@index([clientId])
+  @@index([tenantUuid])
+  @@map("rentals")
+}
+
+model RentalItem {
+  id               String @id @default(uuid())
+  quantity         Int
+  returnedQuantity Int    @default(0)
+  tenantUuid       String
+
+  rentalId String
+  rental   Rental @relation(fields: [rentalId], references: [id], onDelete: Cascade)
+
+  itemId String
+  item   Item   @relation(fields: [itemId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([rentalId, itemId])
+  @@index([rentalId])
+  @@index([itemId])
+  @@index([tenantUuid])
+  @@map("rental_items")
 }
 
 // NOVA TABELA: Divergências
