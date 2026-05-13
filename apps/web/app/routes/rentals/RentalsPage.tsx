@@ -12,6 +12,7 @@ import {
   Trash2,
 } from 'lucide-react';
 
+import { InputDate } from '~/components/Form/InputDate';
 import { InputForm } from '~/components/Form/InputForm';
 import { SelectForm } from '~/components/Form/SelectForm';
 import { Button } from '~/components/ui/button';
@@ -160,8 +161,8 @@ function RentalFormDialog({
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
-              <InputForm name="startDate" label="Início" type="datetime-local" required />
-              <InputForm name="expectedReturn" label="Devolução prevista" type="datetime-local" required />
+              <InputDate name="startDate" label="Início" required />
+              <InputDate name="expectedReturn" label="Devolução prevista" required />
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
