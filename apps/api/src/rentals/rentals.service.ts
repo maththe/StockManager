@@ -25,6 +25,26 @@ export class RentalsService {
     return { parsedStart, parsedReturn };
   }
 
+  private normalizeQuantity(value: number | undefined, fieldName: string): number {
+    if (typeof value !== 'number' || !Number.isInteger(value) || value <= 0) {
+      throw new BadRequestException(`${fieldName} deve ser um número inteiro maior que zero.`);
+    }
+
+    return value;
+  }
+
+  private normalizeReturnedQuantity(value: number | undefined, fieldName: string): number {
+    const quantity = value ?? 0;
+
+    if (!Number.isInteger(quantity) || quantity < 0) {
+      throw new BadRequestException(
+        `${fieldName} deve ser um número inteiro maior ou igual a zero.`,
+      );
+    }
+
+    return quantity;
+  }
+
   private async ensureClientExists(clientId: string) {
     const client = await this.prisma.client.findUnique({ where: { id: clientId } });
 
@@ -36,7 +56,10 @@ export class RentalsService {
   }
 
   async create(input: CreateRentalInput, tenantUuid: string): Promise<Rental> {
-    const { parsedStart, parsedReturn } = this.parseRentalDates(input.startDate, input.expectedReturn);
+    const { parsedStart, parsedReturn } = this.parseRentalDates(
+      input.startDate,
+      input.expectedReturn,
+    );
     await this.ensureClientExists(input.clientId);
 
     return this.prisma.rental.create({
@@ -68,7 +91,10 @@ export class RentalsService {
 
     return this.prisma.rental.findMany({
       where,
-      include: { client: true, rentalItems: { include: { item: true }, orderBy: { createdAt: 'desc' } } },
+      include: {
+        client: true,
+        rentalItems: { include: { item: true }, orderBy: { createdAt: 'desc' } },
+      },
       orderBy: { startDate: 'desc' },
     });
   }
@@ -76,7 +102,10 @@ export class RentalsService {
   async findOne(id: string, tenantUuid: string) {
     return this.prisma.rental.findFirst({
       where: { id, tenantUuid },
-      include: { client: true, rentalItems: { include: { item: true }, orderBy: { createdAt: 'desc' } } },
+      include: {
+        client: true,
+        rentalItems: { include: { item: true }, orderBy: { createdAt: 'desc' } },
+      },
     });
   }
 
@@ -95,13 +124,24 @@ export class RentalsService {
       input.status !== existing.status &&
       [RentalStatus.CANCELLED, RentalStatus.RETURNED].includes(input.status)
     ) {
-      throw new BadRequestException('Use as ações de cancelar ou devolver para encerrar a locação.');
+      throw new BadRequestException(
+        'Use as ações de cancelar ou devolver para encerrar a locação.',
+      );
+    }
+
+    if (
+      input.status &&
+      input.status !== existing.status &&
+      [RentalStatus.CANCELLED, RentalStatus.RETURNED].includes(existing.status)
+    ) {
+      throw new BadRequestException('Não é possível reabrir uma locação encerrada.');
     }
 
     const nextStartDate = input.startDate ?? existing.startDate.toISOString();
     const nextExpectedReturn = input.expectedReturn ?? existing.expectedReturn.toISOString();
     const { parsedStart, parsedReturn } = this.parseRentalDates(nextStartDate, nextExpectedReturn);
-    const returnedAt = input.returnedAt === null ? null : input.returnedAt ? new Date(input.returnedAt) : undefined;
+    const returnedAt =
+      input.returnedAt === null ? null : input.returnedAt ? new Date(input.returnedAt) : undefined;
 
     if (returnedAt && Number.isNaN(returnedAt.getTime())) {
       throw new BadRequestException('Data de devolução efetiva inválida.');
@@ -154,7 +194,9 @@ export class RentalsService {
       for (const rentalItem of rental.rentalItems) {
         await tx.item.update({
           where: { id: rentalItem.itemId },
-          data: { availableQuantity: { increment: rentalItem.quantity - rentalItem.returnedQuantity } },
+          data: {
+            availableQuantity: { increment: rentalItem.quantity - rentalItem.returnedQuantity },
+          },
         });
       }
 
@@ -204,9 +246,7 @@ export class RentalsService {
   }
 
   async addItem(rentalId: string, input: CreateRentalItemInput, tenantUuid: string) {
-    if (!input.quantity || input.quantity <= 0) {
-      throw new BadRequestException('Quantidade deve ser maior que zero.');
-    }
+    const quantity = this.normalizeQuantity(input.quantity, 'Quantidade');
 
     const rental = await this.findOne(rentalId, tenantUuid);
     if (!rental) {
@@ -222,26 +262,36 @@ export class RentalsService {
       throw new NotFoundException('Item não encontrado.');
     }
 
-    if (item.availableQuantity < input.quantity) {
+    if (item.availableQuantity < quantity) {
       throw new BadRequestException('Estoque insuficiente para o item selecionado.');
     }
 
-    const existing = await this.prisma.rentalItem.findFirst({ where: { rentalId, itemId: input.itemId, tenantUuid } });
+    const existing = await this.prisma.rentalItem.findFirst({
+      where: { rentalId, itemId: input.itemId, tenantUuid },
+    });
     if (existing) {
       throw new BadRequestException('Este item já foi adicionado à locação.');
     }
 
     return this.prisma.$transaction(async (tx) => {
-      await tx.item.update({ where: { id: item.id }, data: { availableQuantity: { decrement: input.quantity } } });
+      await tx.item.update({
+        where: { id: item.id },
+        data: { availableQuantity: { decrement: quantity } },
+      });
 
       return tx.rentalItem.create({
-        data: { rentalId, itemId: input.itemId, quantity: input.quantity, tenantUuid },
+        data: { rentalId, itemId: input.itemId, quantity, tenantUuid },
         include: { item: true },
       });
     });
   }
 
-  async updateItem(rentalId: string, rentalItemId: string, input: UpdateRentalItemInput, tenantUuid: string) {
+  async updateItem(
+    rentalId: string,
+    rentalItemId: string,
+    input: UpdateRentalItemInput,
+    tenantUuid: string,
+  ) {
     const rentalItem = await this.prisma.rentalItem.findFirst({
       where: { id: rentalItemId, rentalId, tenantUuid },
       include: { item: true, rental: true },
@@ -255,15 +305,19 @@ export class RentalsService {
       throw new BadRequestException('Não é possível alterar itens de uma locação encerrada.');
     }
 
-    const nextQuantity = input.quantity ?? rentalItem.quantity;
-    const nextReturnedQuantity = input.returnedQuantity ?? rentalItem.returnedQuantity;
+    const nextQuantity =
+      input.quantity === undefined
+        ? rentalItem.quantity
+        : this.normalizeQuantity(input.quantity, 'Quantidade');
+    const nextReturnedQuantity =
+      input.returnedQuantity === undefined
+        ? rentalItem.returnedQuantity
+        : this.normalizeReturnedQuantity(input.returnedQuantity, 'Quantidade devolvida');
 
-    if (nextQuantity <= 0) {
-      throw new BadRequestException('Quantidade deve ser maior que zero.');
-    }
-
-    if (nextReturnedQuantity < 0 || nextReturnedQuantity > nextQuantity) {
-      throw new BadRequestException('Quantidade devolvida deve ficar entre zero e a quantidade locada.');
+    if (nextReturnedQuantity > nextQuantity) {
+      throw new BadRequestException(
+        'Quantidade devolvida deve ficar entre zero e a quantidade locada.',
+      );
     }
 
     const rentedDelta = nextQuantity - rentalItem.quantity;
@@ -278,7 +332,10 @@ export class RentalsService {
       if (stockDelta !== 0) {
         await tx.item.update({
           where: { id: rentalItem.itemId },
-          data: { availableQuantity: stockDelta > 0 ? { increment: stockDelta } : { decrement: Math.abs(stockDelta) } },
+          data: {
+            availableQuantity:
+              stockDelta > 0 ? { increment: stockDelta } : { decrement: Math.abs(stockDelta) },
+          },
         });
       }
 
@@ -307,7 +364,9 @@ export class RentalsService {
     return this.prisma.$transaction(async (tx) => {
       await tx.item.update({
         where: { id: rentalItem.itemId },
-        data: { availableQuantity: { increment: rentalItem.quantity - rentalItem.returnedQuantity } },
+        data: {
+          availableQuantity: { increment: rentalItem.quantity - rentalItem.returnedQuantity },
+        },
       });
 
       return tx.rentalItem.delete({ where: { id: rentalItem.id } });

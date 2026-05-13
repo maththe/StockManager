@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { DivergenceType, Event, EventStatus } from '@prisma/client';
+import { DivergenceType, Event, EventStatus, Prisma } from '@prisma/client';
 import { PrismaService } from 'src/services/prisma.service';
 import { CreateEventInput } from './dto/create-event.input';
 import { CompleteEventItemInput, UpdateEventInput } from './dto/update-event.input';
@@ -41,8 +41,9 @@ export class EventsService {
     eventId: string,
     tenantUuid: string,
     completionItems: CompleteEventItemInput[] | undefined,
+    tx: Prisma.TransactionClient,
   ) {
-    const eventItems = await this.prisma.eventItem.findMany({
+    const eventItems = await tx.eventItem.findMany({
       where: { eventId, tenantUuid },
       include: { divergences: true },
     });
@@ -95,77 +96,75 @@ export class EventsService {
       }
     }
 
-    await this.prisma.$transaction(async (tx) => {
-      for (const eventItem of eventItems) {
-        const completionItem = completionByEventItemId.get(eventItem.id)!;
-        const returnedQuantity = this.normalizeCompletionQuantity(
-          completionItem.returnedQuantity,
-          'Quantidade retornada',
-        );
-        const missingQuantity = this.normalizeCompletionQuantity(
-          completionItem.missingQuantity,
-          'Quantidade faltante',
-        );
-        const damagedQuantity = this.normalizeCompletionQuantity(
-          completionItem.damagedQuantity,
-          'Quantidade avariada',
-        );
-        const lossQuantity = missingQuantity + damagedQuantity;
-        const previousLossQuantity = eventItem.divergences.reduce(
-          (total, divergence) => total + divergence.quantity,
-          0,
-        );
-        const availableDelta = returnedQuantity - eventItem.returnedQuantity;
-        const totalQuantityDelta = previousLossQuantity - lossQuantity;
+    for (const eventItem of eventItems) {
+      const completionItem = completionByEventItemId.get(eventItem.id)!;
+      const returnedQuantity = this.normalizeCompletionQuantity(
+        completionItem.returnedQuantity,
+        'Quantidade retornada',
+      );
+      const missingQuantity = this.normalizeCompletionQuantity(
+        completionItem.missingQuantity,
+        'Quantidade faltante',
+      );
+      const damagedQuantity = this.normalizeCompletionQuantity(
+        completionItem.damagedQuantity,
+        'Quantidade avariada',
+      );
+      const lossQuantity = missingQuantity + damagedQuantity;
+      const previousLossQuantity = eventItem.divergences.reduce(
+        (total, divergence) => total + divergence.quantity,
+        0,
+      );
+      const availableDelta = returnedQuantity - eventItem.returnedQuantity;
+      const totalQuantityDelta = previousLossQuantity - lossQuantity;
 
-        if (availableDelta !== 0 || totalQuantityDelta !== 0) {
-          await tx.item.update({
-            where: { id: eventItem.itemId },
-            data: {
-              availableQuantity: { increment: availableDelta },
-              totalQuantity: { increment: totalQuantityDelta },
-            },
-          });
-        }
-
-        await tx.divergence.deleteMany({
-          where: { eventItemId: eventItem.id },
-        });
-
-        const divergenceData = [
-          missingQuantity > 0
-            ? {
-                eventItemId: eventItem.id,
-                quantity: missingQuantity,
-                type: DivergenceType.MISSING,
-                notes: completionItem.notes,
-                tenantUuid,
-              }
-            : null,
-          damagedQuantity > 0
-            ? {
-                eventItemId: eventItem.id,
-                quantity: damagedQuantity,
-                type: DivergenceType.DAMAGED,
-                notes: completionItem.notes,
-                tenantUuid,
-              }
-            : null,
-        ].filter((divergence): divergence is NonNullable<typeof divergence> => Boolean(divergence));
-
-        if (divergenceData.length) {
-          await tx.divergence.createMany({ data: divergenceData });
-        }
-
-        await tx.eventItem.update({
-          where: { id: eventItem.id },
+      if (availableDelta !== 0 || totalQuantityDelta !== 0) {
+        await tx.item.update({
+          where: { id: eventItem.itemId },
           data: {
-            shippedQuantity: eventItem.plannedQuantity,
-            returnedQuantity,
+            availableQuantity: { increment: availableDelta },
+            totalQuantity: { increment: totalQuantityDelta },
           },
         });
       }
-    });
+
+      await tx.divergence.deleteMany({
+        where: { eventItemId: eventItem.id },
+      });
+
+      const divergenceData = [
+        missingQuantity > 0
+          ? {
+              eventItemId: eventItem.id,
+              quantity: missingQuantity,
+              type: DivergenceType.MISSING,
+              notes: completionItem.notes,
+              tenantUuid,
+            }
+          : null,
+        damagedQuantity > 0
+          ? {
+              eventItemId: eventItem.id,
+              quantity: damagedQuantity,
+              type: DivergenceType.DAMAGED,
+              notes: completionItem.notes,
+              tenantUuid,
+            }
+          : null,
+      ].filter((divergence): divergence is NonNullable<typeof divergence> => Boolean(divergence));
+
+      if (divergenceData.length) {
+        await tx.divergence.createMany({ data: divergenceData });
+      }
+
+      await tx.eventItem.update({
+        where: { id: eventItem.id },
+        data: {
+          shippedQuantity: eventItem.plannedQuantity,
+          returnedQuantity,
+        },
+      });
+    }
   }
 
   private async ensureClientExists(clientId: string) {
@@ -269,36 +268,63 @@ export class EventsService {
       updateEventInput.status === EventStatus.COMPLETED &&
       existing.status !== EventStatus.COMPLETED;
 
+    if (
+      updateEventInput.status === EventStatus.CANCELLED &&
+      existing.status !== EventStatus.CANCELLED
+    ) {
+      throw new BadRequestException('Use a ação de cancelar para encerrar o evento.');
+    }
+
+    if (
+      existing.status === EventStatus.CANCELLED &&
+      updateEventInput.status &&
+      updateEventInput.status !== EventStatus.CANCELLED
+    ) {
+      throw new BadRequestException('Não é possível reabrir um evento cancelado.');
+    }
+
+    if (
+      existing.status === EventStatus.COMPLETED &&
+      updateEventInput.status &&
+      updateEventInput.status !== EventStatus.COMPLETED
+    ) {
+      throw new BadRequestException('Não é possível reabrir um evento concluído.');
+    }
+
     if (isFinishingEvent && !updateEventInput.inventoryCountConfirmed) {
       throw new BadRequestException(
         'Para finalizar o evento, confirme a contagem dos itens para validar o retorno ao estoque.',
       );
     }
 
-    if (isFinishingEvent) {
-      await this.applyCompletionReport(id, tenantUuid, updateEventInput.completionItems);
-    }
+    const updateEvent = async (tx: Prisma.TransactionClient) => {
+      if (isFinishingEvent) {
+        await this.applyCompletionReport(id, tenantUuid, updateEventInput.completionItems, tx);
+      }
 
-    return this.prisma.event.update({
-      where: { id },
-      data: {
-        eventName: updateEventInput.eventName,
-        startDate: updateEventInput.startDate ? parsedStart : undefined,
-        endDate: updateEventInput.endDate ? parsedEnd : undefined,
-        eventLocation: updateEventInput.eventLocation,
-        status: updateEventInput.status,
-        clientId: updateEventInput.clientId,
-      },
-      include: {
-        client: true,
-        eventItems: {
-          include: {
-            item: true,
-            divergences: true,
+      return tx.event.update({
+        where: { id },
+        data: {
+          eventName: updateEventInput.eventName,
+          startDate: updateEventInput.startDate ? parsedStart : undefined,
+          endDate: updateEventInput.endDate ? parsedEnd : undefined,
+          eventLocation: updateEventInput.eventLocation,
+          status: updateEventInput.status,
+          clientId: updateEventInput.clientId,
+        },
+        include: {
+          client: true,
+          eventItems: {
+            include: {
+              item: true,
+              divergences: true,
+            },
           },
         },
-      },
-    });
+      });
+    };
+
+    return this.prisma.$transaction(updateEvent);
   }
 
   async remove(id: string, tenantUuid: string) {
@@ -327,6 +353,10 @@ export class EventsService {
 
     if (event.status === EventStatus.CANCELLED) {
       throw new BadRequestException('Este evento já está cancelado.');
+    }
+
+    if (event.status === EventStatus.COMPLETED) {
+      throw new BadRequestException('Não é possível cancelar um evento já concluído.');
     }
 
     return this.prisma.$transaction(async (tx) => {
