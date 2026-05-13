@@ -26,6 +26,8 @@ export interface EventItem {
     name: string;
     imageUrl?: string | null;
     image?: string | null;
+    thumbnailImageUrl?: string | null;
+    modalImageUrl?: string | null;
     availableQuantity: number;
     totalQuantity: number;
   };

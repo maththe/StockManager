@@ -35,6 +35,9 @@ function getDefaultValues(
         availableQuantity: item.availableQuantity,
         unitCost: item.unitCost,
         categoryId: item.categoryId,
+        thumbnailImageUrl:
+          item.thumbnailImageUrl ?? item.imageUrl ?? item.image ?? '',
+        modalImageUrl: item.modalImageUrl ?? item.imageUrl ?? item.image ?? '',
       }
     : {
         name: '',
@@ -42,6 +45,8 @@ function getDefaultValues(
         availableQuantity: 0,
         unitCost: 0,
         categoryId: initialCategoryId ?? '',
+        thumbnailImageUrl: '',
+        modalImageUrl: '',
       };
 }
 
@@ -66,7 +71,11 @@ export function ItemFormDialog({
   }, [form, initialCategoryId, item, open]);
 
   const handleSubmit = async (data: CreateItemInput | UpdateItemInput) => {
-    await onSubmit(data);
+    await onSubmit({
+      ...data,
+      thumbnailImageUrl: data.thumbnailImageUrl?.trim() || null,
+      modalImageUrl: data.modalImageUrl?.trim() || null,
+    });
     form.reset();
     onOpenChange(false);
   };
@@ -134,6 +143,31 @@ export function ItemFormDialog({
                 placeholder="Selecione uma categoria"
                 required
               />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="thumbnailImageUrl">Imagem pequena</Label>
+              <InputForm
+                name="thumbnailImageUrl"
+                type="url"
+                placeholder="URL da imagem para selecionar o item"
+              />
+              <p className="text-xs text-muted-foreground">
+                Usada no cartão menor do catálogo de seleção.
+              </p>
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="modalImageUrl">Imagem grande</Label>
+              <InputForm
+                name="modalImageUrl"
+                type="url"
+                placeholder="URL da imagem para o modal de quantidade"
+              />
+              <p className="text-xs text-muted-foreground">
+                Usada em destaque no modal onde a quantidade do item é
+                selecionada.
+              </p>
             </div>
 
             <DialogFooter className="flex justify-end gap-2 pt-4">

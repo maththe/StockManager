@@ -4,6 +4,8 @@ export interface CreateItemInput {
   availableQuantity: number;
   unitCost: number;
   categoryId: string;
+  thumbnailImageUrl?: string | null;
+  modalImageUrl?: string | null;
 }
 
 export interface UpdateItemInput {
@@ -12,6 +14,8 @@ export interface UpdateItemInput {
   availableQuantity?: number;
   unitCost?: number;
   categoryId?: string;
+  thumbnailImageUrl?: string | null;
+  modalImageUrl?: string | null;
 }
 
 export interface Item {
@@ -19,6 +23,8 @@ export interface Item {
   name: string;
   imageUrl?: string | null;
   image?: string | null;
+  thumbnailImageUrl?: string | null;
+  modalImageUrl?: string | null;
   totalQuantity: number;
   availableQuantity: number;
   unitCost: number;

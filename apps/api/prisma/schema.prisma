@@ -77,9 +77,11 @@ model Item {
   unitCost          Decimal  @db.Decimal(10, 2)
   tenantUuid        String
 
-  categoryId String
-  category   Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  imageUrl   String?  @map("image_url")
+  categoryId        String
+  category          Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  imageUrl          String?  @map("image_url")
+  thumbnailImageUrl String?  @map("thumbnail_image_url")
+  modalImageUrl     String?  @map("modal_image_url")
 
   eventItems EventItem[]
 
