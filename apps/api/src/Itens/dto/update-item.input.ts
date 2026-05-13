@@ -4,4 +4,6 @@ export class UpdateItemInput {
   availableQuantity?: number;
   unitCost?: number;
   categoryId?: string;
+  thumbnailImageUrl?: string | null;
+  modalImageUrl?: string | null;
 }

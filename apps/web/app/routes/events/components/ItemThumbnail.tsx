@@ -1,19 +1,31 @@
 import { ImageOff } from 'lucide-react';
 import { cn } from '~/lib/utils';
-import { getItemImage, getItemInitials } from '../utils/utils';
+import {
+  getItemImage,
+  getItemInitials,
+  type ItemImageVariant,
+} from '../utils/utils';
 
 interface ItemThumbnailProps {
-  item: { name: string; imageUrl?: string | null; image?: string | null };
+  item: {
+    name: string;
+    imageUrl?: string | null;
+    image?: string | null;
+    thumbnailImageUrl?: string | null;
+    modalImageUrl?: string | null;
+  };
   categoryName: string;
   className?: string;
+  variant?: ItemImageVariant;
 }
 
 export function ItemThumbnail({
   item,
   categoryName,
   className,
+  variant = 'thumbnail',
 }: ItemThumbnailProps) {
-  const image = getItemImage(item);
+  const image = getItemImage(item, variant);
   if (image)
     return (
       <img

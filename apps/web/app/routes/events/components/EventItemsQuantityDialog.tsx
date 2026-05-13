@@ -38,6 +38,7 @@ export function EventItemsQuantityDialog(props: EventItemsQuantityDialogProps) {
                   props.categoryMap.get(props.activeItem.categoryId) ??
                   'Sem categoria'
                 }
+                variant="modal"
               />
             )}
           </div>

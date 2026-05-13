@@ -4,6 +4,8 @@ import type { Item } from '~/types/item';
 export type EventCatalogItem = Item & {
   imageUrl?: string | null;
   image?: string | null;
+  thumbnailImageUrl?: string | null;
+  modalImageUrl?: string | null;
 };
 
 export type SelectedEventItem = EventItem & {
@@ -14,11 +16,34 @@ export function normalizeText(value: string) {
   return value.trim().toLowerCase();
 }
 
-export function getItemImage(item: {
-  imageUrl?: string | null;
-  image?: string | null;
-}) {
-  return item.imageUrl ?? item.image ?? null;
+export type ItemImageVariant = 'thumbnail' | 'modal';
+
+export function getItemImage(
+  item: {
+    imageUrl?: string | null;
+    image?: string | null;
+    thumbnailImageUrl?: string | null;
+    modalImageUrl?: string | null;
+  },
+  variant: ItemImageVariant = 'thumbnail',
+) {
+  if (variant === 'modal') {
+    return (
+      item.modalImageUrl ??
+      item.imageUrl ??
+      item.image ??
+      item.thumbnailImageUrl ??
+      null
+    );
+  }
+
+  return (
+    item.thumbnailImageUrl ??
+    item.imageUrl ??
+    item.image ??
+    item.modalImageUrl ??
+    null
+  );
 }
 
 export function getItemInitials(name: string) {

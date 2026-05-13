@@ -28,6 +28,8 @@ export class ItemsService {
         availableQuantity: createItemInput.availableQuantity,
         unitCost: createItemInput.unitCost,
         categoryId: createItemInput.categoryId,
+        thumbnailImageUrl: createItemInput.thumbnailImageUrl,
+        modalImageUrl: createItemInput.modalImageUrl,
         tenantUuid,
       },
     });
