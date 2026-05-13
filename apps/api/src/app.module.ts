@@ -8,6 +8,7 @@ import { ItemsModule } from './Itens/items.module';
 import { CategoriesModule } from './categories/categories.module';
 import { EventsModule } from './events/events.module';
 import { ClientsModule } from './clients/clients.module';
+import { RentalsModule } from './rentals/rentals.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { ClientsModule } from './clients/clients.module';
     CategoriesModule,
     EventsModule,
     ClientsModule,
+    RentalsModule,
   ],
   controllers: [],
   providers: [

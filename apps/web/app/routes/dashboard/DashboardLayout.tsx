@@ -2,6 +2,7 @@ import { useState } from 'react';
 import {
   Box,
   CalendarDays,
+  HandCoins,
   PanelLeftClose,
   PanelLeftOpen,
   ShieldUser,
@@ -18,6 +19,7 @@ const navItems = [
   { to: '/dashboard/clients', label: 'Clientes', icon: Users },
   { to: '/dashboard/users', label: 'Usuarios', icon: ShieldUser },
   { to: '/dashboard/events', label: 'Eventos', icon: CalendarDays },
+  { to: '/dashboard/rentals', label: 'Locações', icon: HandCoins },
 ];
 
 export default function DashboardLayout() {
