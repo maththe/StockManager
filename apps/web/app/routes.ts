@@ -7,7 +7,6 @@ export default [
     route('inventory', 'routes/inventory/InventoryPage.tsx'),
     route('inventory/:categoryId', 'routes/inventory/CategoryDetailsPage.tsx'),
     route('categories', 'routes/categories/CategoriesPage.tsx'),
-    route('items', 'routes/items/ItemsPage.tsx'),
     route('clients', 'routes/clients/ClientsPage.tsx'),
     route('users', 'routes/users/UsersPage.tsx'),
     route('rentals', 'routes/rentals/RentalsPage.tsx'),

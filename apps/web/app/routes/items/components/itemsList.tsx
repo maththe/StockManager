@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Edit2, Loader2, Plus, Trash2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Edit2, Eye, Loader2, Plus, Trash2 } from 'lucide-react';
 import { Button } from '~/components/ui/button';
 import {
   Card,
@@ -52,6 +52,18 @@ export function ItemsList() {
     setDialogOpen(true);
   };
 
+  const handleOpenImg = (url?: any) => {
+    useEffect(() => {
+      if (url) {
+        const img = new Image();
+        img.src = url;
+        const imgWindow = window.open('');
+        if (imgWindow) {
+          imgWindow.document.write(img.outerHTML);
+        }
+      }
+    }, [url]);
+  } 
   const handleCloseDialog = () => {
     setSelectedItem(null);
     setDialogOpen(false);
@@ -191,6 +203,14 @@ export function ItemsList() {
                             ) : (
                               <Trash2 className="h-4 w-4" />
                             )}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleOpenImg(item.imageUrl)}
+                            className="hover:bg-muted/50"
+                          >
+                            <Eye className="h-4 w-4" />
                           </Button>
                         </div>
                       </TableCell>

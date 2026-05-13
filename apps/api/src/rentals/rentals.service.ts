@@ -8,7 +8,7 @@ import { UpdateRentalItemInput } from './dto/update-rental-item.input';
 
 @Injectable()
 export class RentalsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   private parseRentalDates(startDate: string, expectedReturn: string) {
     const parsedStart = new Date(startDate);
@@ -122,7 +122,7 @@ export class RentalsService {
     if (
       input.status &&
       input.status !== existing.status &&
-      [RentalStatus.CANCELLED, RentalStatus.RETURNED].includes(input.status)
+      input.status === "CANCELLED" || input.status === "RETURNED"
     ) {
       throw new BadRequestException(
         'Use as ações de cancelar ou devolver para encerrar a locação.',
@@ -132,7 +132,7 @@ export class RentalsService {
     if (
       input.status &&
       input.status !== existing.status &&
-      [RentalStatus.CANCELLED, RentalStatus.RETURNED].includes(existing.status)
+      existing.status === "CANCELLED" || existing.status === "RETURNED"
     ) {
       throw new BadRequestException('Não é possível reabrir uma locação encerrada.');
     }
@@ -253,7 +253,7 @@ export class RentalsService {
       throw new NotFoundException('Locação não encontrada.');
     }
 
-    if ([RentalStatus.CANCELLED, RentalStatus.RETURNED].includes(rental.status)) {
+    if (rental.status === "CANCELLED" || rental.status === "RETURNED") {
       throw new BadRequestException('Não é possível alterar itens de uma locação encerrada.');
     }
 
@@ -301,7 +301,7 @@ export class RentalsService {
       throw new NotFoundException('Item da locação não encontrado.');
     }
 
-    if ([RentalStatus.CANCELLED, RentalStatus.RETURNED].includes(rentalItem.rental.status)) {
+    if (rentalItem.rental.status === "CANCELLED" || rentalItem.rental.status === "RETURNED") {
       throw new BadRequestException('Não é possível alterar itens de uma locação encerrada.');
     }
 
@@ -357,7 +357,7 @@ export class RentalsService {
       throw new NotFoundException('Item da locação não encontrado.');
     }
 
-    if ([RentalStatus.CANCELLED, RentalStatus.RETURNED].includes(rentalItem.rental.status)) {
+    if (rentalItem.rental.status === "CANCELLED" || rentalItem.rental.status === "RETURNED") {
       throw new BadRequestException('Não é possível remover itens de uma locação encerrada.');
     }
 

@@ -14,17 +14,13 @@ export interface UpdateItemInput {
   availableQuantity?: number;
   unitCost?: number;
   categoryId?: string;
-  thumbnailImageUrl?: string | null;
-  modalImageUrl?: string | null;
+  imageUrl?: string
 }
 
 export interface Item {
   id: string;
   name: string;
   imageUrl?: string | null;
-  image?: string | null;
-  thumbnailImageUrl?: string | null;
-  modalImageUrl?: string | null;
   totalQuantity: number;
   availableQuantity: number;
   unitCost: number;

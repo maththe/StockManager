@@ -37,11 +37,12 @@ enum DivergenceStatus {
 // ================= MODELS =================
 
 model User {
-  id        String   @id @default(uuid())
-  name      String
-  email     String   @unique
-  password  String   @unique
-  tenantUuid String  @default(uuid())
+  id                String   @id @default(uuid())
+  name              String
+  email             String   @unique
+  password          String   @unique
+  tenantUuid        String   @default(uuid())
+  responsibleEvents Event[]  @relation("EventResponsible")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -88,8 +89,6 @@ model Item {
   categoryId        String
   category          Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   imageUrl          String?  @map("image_url")
-  thumbnailImageUrl String?  @map("thumbnail_image_url")
-  modalImageUrl     String?  @map("modal_image_url")
 
   eventItems  EventItem[]
   rentalItems RentalItem[]
@@ -109,17 +108,21 @@ model Event {
   endDate       DateTime
   eventLocation String
   status        EventStatus @default(PLANNING)
-  tenantUuid        String
+  tenantUuid    String
 
   clientId String
   client   Client @relation(fields: [clientId], references: [id], onDelete: Restrict)
 
-  eventItems  EventItem[]
+  responsibleId String?
+  responsible   User?       @relation("EventResponsible", fields: [responsibleId], references: [id], onDelete: SetNull)
+
+  eventItems EventItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([clientId])
+  @@index([responsibleId])
   @@map("events")
 }
 

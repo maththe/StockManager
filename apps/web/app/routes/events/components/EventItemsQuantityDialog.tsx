@@ -97,12 +97,8 @@ export function EventItemsQuantityDialog(props: EventItemsQuantityDialogProps) {
               </div>
             )}
           </div>
-          <p className="px-6 pb-2 text-xs leading-relaxed text-muted-foreground sm:col-span-2">
-            Selecione um item disponivel do seu estoque, informe a quantidade
-            necessaria e adicione ao evento.
-          </p>
         </div>
-        <DialogFooter className="border-t border-border/60 bg-background px-6 py-4">
+        <DialogFooter className="border-t border-border/60 bg-background px-6 py-6">
           <Button
             type="button"
             variant="outline"

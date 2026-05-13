@@ -15,6 +15,7 @@ export class UpdateEventInput {
   eventLocation?: string;
   status?: EventStatus;
   clientId?: string;
+  responsibleId?: string | null;
   inventoryCountConfirmed?: boolean;
   completionItems?: CompleteEventItemInput[];
 }

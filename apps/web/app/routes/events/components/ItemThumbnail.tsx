@@ -10,9 +10,6 @@ interface ItemThumbnailProps {
   item: {
     name: string;
     imageUrl?: string | null;
-    image?: string | null;
-    thumbnailImageUrl?: string | null;
-    modalImageUrl?: string | null;
   };
   categoryName: string;
   className?: string;

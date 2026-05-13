@@ -11,6 +11,7 @@ import {
   Plus,
   Sparkles,
   Trash2,
+  UserRound,
 } from 'lucide-react';
 import { useNavigate } from 'react-router';
 
@@ -41,6 +42,7 @@ import {
   useEvents,
   useUpdateEvent,
 } from '~/services/tanStackQuery/events';
+import { useUsers } from '~/services/tanStackQuery/users';
 import type {
   CreateEventInput,
   Event,
@@ -159,6 +161,7 @@ export function EventsList() {
 
   const { data: events = [], isLoading } = useEvents();
   const { data: clients = [] } = useClients();
+  const { data: users = [] } = useUsers();
   const createEvent = useCreateEvent();
   const updateEvent = useUpdateEvent();
   const deleteEvent = useDeleteEvent();
@@ -361,6 +364,12 @@ export function EventsList() {
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <MapPin className="h-4 w-4 flex-shrink-0" />
           <span className="line-clamp-1">{event.eventLocation}</span>
+        </div>
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <UserRound className="h-4 w-4 flex-shrink-0" />
+          <span className="line-clamp-1">
+            {event.responsible?.name ?? 'Sem responsável definido'}
+          </span>
         </div>
       </div>
 
@@ -597,6 +606,10 @@ export function EventsList() {
                                 {event.client?.companyName ??
                                   'Cliente não associado'}
                               </div>
+                              <div className="mt-1 truncate text-xs text-muted-foreground">
+                                {event.responsible?.name ??
+                                  'Sem responsável definido'}
+                              </div>
                             </div>
                             <span
                               className={`rounded-full px-2 py-0.5 text-[0.65rem] font-semibold ${statusClassName[event.status]}`}
@@ -723,6 +736,7 @@ export function EventsList() {
         }}
         event={editingEvent}
         clients={clients}
+        users={users}
         onSubmit={handleSubmit}
         isLoading={createEvent.isPending || updateEvent.isPending}
       />

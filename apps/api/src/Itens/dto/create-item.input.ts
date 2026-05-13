@@ -4,6 +4,5 @@ export class CreateItemInput {
   availableQuantity!: number;
   unitCost!: number;
   categoryId!: string;
-  thumbnailImageUrl?: string | null;
-  modalImageUrl?: string | null;
+  imageUrl?: string
 }

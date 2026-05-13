@@ -10,6 +10,12 @@ import { UpdateEventItemInput } from './dto/update-event-item.input';
 export class EventsService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private readonly responsibleSelect = {
+    id: true,
+    name: true,
+    email: true,
+  } as const;
+
   private parseEventDates(startDate: string, endDate: string) {
     const parsedStart = new Date(startDate);
     const parsedEnd = new Date(endDate);
@@ -179,6 +185,18 @@ export class EventsService {
     return client;
   }
 
+  private async ensureResponsibleExists(responsibleId: string, tenantUuid: string) {
+    const responsible = await this.prisma.user.findFirst({
+      where: { id: responsibleId, tenantUuid },
+    });
+
+    if (!responsible) {
+      throw new BadRequestException('Responsável não encontrado.');
+    }
+
+    return responsible;
+  }
+
   async create(createEventInput: CreateEventInput, tenantUuid: string): Promise<Event> {
     const { parsedStart, parsedEnd } = this.parseEventDates(
       createEventInput.startDate,
@@ -186,6 +204,9 @@ export class EventsService {
     );
 
     await this.ensureClientExists(createEventInput.clientId);
+    if (createEventInput.responsibleId) {
+      await this.ensureResponsibleExists(createEventInput.responsibleId, tenantUuid);
+    }
 
     if (
       createEventInput.status === EventStatus.COMPLETED &&
@@ -204,9 +225,13 @@ export class EventsService {
         eventLocation: createEventInput.eventLocation,
         status: createEventInput.status ?? EventStatus.PLANNING,
         clientId: createEventInput.clientId,
+        responsibleId: createEventInput.responsibleId ?? null,
         tenantUuid,
       },
-      include: { client: true },
+      include: {
+        client: true,
+        responsible: { select: this.responsibleSelect },
+      },
     });
   }
 
@@ -218,6 +243,7 @@ export class EventsService {
       where.OR = [
         { eventName: { contains: searchTerm, mode: 'insensitive' } },
         { client: { companyName: { contains: searchTerm, mode: 'insensitive' } } },
+        { responsible: { name: { contains: searchTerm, mode: 'insensitive' } } },
       ];
     }
 
@@ -225,6 +251,7 @@ export class EventsService {
       where,
       include: {
         client: true,
+        responsible: { select: this.responsibleSelect },
         eventItems: {
           include: {
             item: true,
@@ -241,6 +268,7 @@ export class EventsService {
       where: { id, tenantUuid },
       include: {
         client: true,
+        responsible: { select: this.responsibleSelect },
         eventItems: {
           include: {
             item: true,
@@ -259,6 +287,12 @@ export class EventsService {
 
     if (updateEventInput.clientId && updateEventInput.clientId !== existing.clientId) {
       await this.ensureClientExists(updateEventInput.clientId);
+    }
+
+    if (updateEventInput.responsibleId !== undefined) {
+      if (updateEventInput.responsibleId !== null) {
+        await this.ensureResponsibleExists(updateEventInput.responsibleId, tenantUuid);
+      }
     }
 
     const nextStartDate = updateEventInput.startDate ?? existing.startDate.toISOString();
@@ -311,9 +345,11 @@ export class EventsService {
           eventLocation: updateEventInput.eventLocation,
           status: updateEventInput.status,
           clientId: updateEventInput.clientId,
+          responsibleId: updateEventInput.responsibleId,
         },
         include: {
           client: true,
+          responsible: { select: this.responsibleSelect },
           eventItems: {
             include: {
               item: true,
@@ -335,7 +371,10 @@ export class EventsService {
 
     return this.prisma.event.delete({
       where: { id },
-      include: { client: true },
+      include: {
+        client: true,
+        responsible: { select: this.responsibleSelect },
+      },
     });
   }
 
@@ -376,7 +415,10 @@ export class EventsService {
         data: {
           status: EventStatus.CANCELLED,
         },
-        include: { client: true },
+        include: {
+          client: true,
+          responsible: { select: this.responsibleSelect },
+        },
       });
     });
   }

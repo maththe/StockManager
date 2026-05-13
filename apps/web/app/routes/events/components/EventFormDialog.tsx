@@ -14,6 +14,7 @@ import {
 } from '~/components/ui/dialog';
 import { Label } from '~/components/ui/label';
 import type { Client } from '~/types/client';
+import type { User } from '~/types/user';
 import type {
   CompleteEventItemInput,
   CreateEventInput,
@@ -27,6 +28,7 @@ interface EventFormDialogProps {
   onOpenChange: (open: boolean) => void;
   event?: Event | null;
   clients: Client[];
+  users: User[];
   onSubmit: (data: CreateEventInput | UpdateEventInput) => Promise<void>;
   isLoading?: boolean;
 }
@@ -84,6 +86,7 @@ export function EventFormDialog({
   onOpenChange,
   event,
   clients,
+  users,
   onSubmit,
   isLoading = false,
 }: EventFormDialogProps) {
@@ -100,6 +103,7 @@ export function EventFormDialog({
           eventLocation: event.eventLocation,
           status: event.status,
           clientId: event.clientId,
+          responsibleId: event.responsibleId ?? '',
           inventoryCountConfirmed: false,
         }
       : {
@@ -109,6 +113,7 @@ export function EventFormDialog({
           eventLocation: '',
           status: 'PLANNING',
           clientId: '',
+          responsibleId: '',
           inventoryCountConfirmed: false,
         },
   });
@@ -171,6 +176,7 @@ export function EventFormDialog({
       ...data,
       startDate: toIsoString(data.startDate),
       endDate: toIsoString(data.endDate),
+      responsibleId: data.responsibleId || null,
       completionItems: needsInventoryConfirmation
         ? Object.values(completionDrafts)
         : undefined,
@@ -397,6 +403,16 @@ export function EventFormDialog({
                 required
               />
             </div>
+
+            <SelectForm
+              name="responsibleId"
+              label="Responsável"
+              options={users.map((user) => ({
+                value: user.id,
+                label: user.name,
+              }))}
+              placeholder="Selecione um responsável"
+            />
 
             <DialogFooter className="flex justify-end gap-2 pt-4">
               <Button

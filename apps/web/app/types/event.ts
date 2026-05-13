@@ -11,6 +11,12 @@ export interface EventClient {
   contactName?: string | null;
 }
 
+export interface EventResponsible {
+  id: string;
+  name: string;
+  email: string;
+}
+
 export type DivergenceType = 'MISSING' | 'DAMAGED';
 export type DivergenceStatus = 'PENDING' | 'RESOLVED';
 
@@ -58,7 +64,9 @@ export interface Event {
   status: EventStatus;
   tenantUuid: string;
   clientId: string;
+  responsibleId?: string | null;
   client: EventClient;
+  responsible?: EventResponsible | null;
   eventItems?: EventItem[];
   createdAt: string;
   updatedAt: string;
@@ -71,6 +79,7 @@ export interface CreateEventInput {
   eventLocation: string;
   status: EventStatus;
   clientId: string;
+  responsibleId?: string | null;
   inventoryCountConfirmed?: boolean;
   completionItems?: CompleteEventItemInput[];
 }
@@ -90,6 +99,7 @@ export interface UpdateEventInput {
   eventLocation?: string;
   status?: EventStatus;
   clientId?: string;
+  responsibleId?: string | null;
   inventoryCountConfirmed?: boolean;
   completionItems?: CompleteEventItemInput[];
 }
