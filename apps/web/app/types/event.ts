@@ -11,6 +11,21 @@ export interface EventClient {
   contactName?: string | null;
 }
 
+export type DivergenceType = 'MISSING' | 'DAMAGED';
+export type DivergenceStatus = 'PENDING' | 'RESOLVED';
+
+export interface EventItemDivergence {
+  id: string;
+  quantity: number;
+  type: DivergenceType;
+  status: DivergenceStatus;
+  notes?: string | null;
+  tenantUuid: string;
+  eventItemId: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface EventItem {
   id: string;
   eventId: string;
@@ -21,6 +36,7 @@ export interface EventItem {
   tenantUuid: string;
   createdAt: string;
   updatedAt: string;
+  divergences?: EventItemDivergence[];
   item: {
     id: string;
     name: string;
@@ -56,6 +72,15 @@ export interface CreateEventInput {
   status: EventStatus;
   clientId: string;
   inventoryCountConfirmed?: boolean;
+  completionItems?: CompleteEventItemInput[];
+}
+
+export interface CompleteEventItemInput {
+  eventItemId: string;
+  returnedQuantity: number;
+  missingQuantity?: number;
+  damagedQuantity?: number;
+  notes?: string;
 }
 
 export interface UpdateEventInput {
@@ -66,6 +91,7 @@ export interface UpdateEventInput {
   status?: EventStatus;
   clientId?: string;
   inventoryCountConfirmed?: boolean;
+  completionItems?: CompleteEventItemInput[];
 }
 
 export interface CreateEventItemInput {

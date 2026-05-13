@@ -25,6 +25,17 @@ export function SelectedItemCard(props: SelectedItemCardProps) {
   const error = getPlannedQuantityError(props.eventItem, props.draftValue);
   const isDirty = Number(props.draftValue) !== props.eventItem.plannedQuantity;
   const { minimum, maximum } = getPlannedQuantityBounds(props.eventItem);
+  const missingQuantity =
+    props.eventItem.divergences
+      ?.filter((divergence) => divergence.type === 'MISSING')
+      .reduce((total, divergence) => total + divergence.quantity, 0) ?? 0;
+  const damagedQuantity =
+    props.eventItem.divergences
+      ?.filter((divergence) => divergence.type === 'DAMAGED')
+      .reduce((total, divergence) => total + divergence.quantity, 0) ?? 0;
+  const divergenceNotes = props.eventItem.divergences?.find(
+    (divergence) => divergence.notes,
+  )?.notes;
 
   return (
     <article className="rounded-3xl border border-border/70 bg-background/92 p-4 shadow-sm">
@@ -110,6 +121,26 @@ export function SelectedItemCard(props: SelectedItemCardProps) {
               )}
             </Button>
           </div>
+          {(missingQuantity > 0 || damagedQuantity > 0) && (
+            <div className="mt-4 rounded-2xl border border-destructive/20 bg-destructive/5 p-3 text-xs">
+              <div className="flex flex-wrap gap-2">
+                {missingQuantity > 0 && (
+                  <span className="rounded-full bg-destructive/10 px-2.5 py-1 font-medium text-destructive">
+                    Faltantes: {missingQuantity}
+                  </span>
+                )}
+                {damagedQuantity > 0 && (
+                  <span className="rounded-full bg-destructive/10 px-2.5 py-1 font-medium text-destructive">
+                    Avariados: {damagedQuantity}
+                  </span>
+                )}
+              </div>
+              {divergenceNotes && (
+                <p className="mt-2 text-muted-foreground">{divergenceNotes}</p>
+              )}
+            </div>
+          )}
+
           <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
             <span className="rounded-full bg-muted px-2.5 py-1 text-muted-foreground">
               Min: {minimum}

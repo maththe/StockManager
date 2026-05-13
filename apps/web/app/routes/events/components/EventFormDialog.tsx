@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import { Loader2 } from 'lucide-react';
 import { InputForm } from '~/components/Form/InputForm';
@@ -13,6 +14,7 @@ import {
 import { Label } from '~/components/ui/label';
 import type { Client } from '~/types/client';
 import type {
+  CompleteEventItemInput,
   CreateEventInput,
   Event,
   EventStatus,
@@ -45,6 +47,37 @@ const toDateTimeLocal = (value?: string) => {
 
 const toIsoString = (value: string) => new Date(value).toISOString();
 
+const getDivergenceQuantity = (
+  eventItem: NonNullable<Event['eventItems']>[number],
+  type: 'MISSING' | 'DAMAGED',
+) =>
+  eventItem.divergences
+    ?.filter((divergence) => divergence.type === type)
+    .reduce((total, divergence) => total + divergence.quantity, 0) ?? 0;
+
+const buildCompletionDrafts = (event?: Event | null) =>
+  Object.fromEntries(
+    (event?.eventItems ?? []).map((eventItem) => [
+      eventItem.id,
+      {
+        eventItemId: eventItem.id,
+        returnedQuantity:
+          eventItem.returnedQuantity ||
+          Math.max(
+            0,
+            eventItem.plannedQuantity -
+              getDivergenceQuantity(eventItem, 'MISSING') -
+              getDivergenceQuantity(eventItem, 'DAMAGED'),
+          ),
+        missingQuantity: getDivergenceQuantity(eventItem, 'MISSING'),
+        damagedQuantity: getDivergenceQuantity(eventItem, 'DAMAGED'),
+        notes:
+          eventItem.divergences?.find((divergence) => divergence.notes)
+            ?.notes ?? '',
+      },
+    ]),
+  ) as Record<string, CompleteEventItemInput>;
+
 export function EventFormDialog({
   open,
   onOpenChange,
@@ -53,6 +86,10 @@ export function EventFormDialog({
   onSubmit,
   isLoading = false,
 }: EventFormDialogProps) {
+  const [completionDrafts, setCompletionDrafts] = useState(() =>
+    buildCompletionDrafts(event),
+  );
+
   const form = useForm<CreateEventInput>({
     values: event
       ? {
@@ -75,15 +112,67 @@ export function EventFormDialog({
         },
   });
 
+  useEffect(() => {
+    setCompletionDrafts(buildCompletionDrafts(event));
+  }, [event]);
+
   const currentStatus = form.watch('status');
   const needsInventoryConfirmation =
     currentStatus === 'COMPLETED' && event?.status !== 'COMPLETED';
 
+  const eventItems = useMemo(
+    () => event?.eventItems ?? [],
+    [event?.eventItems],
+  );
+
+  const completionErrors = useMemo(
+    () =>
+      eventItems
+        .map((eventItem) => {
+          const draft = completionDrafts[eventItem.id];
+          const totalCounted =
+            (draft?.returnedQuantity ?? 0) +
+            (draft?.missingQuantity ?? 0) +
+            (draft?.damagedQuantity ?? 0);
+
+          return totalCounted === eventItem.plannedQuantity
+            ? null
+            : `${eventItem.item.name}: total contado (${totalCounted}) deve ser igual ao reservado (${eventItem.plannedQuantity}).`;
+        })
+        .filter(Boolean),
+    [completionDrafts, eventItems],
+  );
+
+  const handleCompletionDraftChange = (
+    eventItemId: string,
+    field: keyof CompleteEventItemInput,
+    value: string,
+  ) => {
+    setCompletionDrafts((current) => ({
+      ...current,
+      [eventItemId]: {
+        ...current[eventItemId],
+        eventItemId,
+        [field]:
+          field === 'notes'
+            ? value
+            : Math.max(0, Number.parseInt(value, 10) || 0),
+      },
+    }));
+  };
+
   const handleSubmit = async (data: CreateEventInput) => {
+    if (needsInventoryConfirmation && completionErrors.length) {
+      return;
+    }
+
     await onSubmit({
       ...data,
       startDate: toIsoString(data.startDate),
       endDate: toIsoString(data.endDate),
+      completionItems: needsInventoryConfirmation
+        ? Object.values(completionDrafts)
+        : undefined,
     });
     form.reset();
     onOpenChange(false);
@@ -91,7 +180,7 @@ export function EventFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl rounded-2xl bg-card/75 backdrop-blur-md">
+      <DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto rounded-2xl bg-card/75 backdrop-blur-md">
         <DialogHeader>
           <DialogTitle>{event ? 'Editar Evento' : 'Novo Evento'}</DialogTitle>
         </DialogHeader>
@@ -161,6 +250,140 @@ export function EventFormDialog({
                     </p>
                   )}
                 </div>
+
+                <div className="mt-4 space-y-3">
+                  <div>
+                    <h4 className="text-sm font-semibold text-foreground">
+                      Conferência de retorno e avarias
+                    </h4>
+                    <p className="text-xs text-muted-foreground">
+                      Informe quantos itens voltaram íntegros, quantos estão
+                      faltando e quantos chegaram quebrados/avariados.
+                    </p>
+                  </div>
+
+                  {eventItems.length === 0 ? (
+                    <p className="rounded-lg border border-border/60 bg-background/70 p-3 text-sm text-muted-foreground">
+                      Este evento não possui itens reservados para conferir.
+                    </p>
+                  ) : (
+                    <div className="max-h-72 space-y-3 overflow-y-auto pr-1">
+                      {eventItems.map((eventItem) => {
+                        const draft = completionDrafts[eventItem.id];
+                        const totalCounted =
+                          (draft?.returnedQuantity ?? 0) +
+                          (draft?.missingQuantity ?? 0) +
+                          (draft?.damagedQuantity ?? 0);
+                        const hasError =
+                          totalCounted !== eventItem.plannedQuantity;
+
+                        return (
+                          <div
+                            key={eventItem.id}
+                            className="rounded-xl border border-border/60 bg-background/80 p-3"
+                          >
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <div>
+                                <p className="text-sm font-medium text-foreground">
+                                  {eventItem.item.name}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  Reservado: {eventItem.plannedQuantity}
+                                </p>
+                              </div>
+                              <span
+                                className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+                                  hasError
+                                    ? 'bg-destructive/10 text-destructive'
+                                    : 'bg-accent/15 text-accent'
+                                }`}
+                              >
+                                Total contado: {totalCounted}
+                              </span>
+                            </div>
+
+                            <div className="mt-3 grid gap-3 md:grid-cols-3">
+                              <label className="space-y-1 text-xs font-medium text-muted-foreground">
+                                Retornaram
+                                <input
+                                  type="number"
+                                  min={0}
+                                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground"
+                                  value={draft?.returnedQuantity ?? 0}
+                                  onChange={(currentEvent) =>
+                                    handleCompletionDraftChange(
+                                      eventItem.id,
+                                      'returnedQuantity',
+                                      currentEvent.target.value,
+                                    )
+                                  }
+                                />
+                              </label>
+                              <label className="space-y-1 text-xs font-medium text-muted-foreground">
+                                Faltantes
+                                <input
+                                  type="number"
+                                  min={0}
+                                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground"
+                                  value={draft?.missingQuantity ?? 0}
+                                  onChange={(currentEvent) =>
+                                    handleCompletionDraftChange(
+                                      eventItem.id,
+                                      'missingQuantity',
+                                      currentEvent.target.value,
+                                    )
+                                  }
+                                />
+                              </label>
+                              <label className="space-y-1 text-xs font-medium text-muted-foreground">
+                                Avariados
+                                <input
+                                  type="number"
+                                  min={0}
+                                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground"
+                                  value={draft?.damagedQuantity ?? 0}
+                                  onChange={(currentEvent) =>
+                                    handleCompletionDraftChange(
+                                      eventItem.id,
+                                      'damagedQuantity',
+                                      currentEvent.target.value,
+                                    )
+                                  }
+                                />
+                              </label>
+                            </div>
+
+                            <label className="mt-3 block space-y-1 text-xs font-medium text-muted-foreground">
+                              Observações da avaria/falta
+                              <textarea
+                                className="min-h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground"
+                                placeholder="Ex: 2 cadeiras com pernas quebradas ou item não devolvido pelo cliente"
+                                value={draft?.notes ?? ''}
+                                onChange={(currentEvent) =>
+                                  handleCompletionDraftChange(
+                                    eventItem.id,
+                                    'notes',
+                                    currentEvent.target.value,
+                                  )
+                                }
+                              />
+                            </label>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {completionErrors.length > 0 && (
+                    <div className="space-y-1 rounded-lg border border-destructive/20 bg-destructive/5 p-3">
+                      {completionErrors.map((error) => (
+                        <p key={error} className="text-xs text-destructive">
+                          {error}
+                        </p>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
@@ -196,7 +419,10 @@ export function EventFormDialog({
               <Button
                 type="submit"
                 className="bg-gradient-to-r from-primary to-secondary text-white"
-                disabled={isLoading}
+                disabled={
+                  isLoading ||
+                  (needsInventoryConfirmation && completionErrors.length > 0)
+                }
               >
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {event ? 'Atualizar' : 'Criar'}
