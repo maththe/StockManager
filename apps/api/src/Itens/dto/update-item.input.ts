@@ -4,5 +4,5 @@ export class UpdateItemInput {
   availableQuantity?: number;
   unitCost?: number;
   categoryId?: string;
-  imageUrl?: string
+  imageUrl?: string | null;
 }

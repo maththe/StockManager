@@ -14,7 +14,7 @@ export interface UpdateItemInput {
   availableQuantity?: number;
   unitCost?: number;
   categoryId?: string;
-  imageUrl?: string
+  imageUrl?: string | null;
 }
 
 export interface Item {

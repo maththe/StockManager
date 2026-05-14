@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Edit2, Eye, Loader2, Plus, Trash2 } from 'lucide-react';
+import { type ChangeEvent, type DragEvent, useState } from 'react';
+import { Edit2, Eye, Loader2, Plus, Trash2, Upload } from 'lucide-react';
 import { Button } from '~/components/ui/button';
 import {
   Card,
@@ -8,6 +8,25 @@ import {
   CardHeader,
   CardTitle,
 } from '~/components/ui/card';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '~/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '~/components/ui/dialog';
+import { Input } from '~/components/ui/input';
 import {
   Table,
   TableBody,
@@ -23,9 +42,9 @@ import {
   useItems,
   useUpdateItem,
 } from '~/services/tanStackQuery/Itens/items';
+import { mutationError } from '~/services/tanStackQuery/mutationToast';
 import type { CreateItemInput, Item, UpdateItemInput } from '~/types/item';
 import { ItemFormDialog } from './ItemFormDialog';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '~/components/ui/dialog';
 
 interface ItemsListProps {
   categoryId?: string;
@@ -39,6 +58,71 @@ interface ItemsListProps {
   showImageAction?: boolean;
   cardClassName?: string;
   tableWrapperClassName?: string;
+}
+
+const MAX_IMAGE_DIMENSION = 1280;
+const MAX_IMAGE_SIZE_BYTES = 350 * 1024;
+const MIN_IMAGE_QUALITY = 0.45;
+
+function loadImageFromDataUrl(dataUrl: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error('image-load-failed'));
+    image.src = dataUrl;
+  });
+}
+
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        resolve(reader.result);
+        return;
+      }
+
+      reject(new Error('invalid-file-reader-result'));
+    };
+    reader.onerror = () => reject(reader.error ?? new Error('file-read-failed'));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function compressImage(file: File): Promise<string> {
+  const originalDataUrl = await readFileAsDataUrl(file);
+  const image = await loadImageFromDataUrl(originalDataUrl);
+
+  const scale = Math.min(
+    1,
+    MAX_IMAGE_DIMENSION / Math.max(image.width, image.height),
+  );
+  const targetWidth = Math.max(1, Math.round(image.width * scale));
+  const targetHeight = Math.max(1, Math.round(image.height * scale));
+
+  const canvas = document.createElement('canvas');
+  canvas.width = targetWidth;
+  canvas.height = targetHeight;
+
+  const context = canvas.getContext('2d');
+  if (!context) {
+    throw new Error('canvas-context-unavailable');
+  }
+
+  context.drawImage(image, 0, 0, targetWidth, targetHeight);
+
+  let quality = 0.82;
+  let compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+
+  while (
+    compressedDataUrl.length > MAX_IMAGE_SIZE_BYTES * 1.37 &&
+    quality > MIN_IMAGE_QUALITY
+  ) {
+    quality -= 0.08;
+    compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+  }
+
+  return compressedDataUrl;
 }
 
 export function ItemsList({
@@ -58,7 +142,13 @@ export function ItemsList({
   const [search, setSearch] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
+  const [viewingItem, setViewingItem] = useState<Item | null>(null);
+  const [isRemovingImage, setIsRemovingImage] = useState(false);
+  const [confirmRemoveImageOpen, setConfirmRemoveImageOpen] = useState(false);
+  const [uploadingItem, setUploadingItem] = useState<Item | null>(null);
+  const [uploadPreview, setUploadPreview] = useState<string | null>(null);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [isDragActive, setIsDragActive] = useState(false);
 
   const { data: items = [], isLoading } = useItems(search.trim() || undefined);
   const { data: categories = [] } = useCategories();
@@ -79,12 +169,97 @@ export function ItemsList({
     setDialogOpen(true);
   };
 
-  const handleOpenImage = (url?: string | null) => {
-    if (!url) {
+  const handleOpenImageAction = (item: Item) => {
+    if (item.imageUrl) {
+      setViewingItem(item);
       return;
     }
 
-    setSelectedImageUrl(url);
+    setUploadingItem(item);
+    setUploadPreview(null);
+  };
+
+  const handleRemoveImage = async () => {
+    if (!viewingItem || isRemovingImage) {
+      return;
+    }
+
+    try {
+      setIsRemovingImage(true);
+      await updateItem.mutateAsync({
+        id: viewingItem.id,
+        data: { imageUrl: null },
+      });
+      setConfirmRemoveImageOpen(false);
+      setViewingItem(null);
+    } catch {
+    } finally {
+      setIsRemovingImage(false);
+    }
+  };
+
+  const handleCloseUploadDialog = () => {
+    setUploadingItem(null);
+    setUploadPreview(null);
+    setIsUploadingImage(false);
+    setIsDragActive(false);
+  };
+
+  const handleProcessImageFile = async (file?: File | null) => {
+    if (!file) {
+      return;
+    }
+
+    if (!file.type.startsWith('image/')) {
+      mutationError('Selecione um arquivo de imagem valido.', new Error('invalid-image-type'));
+      setUploadPreview(null);
+      return;
+    }
+
+    try {
+      setIsUploadingImage(true);
+      const compressedImage = await compressImage(file);
+      setUploadPreview(compressedImage);
+    } catch (error) {
+      mutationError('Nao foi possivel processar a imagem selecionada.', error);
+      setUploadPreview(null);
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
+
+  const handleSelectImage = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    await handleProcessImageFile(file);
+    event.target.value = '';
+  };
+
+  const handleDragOver = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    if (!isUploadingImage) {
+      setIsDragActive(true);
+    }
+  };
+
+  const handleDragLeave = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    if (event.currentTarget.contains(event.relatedTarget as Node | null)) {
+      return;
+    }
+
+    setIsDragActive(false);
+  };
+
+  const handleDropImage = async (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setIsDragActive(false);
+
+    if (isUploadingImage) {
+      return;
+    }
+
+    const file = event.dataTransfer.files?.[0];
+    await handleProcessImageFile(file);
   };
 
   const handleCloseDialog = () => {
@@ -106,6 +281,26 @@ export function ItemsList({
       handleCloseDialog();
     } catch (error) {
       console.error('Error saving item:', error);
+    }
+  };
+
+  const handleUploadImage = async () => {
+    if (!uploadingItem || !uploadPreview) {
+      return;
+    }
+
+    try {
+      setIsUploadingImage(true);
+      await updateItem.mutateAsync({
+        id: uploadingItem.id,
+        data: {
+          imageUrl: uploadPreview,
+        },
+      });
+      handleCloseUploadDialog();
+    } catch {
+    } finally {
+      setIsUploadingImage(false);
     }
   };
 
@@ -236,14 +431,21 @@ export function ItemsList({
                               <Trash2 className="h-4 w-4" />
                             )}
                           </Button>
-                          {item.imageUrl && (
+                          {showImageAction && (
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => handleOpenImage(item.imageUrl)}
+                              onClick={() => handleOpenImageAction(item)}
                               className="hover:bg-muted/50"
+                              title={
+                                item.imageUrl ? 'Visualizar imagem' : 'Enviar imagem'
+                              }
                             >
-                              <Eye className="h-4 w-4" />
+                              {item.imageUrl ? (
+                                <Eye className="h-4 w-4" />
+                              ) : (
+                                <Upload className="h-4 w-4" />
+                              )}
                             </Button>
                           )}
                         </div>
@@ -271,29 +473,176 @@ export function ItemsList({
       />
 
       <Dialog
-        open={!!selectedImageUrl}
+        open={!!viewingItem}
         onOpenChange={(open) => {
-          if (!open) {
-            setSelectedImageUrl(null);
+          if (!open && !isRemovingImage) {
+            setViewingItem(null);
           }
         }}
       >
         <DialogContent className="max-w-4xl">
           <DialogHeader>
-            <DialogTitle>Visualização da imagem</DialogTitle>
+            <DialogTitle>Visualizacao da imagem</DialogTitle>
+            {viewingItem && (
+              <DialogDescription>{viewingItem.name}</DialogDescription>
+            )}
           </DialogHeader>
 
-          {selectedImageUrl && (
+          {viewingItem?.imageUrl && (
             <div className="flex justify-center">
               <img
-                src={selectedImageUrl}
-                alt="Imagem selecionada"
-                className="max-h-[80vh] max-w-full rounded-md object-contain"
+                src={viewingItem.imageUrl}
+                alt={viewingItem.name}
+                className="max-h-[70vh] max-w-full rounded-md object-contain"
               />
             </div>
           )}
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setViewingItem(null)}
+              disabled={isRemovingImage}
+            >
+              Fechar
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => setConfirmRemoveImageOpen(true)}
+              disabled={isRemovingImage}
+            >
+              {isRemovingImage ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Trash2 className="mr-2 h-4 w-4" />
+              )}
+              Remover imagem
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog
+        open={!!uploadingItem}
+        onOpenChange={(open) => {
+          if (!open) {
+            handleCloseUploadDialog();
+          }
+        }}
+      >
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Upload da imagem</DialogTitle>
+            <DialogDescription>
+              {uploadingItem
+                ? `O item "${uploadingItem.name}" ainda nao possui imagem cadastrada.`
+                : 'Selecione uma imagem para o item.'}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <Input
+              type="file"
+              accept="image/*"
+              onChange={handleSelectImage}
+              disabled={isUploadingImage}
+            />
+
+            <div
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDropImage}
+              className={`rounded-lg border border-dashed px-4 py-8 transition ${
+                isDragActive
+                  ? 'border-primary bg-primary/10'
+                  : 'border-border/70 bg-muted/10'
+              } ${isUploadingImage ? 'pointer-events-none opacity-70' : ''}`}
+            >
+              {uploadPreview ? (
+                <div className="flex justify-center">
+                  <img
+                    src={uploadPreview}
+                    alt="Pre-visualizacao da imagem"
+                    className="max-h-[50vh] max-w-full rounded-md object-contain"
+                  />
+                </div>
+              ) : (
+                <div className="text-center text-sm text-muted-foreground">
+                  {isUploadingImage
+                    ? 'Processando imagem...'
+                    : isDragActive
+                      ? 'Solte a imagem aqui.'
+                      : 'Arraste e solte uma imagem aqui ou selecione um arquivo acima.'}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleCloseUploadDialog}
+              disabled={isUploadingImage}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              onClick={handleUploadImage}
+              disabled={!uploadPreview || isUploadingImage}
+              className="bg-gradient-to-r from-primary to-secondary text-white"
+            >
+              {isUploadingImage && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              Salvar imagem
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog
+        open={confirmRemoveImageOpen}
+        onOpenChange={(open) => {
+          if (isRemovingImage) {
+            return;
+          }
+          setConfirmRemoveImageOpen(open);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remover imagem</AlertDialogTitle>
+            <AlertDialogDescription>
+              {viewingItem
+                ? `Tem certeza que deseja remover a imagem do item "${viewingItem.name}"? Esta acao nao podera ser desfeita.`
+                : 'Tem certeza que deseja remover a imagem deste item? Esta acao nao podera ser desfeita.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isRemovingImage}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(event) => {
+                event.preventDefault();
+                handleRemoveImage();
+              }}
+              disabled={isRemovingImage}
+            >
+              {isRemovingImage ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Trash2 className="mr-2 h-4 w-4" />
+              )}
+              Remover
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
