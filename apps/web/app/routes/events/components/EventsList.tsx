@@ -33,6 +33,13 @@ import {
   CardTitle,
 } from '~/components/ui/card';
 import { Input } from '~/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '~/components/ui/select';
 import { useClients } from '~/services/tanStackQuery/clients';
 import {
   useCancelEvent,
@@ -88,25 +95,9 @@ const formatDate = (value: string) =>
 const startOfDay = (date: Date) =>
   new Date(date.getFullYear(), date.getMonth(), date.getDate());
 
-const startOfMonth = (date: Date) =>
-  new Date(date.getFullYear(), date.getMonth(), 1);
-
-const endOfMonth = (date: Date) =>
-  new Date(date.getFullYear(), date.getMonth() + 1, 0);
-
-const eventOverlapsMonth = (event: Event, month: Date) => {
-  const monthStart = startOfMonth(month).getTime();
-  const monthEnd = endOfMonth(month).getTime();
-  const eventStart = startOfDay(new Date(event.startDate)).getTime();
-  const eventEnd = startOfDay(new Date(event.endDate)).getTime();
-
-  return eventStart <= monthEnd && eventEnd >= monthStart;
-};
-
 export function EventsList() {
   const navigate = useNavigate();
   const today = startOfDay(new Date());
-  const currentMonth = useMemo(() => startOfMonth(today), [today]);
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -128,20 +119,45 @@ export function EventsList() {
   const cancelEvent = useCancelEvent();
   const completeEvent = useCompleteEvent();
 
+  const currentPeriod = useMemo(() => {
+    const year = today.getFullYear();
+    const month = today.getMonth();
+    return {
+      label: new Intl.DateTimeFormat('pt-BR', {
+        month: 'long',
+        year: 'numeric',
+      }).format(today),
+      start: new Date(year, month, 1).getTime(),
+      end: new Date(year, month + 1, 0, 23, 59, 59, 999).getTime(),
+    };
+  }, [today]);
+
+  const periodEvents = useMemo(
+    () =>
+      events.filter((event) => {
+        const eventStart = new Date(event.startDate).getTime();
+        const eventEnd = new Date(event.endDate).getTime();
+        return eventStart <= currentPeriod.end && eventEnd >= currentPeriod.start;
+      }),
+    [events, currentPeriod],
+  );
+
   const stats = useMemo(
     () => ({
-      total: events.length,
-      active: events.filter((event) => event.status === 'IN_PROGRESS').length,
-      planning: events.filter((event) => event.status === 'PLANNING').length,
-      month: events.filter((event) => eventOverlapsMonth(event, currentMonth))
+      total: periodEvents.length,
+      active: periodEvents.filter((event) => event.status === 'IN_PROGRESS')
+        .length,
+      planning: periodEvents.filter((event) => event.status === 'PLANNING')
+        .length,
+      completed: periodEvents.filter((event) => event.status === 'COMPLETED')
         .length,
     }),
-    [currentMonth, events],
+    [periodEvents],
   );
 
   const filteredEvents = useMemo(() => {
     const search = searchTerm.trim().toLowerCase();
-    return events.filter((event) => {
+    return periodEvents.filter((event) => {
       const matchesStatus =
         statusFilter === 'ALL' || event.status === statusFilter;
       if (!matchesStatus) return false;
@@ -156,7 +172,7 @@ export function EventsList() {
         .toLowerCase();
       return haystack.includes(search);
     });
-  }, [events, searchTerm, statusFilter]);
+  }, [periodEvents, searchTerm, statusFilter]);
 
   const handleOpenDialog = (event?: Event) => {
     setEditingEvent(event ?? null);
@@ -381,6 +397,11 @@ export function EventsList() {
 
   return (
     <div className="space-y-6">
+      <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        <CalendarRange className="h-4 w-4 text-primary" />
+        Período:{' '}
+        <span className="capitalize text-foreground">{currentPeriod.label}</span>
+      </div>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Card className="border-primary/30 bg-gradient-to-br from-primary/10 to-primary/5 shadow-sm">
           <CardHeader className="pb-3">
@@ -415,10 +436,10 @@ export function EventsList() {
         <Card className="border-border/60 bg-gradient-to-br from-card to-muted/30 shadow-sm">
           <CardHeader className="pb-3">
             <CardDescription className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Neste mês
+              Concluídos
             </CardDescription>
             <CardTitle className="mt-2 text-3xl font-bold text-foreground">
-              {stats.month}
+              {stats.completed}
             </CardTitle>
           </CardHeader>
         </Card>
@@ -453,8 +474,8 @@ export function EventsList() {
         </CardHeader>
 
         <CardContent className="space-y-5">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <div className="relative flex-1">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_200px]">
+            <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 type="search"
@@ -464,22 +485,23 @@ export function EventsList() {
                 className="pl-9"
               />
             </div>
-            <div className="flex flex-wrap gap-1.5 rounded-lg border border-border/50 bg-background/60 p-1">
-              {statusFilters.map((filter) => (
-                <button
-                  key={filter.value}
-                  type="button"
-                  onClick={() => setStatusFilter(filter.value)}
-                  className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-                    statusFilter === filter.value
-                      ? 'bg-primary text-primary-foreground shadow-sm'
-                      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                  }`}
-                >
-                  {filter.label}
-                </button>
-              ))}
-            </div>
+            <Select
+              value={statusFilter}
+              onValueChange={(value) =>
+                setStatusFilter(value as EventStatus | 'ALL')
+              }
+            >
+              <SelectTrigger aria-label="Filtrar por status">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                {statusFilters.map((filter) => (
+                  <SelectItem key={filter.value} value={filter.value}>
+                    {filter.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {isLoading ? (
