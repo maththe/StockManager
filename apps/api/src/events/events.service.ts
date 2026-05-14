@@ -423,6 +423,51 @@ export class EventsService {
     });
   }
 
+  async complete(id: string, tenantUuid: string) {
+    const event = await this.prisma.event.findFirst({
+      where: { id, tenantUuid },
+      include: {
+        eventItems: true,
+      },
+    });
+
+    if (!event) {
+      throw new NotFoundException('Evento não encontrado.');
+    }
+
+    if (event.status === EventStatus.COMPLETED) {
+      throw new BadRequestException('Este evento já está concluído.');
+    }
+
+    if (event.status === EventStatus.CANCELLED) {
+      throw new BadRequestException('Não é possível concluir um evento cancelado.');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      for (const eventItem of event.eventItems) {
+        await tx.item.update({
+          where: { id: eventItem.itemId },
+          data: {
+            availableQuantity: {
+              increment: eventItem.plannedQuantity,
+            },
+          },
+        });
+      }
+
+      return tx.event.update({
+        where: { id },
+        data: {
+          status: EventStatus.COMPLETED,
+        },
+        include: {
+          client: true,
+          responsible: { select: this.responsibleSelect },
+        },
+      });
+    });
+  }
+
   async findItems(eventId: string, tenantUuid: string) {
     const event = await this.findOne(eventId, tenantUuid);
 

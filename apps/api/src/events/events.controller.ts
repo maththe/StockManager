@@ -54,6 +54,12 @@ export class EventsController {
     return this.eventsService.cancel(id, user.tenantUuid);
   }
 
+  @Patch(':id/complete')
+  async complete(@Param('id') id: string, @Req() req: Request) {
+    const user = (req as any).user;
+    return this.eventsService.complete(id, user.tenantUuid);
+  }
+
   @Delete(':id')
   async remove(@Param('id') id: string, @Req() req: Request) {
     const user = (req as any).user;

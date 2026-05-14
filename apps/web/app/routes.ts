@@ -10,6 +10,7 @@ export default [
     route('clients', 'routes/clients/ClientsPage.tsx'),
     route('users', 'routes/users/UsersPage.tsx'),
     route('rentals', 'routes/rentals/RentalsPage.tsx'),
+    route('calendar', 'routes/calendar/CalendarPage.tsx'),
     route('events', 'routes/events/EventsLayout.tsx', [
       index('routes/events/EventsPage.tsx'),
       route(':eventId/items', 'routes/events/EventReservedItemsPage.tsx'),
