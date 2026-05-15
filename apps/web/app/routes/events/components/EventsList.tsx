@@ -59,24 +59,11 @@ import type {
 
 import { EventCompleteDialog } from './EventCompleteDialog';
 import { EventFormDialog } from './EventFormDialog';
-
-const statusLabel: Record<EventStatus, string> = {
-  PLANNING: 'Planejamento',
-  IN_PROGRESS: 'Em andamento',
-  COMPLETED: 'Concluído',
-  CANCELLED: 'Cancelado',
-};
-
-const statusClassName: Record<EventStatus, string> = {
-  PLANNING:
-    'bg-secondary/10 text-secondary ring-1 ring-secondary/30 dark:bg-secondary/20 dark:text-secondary',
-  IN_PROGRESS:
-    'bg-primary/10 text-primary ring-1 ring-primary/30 dark:bg-primary/20 dark:text-primary',
-  COMPLETED:
-    'bg-accent/10 text-accent ring-1 ring-accent/30 dark:bg-accent/20 dark:text-accent',
-  CANCELLED:
-    'bg-destructive/10 text-destructive ring-1 ring-destructive/30 dark:bg-destructive/20 dark:text-destructive',
-};
+import {
+  eventStatusClassName,
+  eventStatusLabel,
+  formatEventDate,
+} from '../utils/utils';
 
 const statusFilters: { value: EventStatus | 'ALL'; label: string }[] = [
   { value: 'ALL', label: 'Todos' },
@@ -85,12 +72,6 @@ const statusFilters: { value: EventStatus | 'ALL'; label: string }[] = [
   { value: 'COMPLETED', label: 'Concluídos' },
   { value: 'CANCELLED', label: 'Cancelados' },
 ];
-
-const formatDate = (value: string) =>
-  new Intl.DateTimeFormat('pt-BR', {
-    dateStyle: 'short',
-    timeStyle: 'short',
-  }).format(new Date(value));
 
 const startOfDay = (date: Date) =>
   new Date(date.getFullYear(), date.getMonth(), date.getDate());
@@ -365,9 +346,9 @@ export function EventsList() {
           </div>
         </div>
         <span
-          className={`inline-flex flex-shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${statusClassName[event.status]}`}
+          className={`inline-flex flex-shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${eventStatusClassName[event.status]}`}
         >
-          {statusLabel[event.status]}
+          {eventStatusLabel[event.status]}
         </span>
       </div>
 
@@ -375,7 +356,7 @@ export function EventsList() {
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <CalendarDays className="h-4 w-4 flex-shrink-0" />
           <span className="line-clamp-1">
-            {formatDate(event.startDate)} até {formatDate(event.endDate)}
+            {formatEventDate(event.startDate)} até {formatEventDate(event.endDate)}
           </span>
         </div>
         <div className="flex items-center gap-2 text-sm text-muted-foreground">

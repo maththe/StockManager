@@ -1,5 +1,29 @@
-import type { EventItem } from '~/types/event';
+import type { EventItem, EventStatus } from '~/types/event';
 import type { Item } from '~/types/item';
+
+export const eventStatusLabel: Record<EventStatus, string> = {
+  PLANNING: 'Planejamento',
+  IN_PROGRESS: 'Em andamento',
+  COMPLETED: 'Concluído',
+  CANCELLED: 'Cancelado',
+};
+
+export const eventStatusClassName: Record<EventStatus, string> = {
+  PLANNING:
+    'bg-secondary/10 text-secondary ring-1 ring-secondary/30 dark:bg-secondary/20 dark:text-secondary',
+  IN_PROGRESS:
+    'bg-primary/10 text-primary ring-1 ring-primary/30 dark:bg-primary/20 dark:text-primary',
+  COMPLETED:
+    'bg-accent/10 text-accent ring-1 ring-accent/30 dark:bg-accent/20 dark:text-accent',
+  CANCELLED:
+    'bg-destructive/10 text-destructive ring-1 ring-destructive/30 dark:bg-destructive/20 dark:text-destructive',
+};
+
+export const formatEventDate = (value: string) =>
+  new Intl.DateTimeFormat('pt-BR', {
+    dateStyle: 'short',
+    timeStyle: 'short',
+  }).format(new Date(value));
 
 export type EventCatalogItem = Item & {
   imageUrl?: string | null;
