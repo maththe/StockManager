@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { FormProvider, useForm } from 'react-hook-form';
-import { Loader2 } from 'lucide-react';
+import { type Control, FormProvider, useController, useForm } from 'react-hook-form';
+import { Clock3, Loader2 } from 'lucide-react';
 import { InputDate } from '~/components/Form/InputDate';
 import { InputForm } from '~/components/Form/InputForm';
 import { SelectForm } from '~/components/Form/SelectForm';
@@ -40,12 +40,17 @@ const statusOptions: Array<{ value: EventStatus; label: string }> = [
   { value: 'CANCELLED', label: 'Cancelado' },
 ];
 
-const toDateTimeLocal = (value?: string) => {
+const toDateTimeLocal = (value?: string | null) => {
   if (!value) return '';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '';
   const timezoneOffset = date.getTimezoneOffset() * 60000;
   return new Date(date.getTime() - timezoneOffset).toISOString().slice(0, 16);
+};
+
+const toTimeLocal = (value?: string | null) => {
+  const local = toDateTimeLocal(value);
+  return local ? local.slice(11, 16) : '';
 };
 
 const toIsoString = (value: string) => new Date(value).toISOString();
@@ -81,6 +86,30 @@ const buildCompletionDrafts = (event?: Event | null) =>
     ]),
   ) as Record<string, CompleteEventItemInput>;
 
+function EndTimeInput({ control }: { control: Control<any> }) {
+  const { field } = useController({ control, name: 'endTime' });
+
+  return (
+    <div className="grid gap-2">
+      <label htmlFor="endTime" className="text-sm font-medium">
+        Horário de término
+        <span className="ml-1.5 text-xs font-normal text-muted-foreground">(opcional)</span>
+      </label>
+      <div className="relative">
+        <Clock3 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-secondary" />
+        <input
+          id="endTime"
+          type="time"
+          className="h-11 w-full rounded-xl border border-input bg-background/80 pl-10 pr-3 text-sm text-foreground shadow-sm outline-none transition hover:border-ring/50 focus:border-ring focus:ring-2 focus:ring-ring/30"
+          value={field.value ?? ''}
+          onChange={field.onChange}
+          onBlur={field.onBlur}
+        />
+      </div>
+    </div>
+  );
+}
+
 export function EventFormDialog({
   open,
   onOpenChange,
@@ -94,12 +123,14 @@ export function EventFormDialog({
     buildCompletionDrafts(event),
   );
 
-  const form = useForm<CreateEventInput>({
+  type FormValues = Omit<CreateEventInput, 'endDate'> & { endTime: string };
+
+  const form = useForm<FormValues>({
     values: event
       ? {
           eventName: event.eventName,
           startDate: toDateTimeLocal(event.startDate),
-          endDate: toDateTimeLocal(event.endDate),
+          endTime: toTimeLocal(event.endDate),
           eventLocation: event.eventLocation,
           status: event.status,
           clientId: event.clientId,
@@ -109,7 +140,7 @@ export function EventFormDialog({
       : {
           eventName: '',
           startDate: '',
-          endDate: '',
+          endTime: '',
           eventLocation: '',
           status: 'PLANNING',
           clientId: '',
@@ -167,16 +198,25 @@ export function EventFormDialog({
     }));
   };
 
-  const handleSubmit = async (data: CreateEventInput) => {
+  const handleSubmit = async (data: FormValues) => {
     if (needsInventoryConfirmation && completionErrors.length) {
       return;
     }
 
+    const dateOnly = data.startDate.split('T')[0];
+    const endDate = data.endTime
+      ? toIsoString(`${dateOnly}T${data.endTime}`)
+      : null;
+
     await onSubmit({
-      ...data,
+      eventName: data.eventName,
       startDate: toIsoString(data.startDate),
-      endDate: toIsoString(data.endDate),
+      endDate,
+      eventLocation: data.eventLocation,
+      status: data.status,
+      clientId: data.clientId,
       responsibleId: data.responsibleId || null,
+      inventoryCountConfirmed: data.inventoryCountConfirmed,
       completionItems: needsInventoryConfirmation
         ? Object.values(completionDrafts)
         : undefined,
@@ -211,8 +251,8 @@ export function EventFormDialog({
             />
 
             <div className="grid gap-4 md:grid-cols-2">
-              <InputDate name="startDate" label="Início" required />
-              <InputDate name="endDate" label="Fim" required />
+              <InputDate name="startDate" label="Data e hora de início" required />
+              <EndTimeInput control={form.control} />
             </div>
 
             {needsInventoryConfirmation && (

@@ -1,29 +1,15 @@
 import { useMemo, useState } from 'react';
 import {
-  Ban,
   CalendarDays,
   CalendarRange,
-  CheckCircle2,
-  Edit2,
   Loader2,
   MapPin,
   Plus,
   Search,
-  Trash2,
   UserRound,
 } from 'lucide-react';
 import { useNavigate } from 'react-router';
 
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '~/components/ui/alert-dialog';
 import { Button } from '~/components/ui/button';
 import {
   Card,
@@ -41,14 +27,7 @@ import {
   SelectValue,
 } from '~/components/ui/select';
 import { useClients } from '~/services/tanStackQuery/clients';
-import {
-  useCancelEvent,
-  useCompleteEvent,
-  useCreateEvent,
-  useDeleteEvent,
-  useEvents,
-  useUpdateEvent,
-} from '~/services/tanStackQuery/events';
+import { useCreateEvent, useEvents } from '~/services/tanStackQuery/events';
 import { useUsers } from '~/services/tanStackQuery/users';
 import type {
   CreateEventInput,
@@ -57,7 +36,6 @@ import type {
   UpdateEventInput,
 } from '~/types/event';
 
-import { EventCompleteDialog } from './EventCompleteDialog';
 import { EventFormDialog } from './EventFormDialog';
 import {
   eventStatusClassName,
@@ -79,15 +57,7 @@ const startOfDay = (date: Date) =>
 export function EventsList() {
   const navigate = useNavigate();
   const today = startOfDay(new Date());
-  const [editingEvent, setEditingEvent] = useState<Event | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [cancellingId, setCancellingId] = useState<string | null>(null);
-  const [completingId, setCompletingId] = useState<string | null>(null);
-  const [pendingAction, setPendingAction] = useState<{
-    type: 'cancel' | 'complete' | 'delete';
-    event: Event;
-  } | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<EventStatus | 'ALL'>('ALL');
 
@@ -95,10 +65,6 @@ export function EventsList() {
   const { data: clients = [] } = useClients();
   const { data: users = [] } = useUsers();
   const createEvent = useCreateEvent();
-  const updateEvent = useUpdateEvent();
-  const deleteEvent = useDeleteEvent();
-  const cancelEvent = useCancelEvent();
-  const completeEvent = useCompleteEvent();
 
   const currentPeriod = useMemo(() => {
     const year = today.getFullYear();
@@ -117,7 +83,7 @@ export function EventsList() {
     () =>
       events.filter((event) => {
         const eventStart = new Date(event.startDate).getTime();
-        const eventEnd = new Date(event.endDate).getTime();
+        const eventEnd = new Date(event.endDate ?? event.startDate).getTime();
         return eventStart <= currentPeriod.end && eventEnd >= currentPeriod.start;
       }),
     [events, currentPeriod],
@@ -155,190 +121,47 @@ export function EventsList() {
     });
   }, [periodEvents, searchTerm, statusFilter]);
 
-  const handleOpenDialog = (event?: Event) => {
-    setEditingEvent(event ?? null);
+  const handleOpenDialog = () => {
     setDialogOpen(true);
   };
 
   const handleCloseDialog = () => {
-    setEditingEvent(null);
     setDialogOpen(false);
   };
 
-  const handleSubmit = async (data: CreateEventInput | UpdateEventInput) => {
-    if (editingEvent) {
-      await updateEvent.mutateAsync({ id: editingEvent.id, data });
-    } else {
-      await createEvent.mutateAsync(data as CreateEventInput);
-    }
+  const handleSubmit = async (
+    data: CreateEventInput | UpdateEventInput,
+  ) => {
+    await createEvent.mutateAsync(data as CreateEventInput);
     handleCloseDialog();
-  };
-
-  const handleDelete = async (id: string) => {
-    try {
-      setDeletingId(id);
-      await deleteEvent.mutateAsync(id);
-    } finally {
-      setDeletingId(null);
-    }
-  };
-
-  const handleCancel = async (id: string) => {
-    try {
-      setCancellingId(id);
-      await cancelEvent.mutateAsync(id);
-    } finally {
-      setCancellingId(null);
-    }
-  };
-
-  const handleComplete = async (id: string) => {
-    try {
-      setCompletingId(id);
-      await completeEvent.mutateAsync(id);
-    } finally {
-      setCompletingId(null);
-    }
-  };
-
-  const handleConfirmPendingAction = async () => {
-    if (!pendingAction) return;
-
-    if (pendingAction.type === 'delete') {
-      await handleDelete(pendingAction.event.id);
-    } else if (pendingAction.type === 'complete') {
-      await handleComplete(pendingAction.event.id);
-    } else {
-      await handleCancel(pendingAction.event.id);
-    }
-
-    setPendingAction(null);
-  };
-
-  const renderEventActions = (event: Event) => {
-    if (event.status === 'CANCELLED') {
-      return (
-        <div className="mt-4 flex flex-wrap gap-2 border-t border-border/30 pt-4">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="border-destructive/30 text-destructive transition-colors hover:bg-destructive/10"
-            onClick={(e) => {
-              e.stopPropagation();
-              setPendingAction({ type: 'delete', event });
-            }}
-            disabled={deletingId === event.id || Boolean(pendingAction)}
-            aria-label={`Excluir ${event.eventName}`}
-          >
-            {deletingId === event.id ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Trash2 className="h-4 w-4" />
-            )}
-          </Button>
-        </div>
-      );
-    }
-
-    return (
-      <div className="mt-4 flex flex-wrap gap-2 border-t border-border/30 pt-4">
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="border-emerald-200/50 text-emerald-600 transition-colors hover:bg-emerald-50 hover:text-emerald-700 dark:border-emerald-900/50 dark:hover:bg-emerald-950"
-          onClick={(e) => {
-            e.stopPropagation();
-            setPendingAction({ type: 'complete', event });
-          }}
-          disabled={
-            event.status === 'COMPLETED' ||
-            completingId === event.id ||
-            Boolean(pendingAction)
-          }
-          aria-label={`Concluir ${event.eventName}`}
-        >
-          {completingId === event.id ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <CheckCircle2 className="h-4 w-4" />
-          )}
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="border-amber-200/50 text-amber-600 transition-colors hover:bg-amber-50 hover:text-amber-700 dark:border-amber-900/50 dark:hover:bg-amber-950"
-          onClick={(e) => {
-            e.stopPropagation();
-            setPendingAction({ type: 'cancel', event });
-          }}
-          disabled={
-            event.status === 'COMPLETED' ||
-            cancellingId === event.id ||
-            Boolean(pendingAction)
-          }
-          aria-label={`Cancelar ${event.eventName}`}
-        >
-          {cancellingId === event.id ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Ban className="h-4 w-4" />
-          )}
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="border-border/50 transition-colors hover:bg-primary/10 hover:text-primary"
-          onClick={(e) => {
-            e.stopPropagation();
-            handleOpenDialog(event);
-          }}
-          aria-label={`Editar ${event.eventName}`}
-        >
-          <Edit2 className="h-4 w-4" />
-        </Button>
-      </div>
-    );
   };
 
   const renderEventCard = (event: Event) => {
     const isLocked =
       event.status === 'CANCELLED' || event.status === 'COMPLETED';
     const openEvent = () => {
-      if (isLocked) return;
-      navigate(`/dashboard/events/${event.id}/items`);
+      navigate(`/dashboard/events/${event.id}`);
     };
 
     return (
     <div
       key={event.id}
       role="button"
-      tabIndex={isLocked ? -1 : 0}
-      aria-disabled={isLocked}
+      tabIndex={0}
       onClick={openEvent}
       onKeyDown={(e) => {
-        if (isLocked) return;
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
           openEvent();
         }
       }}
-      className={`group rounded-xl border border-border/50 bg-card/50 p-5 text-left shadow-sm backdrop-blur-sm transition-all duration-200 focus:outline-none ${
-        isLocked
-          ? 'cursor-not-allowed opacity-70'
-          : 'cursor-pointer hover:-translate-y-0.5 hover:border-primary/40 hover:bg-card/70 hover:shadow-lg focus:ring-2 focus:ring-primary/30'
+      className={`group cursor-pointer rounded-xl border border-border/50 bg-card/50 p-5 text-left shadow-sm backdrop-blur-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/40 hover:bg-card/70 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-primary/30 ${
+        isLocked ? 'opacity-75' : ''
       }`}
     >
       <div className="mb-4 flex items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
-          <div
-            className={`line-clamp-1 text-lg font-bold text-foreground transition-colors ${
-              isLocked ? '' : 'group-hover:text-primary'
-            }`}
-          >
+          <div className="line-clamp-1 text-lg font-bold text-foreground transition-colors group-hover:text-primary">
             {event.eventName}
           </div>
           <div className="mt-2 line-clamp-1 text-sm text-muted-foreground">
@@ -356,7 +179,8 @@ export function EventsList() {
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <CalendarDays className="h-4 w-4 flex-shrink-0" />
           <span className="line-clamp-1">
-            {formatEventDate(event.startDate)} até {formatEventDate(event.endDate)}
+            {formatEventDate(event.startDate)}
+            {event.endDate && ` até ${formatEventDate(event.endDate)}`}
           </span>
         </div>
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -371,7 +195,6 @@ export function EventsList() {
         </div>
       </div>
 
-      {renderEventActions(event)}
     </div>
     );
   };
@@ -528,54 +351,11 @@ export function EventsList() {
           }
           setDialogOpen(open);
         }}
-        event={editingEvent}
+        event={null}
         clients={clients}
         users={users}
         onSubmit={handleSubmit}
-        isLoading={createEvent.isPending || updateEvent.isPending}
-      />
-
-      <AlertDialog
-        open={Boolean(pendingAction) && pendingAction?.type !== 'complete'}
-        onOpenChange={(open) => {
-          if (!open) setPendingAction(null);
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {pendingAction?.type === 'delete'
-                ? 'Excluir evento?'
-                : 'Cancelar evento?'}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {pendingAction?.type === 'delete'
-                ? `Esta ação removerá permanentemente o evento "${pendingAction.event.eventName}".`
-                : `Ao cancelar "${pendingAction?.event.eventName}", todos os itens reservados voltarão ao estoque.`}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel
-              disabled={Boolean(deletingId || cancellingId)}
-            >
-              Voltar
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleConfirmPendingAction}
-              disabled={Boolean(deletingId || cancellingId)}
-            >
-              {deletingId || cancellingId ? 'Processando...' : 'Confirmar'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <EventCompleteDialog
-        open={pendingAction?.type === 'complete'}
-        event={pendingAction?.type === 'complete' ? pendingAction.event : null}
-        isLoading={Boolean(completingId)}
-        onConfirm={handleConfirmPendingAction}
-        onCancel={() => setPendingAction(null)}
+        isLoading={createEvent.isPending}
       />
     </div>
   );

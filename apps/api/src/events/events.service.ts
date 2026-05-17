@@ -16,16 +16,34 @@ export class EventsService {
     email: true,
   } as const;
 
-  private parseEventDates(startDate: string, endDate: string) {
+  private parseEventDates(startDate: string, endDate?: string | null) {
     const parsedStart = new Date(startDate);
-    const parsedEnd = new Date(endDate);
 
-    if (Number.isNaN(parsedStart.getTime()) || Number.isNaN(parsedEnd.getTime())) {
-      throw new BadRequestException('Datas do evento inválidas.');
+    if (Number.isNaN(parsedStart.getTime())) {
+      throw new BadRequestException('Data de início inválida.');
     }
 
-    if (parsedEnd < parsedStart) {
-      throw new BadRequestException('A data final deve ser maior ou igual à inicial.');
+    if (!endDate) {
+      return { parsedStart, parsedEnd: null as null };
+    }
+
+    const parsedEnd = new Date(endDate);
+
+    if (Number.isNaN(parsedEnd.getTime())) {
+      throw new BadRequestException('Data de término inválida.');
+    }
+
+    if (parsedEnd <= parsedStart) {
+      throw new BadRequestException('O horário de término deve ser após o horário de início.');
+    }
+
+    const sameDay =
+      parsedStart.getFullYear() === parsedEnd.getFullYear() &&
+      parsedStart.getMonth() === parsedEnd.getMonth() &&
+      parsedStart.getDate() === parsedEnd.getDate();
+
+    if (!sameDay) {
+      throw new BadRequestException('O horário de término deve ser no mesmo dia que o início.');
     }
 
     return { parsedStart, parsedEnd };
@@ -200,7 +218,7 @@ export class EventsService {
   async create(createEventInput: CreateEventInput, tenantUuid: string): Promise<Event> {
     const { parsedStart, parsedEnd } = this.parseEventDates(
       createEventInput.startDate,
-      createEventInput.endDate,
+      createEventInput.endDate ?? null,
     );
 
     await this.ensureClientExists(createEventInput.clientId);
@@ -221,7 +239,7 @@ export class EventsService {
       data: {
         eventName: createEventInput.eventName,
         startDate: parsedStart,
-        endDate: parsedEnd,
+        endDate: parsedEnd ?? null,
         eventLocation: createEventInput.eventLocation,
         status: createEventInput.status ?? EventStatus.PLANNING,
         clientId: createEventInput.clientId,
@@ -296,7 +314,10 @@ export class EventsService {
     }
 
     const nextStartDate = updateEventInput.startDate ?? existing.startDate.toISOString();
-    const nextEndDate = updateEventInput.endDate ?? existing.endDate.toISOString();
+    const nextEndDate =
+      updateEventInput.endDate !== undefined
+        ? updateEventInput.endDate
+        : (existing.endDate?.toISOString() ?? null);
     const { parsedStart, parsedEnd } = this.parseEventDates(nextStartDate, nextEndDate);
     const isFinishingEvent =
       updateEventInput.status === EventStatus.COMPLETED &&
@@ -341,7 +362,7 @@ export class EventsService {
         data: {
           eventName: updateEventInput.eventName,
           startDate: updateEventInput.startDate ? parsedStart : undefined,
-          endDate: updateEventInput.endDate ? parsedEnd : undefined,
+          endDate: updateEventInput.endDate !== undefined ? parsedEnd : undefined,
           eventLocation: updateEventInput.eventLocation,
           status: updateEventInput.status,
           clientId: updateEventInput.clientId,

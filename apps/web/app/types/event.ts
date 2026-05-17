@@ -59,7 +59,7 @@ export interface Event {
   id: string;
   eventName: string;
   startDate: string;
-  endDate: string;
+  endDate?: string | null;
   eventLocation: string;
   status: EventStatus;
   tenantUuid: string;
@@ -75,7 +75,7 @@ export interface Event {
 export interface CreateEventInput {
   eventName: string;
   startDate: string;
-  endDate: string;
+  endDate?: string | null;
   eventLocation: string;
   status: EventStatus;
   clientId: string;
@@ -95,7 +95,7 @@ export interface CompleteEventItemInput {
 export interface UpdateEventInput {
   eventName?: string;
   startDate?: string;
-  endDate?: string;
+  endDate?: string | null;
   eventLocation?: string;
   status?: EventStatus;
   clientId?: string;

@@ -13,6 +13,7 @@ export default [
     route('calendar', 'routes/calendar/CalendarPage.tsx'),
     route('events', 'routes/events/EventsLayout.tsx', [
       index('routes/events/EventsPage.tsx'),
+      route(':eventId', 'routes/events/EventDetailsPage.tsx'),
       route(':eventId/items', 'routes/events/EventReservedItemsPage.tsx'),
     ]),
   ]),

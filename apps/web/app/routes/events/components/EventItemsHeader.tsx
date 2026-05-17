@@ -12,21 +12,45 @@ interface EventItemsHeaderProps {
 }
 
 export function EventItemsHeader({ event }: EventItemsHeaderProps) {
+  const eventDetailsHref = event ? `/dashboard/events/${event.id}` : '/dashboard/events';
+
   return (
     <header className="border-b border-border/60 bg-gradient-to-br from-background via-background to-muted/40 px-4 py-5 dark:from-background dark:via-card dark:to-muted/20 sm:px-6">
-      <nav className="mb-4 flex items-center gap-1.5 text-sm text-muted-foreground">
+      <div className="mb-4 flex items-center gap-3">
         <Link
-          to="/dashboard/events"
-          className="flex items-center gap-1 transition-colors hover:text-foreground"
+          to={eventDetailsHref}
+          aria-label={
+            event
+              ? `Voltar para o evento ${event.eventName}`
+              : 'Voltar para o evento'
+          }
+          className="group inline-flex items-center gap-2 rounded-full border border-border/70 bg-background px-3.5 py-2 text-sm font-medium text-foreground shadow-sm transition-all hover:-translate-x-0.5 hover:border-primary/50 hover:bg-primary/5 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
         >
-          <ArrowLeft className="h-3.5 w-3.5" />
-          Eventos
+          <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-0.5" />
+          Voltar para o evento
         </Link>
-        <span>/</span>
-        <span className="truncate font-medium text-foreground">
-          {event?.eventName ?? '...'}
-        </span>
-      </nav>
+
+        <nav
+          aria-label="Trilha de navegação"
+          className="hidden min-w-0 items-center gap-1.5 text-xs text-muted-foreground sm:flex"
+        >
+          <Link
+            to="/dashboard/events"
+            className="transition-colors hover:text-foreground"
+          >
+            Eventos
+          </Link>
+          <span>/</span>
+          <Link
+            to={eventDetailsHref}
+            className="truncate font-medium text-foreground/80 transition-colors hover:text-foreground"
+          >
+            {event?.eventName ?? '...'}
+          </Link>
+          <span>/</span>
+          <span className="font-medium text-foreground">Itens</span>
+        </nav>
+      </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
@@ -56,10 +80,11 @@ export function EventItemsHeader({ event }: EventItemsHeaderProps) {
                 {event.eventLocation}
               </span>
             )}
-            {event?.startDate && event?.endDate && (
+            {event?.startDate && (
               <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
                 <CalendarDays className="h-4 w-4 flex-shrink-0 text-primary/60" />
-                {formatEventDate(event.startDate)} – {formatEventDate(event.endDate)}
+                {formatEventDate(event.startDate)}
+                {event.endDate && ` – ${formatEventDate(event.endDate)}`}
               </span>
             )}
             {event?.responsible?.name && (

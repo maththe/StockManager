@@ -49,6 +49,13 @@ const statusDotClassName: Record<EventStatus, string> = {
   CANCELLED: 'bg-destructive',
 };
 
+const statusPillClassName: Record<EventStatus, string> = {
+  PLANNING: 'bg-secondary/15 text-secondary',
+  IN_PROGRESS: 'bg-primary/15 text-primary',
+  COMPLETED: 'bg-accent/15 text-accent',
+  CANCELLED: 'bg-destructive/10 text-destructive/70 line-through',
+};
+
 const weekdayLabels = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
 const formatDate = (value: string) =>
@@ -100,7 +107,9 @@ const getCalendarDays = (month: Date) => {
 const eventOverlapsDay = (event: Event, day: Date) => {
   const currentDay = startOfDay(day).getTime();
   const eventStart = startOfDay(new Date(event.startDate)).getTime();
-  const eventEnd = startOfDay(new Date(event.endDate)).getTime();
+  const eventEnd = event.endDate
+    ? startOfDay(new Date(event.endDate)).getTime()
+    : eventStart;
 
   return eventStart <= currentDay && eventEnd >= currentDay;
 };
@@ -136,7 +145,8 @@ export function CalendarView() {
         .filter(
           (event) =>
             event.status !== 'CANCELLED' &&
-            startOfDay(new Date(event.endDate)).getTime() >= today.getTime(),
+            startOfDay(new Date(event.endDate ?? event.startDate)).getTime() >=
+              today.getTime(),
         )
         .sort(
           (firstEvent, secondEvent) =>
@@ -249,6 +259,7 @@ export function CalendarView() {
                       day.getMonth() === currentMonth.getMonth();
                     const isToday = isSameDay(day, today);
                     const isSelected = isSameDay(day, selectedDate);
+                    const isWeekend = day.getDay() === 0 || day.getDay() === 6;
 
                     return (
                       <button
@@ -260,6 +271,7 @@ export function CalendarView() {
                           isCurrentMonth
                             ? 'border-border/60 bg-card/80'
                             : 'border-border/30 bg-muted/30 text-muted-foreground/70',
+                          isWeekend && !isSelected && 'bg-muted/20',
                           isSelected &&
                             'border-primary/60 bg-primary/10 shadow-sm ring-1 ring-primary/30',
                         )}
@@ -268,7 +280,11 @@ export function CalendarView() {
                           <span
                             className={cn(
                               'flex h-7 w-7 items-center justify-center rounded-full text-sm font-semibold',
-                              isToday && 'bg-primary text-primary-foreground shadow-sm',
+                              isToday
+                                ? 'bg-primary text-primary-foreground shadow-sm'
+                                : isSelected
+                                  ? 'text-primary'
+                                  : '',
                             )}
                           >
                             {day.getDate()}
@@ -284,14 +300,12 @@ export function CalendarView() {
                           {dayEvents.slice(0, 2).map((event) => (
                             <div
                               key={event.id}
-                              className="flex items-center gap-1 rounded-md bg-background/80 px-2 py-1 text-[0.68rem] font-medium text-foreground shadow-sm"
+                              className={cn(
+                                'flex items-center gap-1 rounded-md px-2 py-1 text-[0.68rem] font-medium',
+                                statusPillClassName[event.status],
+                              )}
                             >
-                              <span
-                                className={`h-2 w-2 flex-shrink-0 rounded-full ${statusDotClassName[event.status]}`}
-                              />
-                              <span className="truncate">
-                                {event.eventName}
-                              </span>
+                              <span className="truncate">{event.eventName}</span>
                             </div>
                           ))}
                           {dayEvents.length > 2 && (
@@ -334,15 +348,11 @@ export function CalendarView() {
                         <button
                           key={event.id}
                           type="button"
-                          disabled={isLocked}
-                          onClick={() => {
-                            if (isLocked) return;
-                            navigate(`/dashboard/events/${event.id}/items`);
-                          }}
-                          className={`w-full rounded-xl border border-border/50 bg-card/70 p-3 text-left transition focus:outline-none ${
-                            isLocked
-                              ? 'cursor-not-allowed opacity-70'
-                              : 'hover:-translate-y-0.5 hover:border-primary/40 hover:bg-primary/5 hover:shadow-sm focus:ring-2 focus:ring-primary/30'
+                          onClick={() =>
+                            navigate(`/dashboard/events/${event.id}`)
+                          }
+                          className={`w-full rounded-xl border border-border/50 bg-card/70 p-3 text-left transition hover:-translate-y-0.5 hover:border-primary/40 hover:bg-primary/5 hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/30 ${
+                            isLocked ? 'opacity-75' : ''
                           }`}
                         >
                           <div className="flex items-start justify-between gap-2">
@@ -362,7 +372,14 @@ export function CalendarView() {
                               {statusLabel[event.status]}
                             </span>
                           </div>
-                          <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
+                          <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+                            <CalendarDays className="h-3.5 w-3.5 flex-shrink-0" />
+                            <span className="truncate">
+                              {formatDate(event.startDate)}
+                              {event.endDate && ` → ${formatDate(event.endDate)}`}
+                            </span>
+                          </div>
+                          <div className="mt-1.5 flex items-center gap-2 text-xs text-muted-foreground">
                             <MapPin className="h-3.5 w-3.5 flex-shrink-0" />
                             <span className="truncate">
                               {event.eventLocation}
@@ -420,6 +437,7 @@ export function CalendarView() {
                             </div>
                             <div className="mt-1 truncate text-xs text-muted-foreground">
                               {formatDate(event.startDate)}
+                              {event.endDate && ` → ${formatDate(event.endDate)}`}
                             </div>
                             <div className="mt-1.5 inline-flex">
                               <span

@@ -25,6 +25,27 @@ export class RentalsService {
     return { parsedStart, parsedReturn };
   }
 
+  private async generateRentalCode(tenantUuid: string): Promise<string> {
+    const year = new Date().getFullYear();
+    const prefix = `LOC-${year}-`;
+
+    const last = await this.prisma.rental.findFirst({
+      where: { tenantUuid, rentalCode: { startsWith: prefix } },
+      orderBy: { rentalCode: 'desc' },
+      select: { rentalCode: true },
+    });
+
+    let nextNumber = 1;
+    if (last) {
+      const match = last.rentalCode.match(/-(\d+)$/);
+      if (match) {
+        nextNumber = Number.parseInt(match[1], 10) + 1;
+      }
+    }
+
+    return `${prefix}${String(nextNumber).padStart(4, '0')}`;
+  }
+
   private normalizeQuantity(value: number | undefined, fieldName: string): number {
     if (typeof value !== 'number' || !Number.isInteger(value) || value <= 0) {
       throw new BadRequestException(`${fieldName} deve ser um número inteiro maior que zero.`);
@@ -62,19 +83,40 @@ export class RentalsService {
     );
     await this.ensureClientExists(input.clientId);
 
-    return this.prisma.rental.create({
-      data: {
-        rentalCode: input.rentalCode,
-        startDate: parsedStart,
-        expectedReturn: parsedReturn,
-        location: input.location,
-        notes: input.notes,
-        status: input.status ?? RentalStatus.DRAFT,
-        clientId: input.clientId,
-        tenantUuid,
-      },
-      include: { client: true, rentalItems: { include: { item: true } } },
-    });
+    const requestedStatus = input.status ?? RentalStatus.DRAFT;
+    if (requestedStatus === RentalStatus.RETURNED || requestedStatus === RentalStatus.CANCELLED) {
+      throw new BadRequestException(
+        'Uma nova locação só pode iniciar como Rascunho ou Ativa.',
+      );
+    }
+
+    const maxAttempts = 5;
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      const rentalCode = await this.generateRentalCode(tenantUuid);
+
+      try {
+        return await this.prisma.rental.create({
+          data: {
+            rentalCode,
+            startDate: parsedStart,
+            expectedReturn: parsedReturn,
+            location: input.location,
+            notes: input.notes,
+            status: requestedStatus,
+            clientId: input.clientId,
+            tenantUuid,
+          },
+          include: { client: true, rentalItems: { include: { item: true } } },
+        });
+      } catch (error: any) {
+        if (error?.code === 'P2002' && attempt < maxAttempts) {
+          continue;
+        }
+        throw error;
+      }
+    }
+
+    throw new BadRequestException('Não foi possível gerar um código único para a locação. Tente novamente.');
   }
 
   async findAll(tenantUuid: string, search?: string) {
@@ -119,10 +161,11 @@ export class RentalsService {
       await this.ensureClientExists(input.clientId);
     }
 
+    const statusChanged = input.status !== undefined && input.status !== existing.status;
+
     if (
-      input.status &&
-      input.status !== existing.status &&
-      input.status === "CANCELLED" || input.status === "RETURNED"
+      statusChanged &&
+      (input.status === RentalStatus.CANCELLED || input.status === RentalStatus.RETURNED)
     ) {
       throw new BadRequestException(
         'Use as ações de cancelar ou devolver para encerrar a locação.',
@@ -130,9 +173,8 @@ export class RentalsService {
     }
 
     if (
-      input.status &&
-      input.status !== existing.status &&
-      existing.status === "CANCELLED" || existing.status === "RETURNED"
+      statusChanged &&
+      (existing.status === RentalStatus.CANCELLED || existing.status === RentalStatus.RETURNED)
     ) {
       throw new BadRequestException('Não é possível reabrir uma locação encerrada.');
     }
@@ -150,7 +192,6 @@ export class RentalsService {
     return this.prisma.rental.update({
       where: { id },
       data: {
-        rentalCode: input.rentalCode,
         startDate: input.startDate ? parsedStart : undefined,
         expectedReturn: input.expectedReturn ? parsedReturn : undefined,
         returnedAt,

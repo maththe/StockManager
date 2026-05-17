@@ -17,12 +17,8 @@ type InputDateProps = Omit<
 
 const splitDateTime = (value?: string) => {
   if (!value) return { date: '', time: '' };
-
   const [date = '', rawTime = ''] = value.split('T');
-  return {
-    date,
-    time: rawTime.slice(0, 5),
-  };
+  return { date, time: rawTime.slice(0, 5) };
 };
 
 const toDatePart = (value?: string | number) => {
@@ -53,11 +49,7 @@ export function InputDate({
   const {
     field,
     fieldState: { error },
-  } = useController({
-    control,
-    name,
-    rules,
-  });
+  } = useController({ control, name, rules });
 
   const fieldId = id || name;
   const { date, time } = splitDateTime(field.value);
@@ -67,26 +59,30 @@ export function InputDate({
       field.onChange('');
       return;
     }
-
     field.onChange(`${nextDate}T${nextTime || defaultTime}`);
   };
+
+  const baseInput =
+    'h-11 w-full rounded-xl border bg-background/80 text-sm text-foreground shadow-sm outline-none transition placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-60';
+
+  const focusRing =
+    'focus:border-ring focus:ring-2 focus:ring-ring/30';
+
+  const errorBorder = error
+    ? 'border-destructive focus:border-destructive focus:ring-destructive/20'
+    : 'border-input hover:border-ring/50';
 
   return (
     <div className={cn('grid gap-2', className)}>
       {label && (
         <Label htmlFor={`${fieldId}-date`} className="text-sm font-medium">
           {label}
+          {required && <span className="ml-1 text-destructive">*</span>}
         </Label>
       )}
 
-      <div
-        className={cn(
-          'grid gap-2 rounded-xl border border-input bg-background/80 p-2 shadow-sm transition focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/30 sm:grid-cols-[minmax(0,1fr)_8.5rem]',
-          disabled && 'cursor-not-allowed opacity-60',
-          error &&
-            'border-destructive focus-within:border-destructive focus-within:ring-destructive/20',
-        )}
-      >
+      <div className="grid grid-cols-[1fr_9rem] gap-2 sm:gap-3">
+        {/* Date field */}
         <div className="relative">
           <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-primary" />
           <input
@@ -96,27 +92,28 @@ export function InputDate({
             ref={field.ref}
             aria-invalid={!!error}
             aria-describedby={error ? `${fieldId}-error` : undefined}
-            className="h-10 w-full rounded-lg border-0 bg-muted/40 py-2 pl-9 pr-3 text-sm outline-none transition placeholder:text-muted-foreground hover:bg-muted/60 focus:bg-background disabled:cursor-not-allowed"
+            className={cn(baseInput, focusRing, errorBorder, 'pl-10 pr-3')}
             disabled={disabled}
             max={toDatePart(max)}
             min={toDatePart(min)}
             onBlur={field.onBlur}
-            onChange={(event) => updateValue(event.target.value, time)}
+            onChange={(e) => updateValue(e.target.value, time)}
             required={required}
             type="date"
             value={date}
           />
         </div>
 
+        {/* Time field */}
         <div className="relative">
           <Clock3 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-secondary" />
           <input
             aria-invalid={!!error}
             aria-label={label ? `${label} - horário` : 'Horário'}
-            className="h-10 w-full rounded-lg border-0 bg-muted/40 py-2 pl-9 pr-3 text-sm outline-none transition placeholder:text-muted-foreground hover:bg-muted/60 focus:bg-background disabled:cursor-not-allowed"
+            className={cn(baseInput, focusRing, errorBorder, 'pl-10 pr-2')}
             disabled={disabled}
             onBlur={field.onBlur}
-            onChange={(event) => updateValue(date, event.target.value)}
+            onChange={(e) => updateValue(date, e.target.value)}
             required={required}
             type="time"
             value={time}

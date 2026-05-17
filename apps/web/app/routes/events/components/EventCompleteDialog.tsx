@@ -108,7 +108,8 @@ export function EventCompleteDialog({
                 <div className="flex items-center gap-2">
                   <CalendarDays className="h-4 w-4 flex-shrink-0 text-primary" />
                   <span className="line-clamp-1">
-                    {formatDate(event.startDate)} → {formatDate(event.endDate)}
+                    {formatDate(event.startDate)}
+                    {event.endDate && ` → ${formatDate(event.endDate)}`}
                   </span>
                 </div>
                 <div className="flex items-center gap-2">

@@ -1,20 +1,14 @@
-import { type FormEvent, useMemo, useState } from 'react';
-import { FormProvider, useForm } from 'react-hook-form';
+import { useMemo, useState } from 'react';
 import {
-  Ban,
   CalendarClock,
   CheckCircle2,
-  Edit2,
   Loader2,
-  PackagePlus,
+  PackageOpen,
   Plus,
   Search,
-  Trash2,
+  Sparkles,
 } from 'lucide-react';
 
-import { InputDate } from '~/components/Form/InputDate';
-import { InputForm } from '~/components/Form/InputForm';
-import { SelectForm } from '~/components/Form/SelectForm';
 import { Button } from '~/components/ui/button';
 import {
   Card,
@@ -23,283 +17,73 @@ import {
   CardHeader,
   CardTitle,
 } from '~/components/ui/card';
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '~/components/ui/dialog';
 import { Input } from '~/components/ui/input';
-import { cn } from '~/lib/utils';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '~/components/ui/select';
 import { useItems } from '~/services/tanStackQuery/Itens/items';
 import { useClients } from '~/services/tanStackQuery/clients';
 import {
-  useCancelRental,
   useCreateRental,
-  useCreateRentalItem,
-  useDeleteRental,
-  useDeleteRentalItem,
   useRentals,
-  useReturnRental,
   useUpdateRental,
-  useUpdateRentalItem,
 } from '~/services/tanStackQuery/rentals';
 import type {
   CreateRentalInput,
   Rental,
-  RentalItem,
   RentalStatus,
 } from '~/types/rental';
 
-const statusOptions: Array<{ value: RentalStatus; label: string }> = [
-  { value: 'DRAFT', label: 'Rascunho' },
-  { value: 'ACTIVE', label: 'Ativa' },
-  { value: 'RETURNED', label: 'Devolvida' },
-  { value: 'CANCELLED', label: 'Cancelada' },
+import { RentalCard } from './components/RentalCard';
+import { RentalFormDialog } from './components/RentalFormDialog';
+
+const statusFilters: Array<{ value: RentalStatus | 'ALL'; label: string }> = [
+  { value: 'ALL', label: 'Todos os status' },
+  { value: 'DRAFT', label: 'Rascunhos' },
+  { value: 'ACTIVE', label: 'Em locação' },
+  { value: 'RETURNED', label: 'Devolvidas' },
+  { value: 'CANCELLED', label: 'Canceladas' },
 ];
-
-const statusLabel: Record<RentalStatus, string> = {
-  DRAFT: 'Rascunho',
-  ACTIVE: 'Ativa',
-  RETURNED: 'Devolvida',
-  CANCELLED: 'Cancelada',
-};
-
-const statusClassName: Record<RentalStatus, string> = {
-  DRAFT: 'bg-secondary/10 text-secondary ring-1 ring-secondary/30',
-  ACTIVE: 'bg-primary/10 text-primary ring-1 ring-primary/30',
-  RETURNED: 'bg-accent/10 text-accent ring-1 ring-accent/30',
-  CANCELLED: 'bg-destructive/10 text-destructive ring-1 ring-destructive/30',
-};
-
-const toDateTimeLocal = (value?: string | null) => {
-  if (!value) return '';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '';
-  const timezoneOffset = date.getTimezoneOffset() * 60000;
-  return new Date(date.getTime() - timezoneOffset).toISOString().slice(0, 16);
-};
-
-const toIsoString = (value: string) => new Date(value).toISOString();
-
-const formatDate = (value?: string | null) => {
-  if (!value) return 'Não informado';
-  return new Intl.DateTimeFormat('pt-BR', {
-    dateStyle: 'short',
-    timeStyle: 'short',
-  }).format(new Date(value));
-};
-
-interface RentalFormDialogProps {
-  open: boolean;
-  rental: Rental | null;
-  clients: Array<{ id: string; companyName: string }>;
-  isLoading: boolean;
-  onOpenChange: (open: boolean) => void;
-  onSubmit: (data: CreateRentalInput) => Promise<void>;
-}
-
-function RentalFormDialog({
-  open,
-  rental,
-  clients,
-  isLoading,
-  onOpenChange,
-  onSubmit,
-}: RentalFormDialogProps) {
-  const form = useForm<CreateRentalInput>({
-    values: rental
-      ? {
-          rentalCode: rental.rentalCode,
-          startDate: toDateTimeLocal(rental.startDate),
-          expectedReturn: toDateTimeLocal(rental.expectedReturn),
-          location: rental.location ?? '',
-          notes: rental.notes ?? '',
-          status: rental.status,
-          clientId: rental.clientId,
-        }
-      : {
-          rentalCode: '',
-          startDate: '',
-          expectedReturn: '',
-          location: '',
-          notes: '',
-          status: 'DRAFT',
-          clientId: '',
-        },
-  });
-
-  const handleSubmit = async (data: CreateRentalInput) => {
-    await onSubmit({
-      ...data,
-      startDate: toIsoString(data.startDate),
-      expectedReturn: toIsoString(data.expectedReturn),
-    });
-    form.reset();
-    onOpenChange(false);
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl rounded-2xl bg-card/75 backdrop-blur-md">
-        <DialogHeader>
-          <DialogTitle>{rental ? 'Editar Locação' : 'Nova Locação'}</DialogTitle>
-        </DialogHeader>
-
-        <FormProvider {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 px-4 py-2">
-            <div className="grid gap-4 md:grid-cols-2">
-              <InputForm name="rentalCode" label="Código" placeholder="Ex: LOC-0001" required />
-              <SelectForm
-                name="clientId"
-                label="Cliente"
-                options={clients.map((client) => ({ value: client.id, label: client.companyName }))}
-                placeholder="Selecione um cliente"
-                required
-              />
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <InputDate name="startDate" label="Início" required />
-              <InputDate name="expectedReturn" label="Devolução prevista" required />
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <InputForm name="location" label="Local" placeholder="Local de uso/entrega" />
-              <SelectForm name="status" label="Status" options={statusOptions} required />
-            </div>
-
-            <InputForm name="notes" label="Observações" placeholder="Condições, contato de retirada, detalhes extras" />
-
-            <DialogFooter className="flex justify-end gap-2 pt-4">
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isLoading}>
-                Cancelar
-              </Button>
-              <Button type="submit" className="bg-gradient-to-r from-primary to-secondary text-white" disabled={isLoading}>
-                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {rental ? 'Atualizar' : 'Criar'}
-              </Button>
-            </DialogFooter>
-          </form>
-        </FormProvider>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-interface RentalItemFormProps {
-  rental: Rental;
-  items: Array<{ id: string; name: string; availableQuantity: number }>;
-}
-
-function RentalItemForm({ rental, items }: RentalItemFormProps) {
-  const createRentalItem = useCreateRentalItem();
-  const [itemId, setItemId] = useState('');
-  const [quantity, setQuantity] = useState(1);
-  const isClosed = rental.status === 'CANCELLED' || rental.status === 'RETURNED';
-
-  const availableItems = useMemo(() => {
-    const selectedIds = new Set(rental.rentalItems.map((rentalItem) => rentalItem.itemId));
-    return items.filter((item) => !selectedIds.has(item.id));
-  }, [items, rental.rentalItems]);
-
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!itemId) return;
-    await createRentalItem.mutateAsync({ rentalId: rental.id, data: { itemId, quantity: Number(quantity) } });
-    setItemId('');
-    setQuantity(1);
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="grid gap-2 rounded-xl border bg-muted/20 p-3 md:grid-cols-[1fr_120px_auto]">
-      <select
-        className="rounded-md border bg-background px-3 py-2 text-sm"
-        value={itemId}
-        onChange={(event) => setItemId(event.target.value)}
-        disabled={isClosed || createRentalItem.isPending}
-        required
-      >
-        <option value="">Selecione um item</option>
-        {availableItems.map((item) => (
-          <option key={item.id} value={item.id}>
-            {item.name} ({item.availableQuantity} disp.)
-          </option>
-        ))}
-      </select>
-      <Input
-        min={1}
-        type="number"
-        value={quantity}
-        onChange={(event) => setQuantity(Number(event.target.value))}
-        disabled={isClosed || createRentalItem.isPending}
-        required
-      />
-      <Button type="submit" disabled={isClosed || createRentalItem.isPending || !itemId}>
-        {createRentalItem.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <PackagePlus className="h-4 w-4" />}
-        Adicionar
-      </Button>
-    </form>
-  );
-}
-
-function RentalItemRow({ rental, rentalItem }: { rental: Rental; rentalItem: RentalItem }) {
-  const updateRentalItem = useUpdateRentalItem();
-  const deleteRentalItem = useDeleteRentalItem();
-  const [quantity, setQuantity] = useState(rentalItem.quantity);
-  const [returnedQuantity, setReturnedQuantity] = useState(rentalItem.returnedQuantity);
-  const isClosed = rental.status === 'CANCELLED' || rental.status === 'RETURNED';
-
-  const save = () =>
-    updateRentalItem.mutate({
-      rentalId: rental.id,
-      rentalItemId: rentalItem.id,
-      data: { quantity: Number(quantity), returnedQuantity: Number(returnedQuantity) },
-    });
-
-  return (
-    <div className="grid gap-2 rounded-lg border bg-background/70 p-3 md:grid-cols-[1fr_100px_100px_auto] md:items-center">
-      <div>
-        <p className="font-medium text-foreground">{rentalItem.item.name}</p>
-        <p className="text-xs text-muted-foreground">Disponível agora: {rentalItem.item.availableQuantity}</p>
-      </div>
-      <Input min={1} type="number" value={quantity} onChange={(event) => setQuantity(Number(event.target.value))} disabled={isClosed} />
-      <Input min={0} max={quantity} type="number" value={returnedQuantity} onChange={(event) => setReturnedQuantity(Number(event.target.value))} disabled={isClosed} />
-      <div className="flex gap-2">
-        <Button type="button" variant="outline" onClick={save} disabled={isClosed || updateRentalItem.isPending}>
-          Salvar
-        </Button>
-        <Button
-          type="button"
-          variant="destructive"
-          size="icon"
-          onClick={() => deleteRentalItem.mutate({ rentalId: rental.id, rentalItemId: rentalItem.id })}
-          disabled={isClosed || deleteRentalItem.isPending}
-          aria-label="Remover item"
-        >
-          <Trash2 className="h-4 w-4" />
-        </Button>
-      </div>
-    </div>
-  );
-}
 
 export default function RentalsPage() {
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<RentalStatus | 'ALL'>('ALL');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingRental, setEditingRental] = useState<Rental | null>(null);
+
   const { data: rentals = [], isLoading } = useRentals(search);
   const { data: clients = [] } = useClients();
   const { data: items = [] } = useItems();
+
   const createRental = useCreateRental();
   const updateRental = useUpdateRental();
-  const deleteRental = useDeleteRental();
-  const cancelRental = useCancelRental();
-  const returnRental = useReturnRental();
+
+  const stats = useMemo(
+    () => ({
+      total: rentals.length,
+      draft: rentals.filter((rental) => rental.status === 'DRAFT').length,
+      active: rentals.filter((rental) => rental.status === 'ACTIVE').length,
+      returned: rentals.filter((rental) => rental.status === 'RETURNED').length,
+    }),
+    [rentals],
+  );
+
+  const filteredRentals = useMemo(() => {
+    if (statusFilter === 'ALL') return rentals;
+    return rentals.filter((rental) => rental.status === statusFilter);
+  }, [rentals, statusFilter]);
 
   const handleOpenCreate = () => {
     setEditingRental(null);
+    setDialogOpen(true);
+  };
+
+  const handleOpenEdit = (rental: Rental) => {
+    setEditingRental(rental);
     setDialogOpen(true);
   };
 
@@ -313,80 +97,126 @@ export default function RentalsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      {/* Page header */}
+      <div className="flex flex-col gap-4 border-b border-border/40 pb-5 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Locações</h1>
-          <p className="text-muted-foreground">Gerencie contratos de locação e os itens reservados no estoque.</p>
+          <p className="mt-1.5 max-w-xl text-muted-foreground">
+            Gerencie o ciclo completo: rascunho, retirada, devolução e cancelamentos.
+          </p>
         </div>
-        <Button onClick={handleOpenCreate} className="bg-gradient-to-r from-primary to-secondary text-white">
-          <Plus className="mr-2 h-4 w-4" />
+        <Button
+          onClick={handleOpenCreate}
+          className="bg-gradient-to-r from-primary to-secondary font-medium text-white shadow-md transition-all hover:shadow-lg"
+        >
+          <Plus className="mr-2 h-5 w-5" />
           Nova Locação
         </Button>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Locações de itens</CardTitle>
-          <CardDescription>Acompanhe retirada, devolução e movimentação de estoque.</CardDescription>
-          <div className="relative max-w-md pt-2">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 text-muted-foreground" />
-            <Input className="pl-9" placeholder="Buscar por código, cliente ou local" value={search} onChange={(event) => setSearch(event.target.value)} />
+      {/* Stats */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <StatCard
+          label="Total"
+          value={stats.total}
+          icon={Sparkles}
+          tone="muted"
+        />
+        <StatCard
+          label="Rascunhos"
+          value={stats.draft}
+          icon={PackageOpen}
+          tone="secondary"
+        />
+        <StatCard
+          label="Em locação"
+          value={stats.active}
+          icon={CalendarClock}
+          tone="primary"
+        />
+        <StatCard
+          label="Devolvidas"
+          value={stats.returned}
+          icon={CheckCircle2}
+          tone="accent"
+        />
+      </div>
+
+      {/* List */}
+      <Card className="border border-border/50 bg-card/50 shadow-sm backdrop-blur-sm">
+        <CardHeader className="space-y-4 pb-4">
+          <div className="flex flex-col gap-1">
+            <CardTitle className="text-2xl font-bold">Contratos de locação</CardTitle>
+            <CardDescription>
+              Acompanhe cada contrato e os itens reservados no estoque.
+            </CardDescription>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_220px]">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                type="search"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                className="pl-9"
+                placeholder="Buscar por código, cliente ou local..."
+              />
+            </div>
+            <Select
+              value={statusFilter}
+              onValueChange={(value) =>
+                setStatusFilter(value as RentalStatus | 'ALL')
+              }
+            >
+              <SelectTrigger aria-label="Filtrar por status">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                {statusFilters.map((filter) => (
+                  <SelectItem key={filter.value} value={filter.value}>
+                    {filter.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </CardHeader>
+
         <CardContent className="space-y-4">
           {isLoading ? (
-            <div className="flex items-center justify-center py-10 text-muted-foreground">
+            <div className="flex items-center justify-center py-16 text-muted-foreground">
               <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Carregando locações...
             </div>
           ) : rentals.length === 0 ? (
-            <div className="rounded-xl border border-dashed p-10 text-center text-muted-foreground">Nenhuma locação encontrada.</div>
+            <div className="rounded-xl border border-dashed border-border/60 py-16 text-center">
+              <PackageOpen className="mx-auto mb-4 h-12 w-12 text-muted-foreground/60" />
+              <div className="mb-2 text-lg font-semibold text-foreground">
+                Nenhuma locação cadastrada
+              </div>
+              <p className="mb-5 text-sm text-muted-foreground">
+                Crie a primeira locação para começar a controlar contratos e estoque.
+              </p>
+              <Button
+                onClick={handleOpenCreate}
+                className="bg-gradient-to-r from-primary to-secondary text-white"
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Nova Locação
+              </Button>
+            </div>
+          ) : filteredRentals.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-border/60 py-12 text-center text-sm text-muted-foreground">
+              Nenhuma locação encontrada com os filtros atuais.
+            </div>
           ) : (
-            rentals.map((rental) => (
-              <Card key={rental.id} className="border-muted/70 bg-card/60">
-                <CardHeader className="space-y-3">
-                  <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                    <div>
-                      <CardTitle className="flex flex-wrap items-center gap-2 text-xl">
-                        {rental.rentalCode}
-                        <span className={cn('rounded-full px-2.5 py-1 text-xs font-semibold', statusClassName[rental.status])}>
-                          {statusLabel[rental.status]}
-                        </span>
-                      </CardTitle>
-                      <CardDescription>{rental.client.companyName}</CardDescription>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <Button variant="outline" size="sm" onClick={() => { setEditingRental(rental); setDialogOpen(true); }}>
-                        <Edit2 className="mr-2 h-4 w-4" /> Editar
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={() => returnRental.mutate(rental.id)} disabled={rental.status === 'RETURNED' || rental.status === 'CANCELLED'}>
-                        <CheckCircle2 className="mr-2 h-4 w-4" /> Devolver
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={() => cancelRental.mutate(rental.id)} disabled={rental.status === 'RETURNED' || rental.status === 'CANCELLED'}>
-                        <Ban className="mr-2 h-4 w-4" /> Cancelar
-                      </Button>
-                      <Button variant="destructive" size="sm" onClick={() => deleteRental.mutate(rental.id)}>
-                        <Trash2 className="mr-2 h-4 w-4" /> Remover
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="grid gap-3 text-sm text-muted-foreground md:grid-cols-3">
-                    <span className="flex items-center gap-2"><CalendarClock className="h-4 w-4" /> Início: {formatDate(rental.startDate)}</span>
-                    <span>Prevista: {formatDate(rental.expectedReturn)}</span>
-                    <span>Local: {rental.location || 'Não informado'}</span>
-                  </div>
-                  {rental.notes && <p className="rounded-lg bg-muted/40 p-3 text-sm text-muted-foreground">{rental.notes}</p>}
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <RentalItemForm rental={rental} items={items} />
-                  <div className="space-y-2">
-                    {rental.rentalItems.length === 0 ? (
-                      <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">Nenhum item adicionado.</p>
-                    ) : (
-                      rental.rentalItems.map((rentalItem) => <RentalItemRow key={rentalItem.id} rental={rental} rentalItem={rentalItem} />)
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+            filteredRentals.map((rental) => (
+              <RentalCard
+                key={rental.id}
+                rental={rental}
+                inventoryItems={items}
+                onEdit={handleOpenEdit}
+              />
             ))
           )}
         </CardContent>
@@ -397,9 +227,45 @@ export default function RentalsPage() {
         rental={editingRental}
         clients={clients}
         isLoading={createRental.isPending || updateRental.isPending}
-        onOpenChange={setDialogOpen}
+        onOpenChange={(open) => {
+          setDialogOpen(open);
+          if (!open) setEditingRental(null);
+        }}
         onSubmit={handleSubmit}
       />
     </div>
+  );
+}
+
+const toneStyles: Record<string, string> = {
+  muted: 'border-border/60 bg-gradient-to-br from-card to-muted/30 text-foreground',
+  primary:
+    'border-primary/30 bg-gradient-to-br from-primary/10 to-primary/5 text-primary',
+  secondary:
+    'border-secondary/30 bg-gradient-to-br from-secondary/10 to-secondary/5 text-secondary',
+  accent:
+    'border-accent/30 bg-gradient-to-br from-accent/10 to-accent/5 text-accent',
+};
+
+interface StatCardProps {
+  label: string;
+  value: number;
+  icon: typeof PackageOpen;
+  tone: 'muted' | 'primary' | 'secondary' | 'accent';
+}
+
+function StatCard({ label, value, icon: Icon, tone }: StatCardProps) {
+  return (
+    <Card className={`${toneStyles[tone]} shadow-sm`}>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardDescription className="text-xs font-semibold uppercase tracking-wider">
+            {label}
+          </CardDescription>
+          <Icon className="h-4 w-4 opacity-70" />
+        </div>
+        <CardTitle className="mt-2 text-3xl font-bold">{value}</CardTitle>
+      </CardHeader>
+    </Card>
   );
 }

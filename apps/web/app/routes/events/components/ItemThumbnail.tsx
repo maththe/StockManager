@@ -28,7 +28,7 @@ export function ItemThumbnail({
       <img
         src={image}
         alt={item.name}
-        className={cn('h-full w-full object-cover', className)}
+        className={cn('h-full w-full', className)}
       />
     );
 

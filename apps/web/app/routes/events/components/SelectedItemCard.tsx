@@ -142,23 +142,27 @@ export function SelectedItemCard(props: SelectedItemCardProps) {
           )}
 
           <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
-            <span className="rounded-full bg-muted px-2.5 py-1 text-muted-foreground">
-              Min: {minimum}
-            </span>
-            <span className="rounded-full bg-muted px-2.5 py-1 text-muted-foreground">
-              Max: {maximum}
-            </span>
             {error ? (
               <span className="rounded-full bg-destructive/10 px-2.5 py-1 text-destructive">
                 {error}
               </span>
             ) : isDirty ? (
               <span className="rounded-full bg-primary/10 px-2.5 py-1 text-primary">
-                Alteracao pendente
+                Alteração pendente
               </span>
             ) : (
               <span className="rounded-full bg-accent/15 px-2.5 py-1 text-accent">
                 Quantidade confirmada
+              </span>
+            )}
+            {Number(props.draftValue) <= minimum && (
+              <span className="rounded-full bg-muted px-2.5 py-1 text-muted-foreground">
+                Mínimo: {minimum}
+              </span>
+            )}
+            {Number(props.draftValue) >= maximum && (
+              <span className="rounded-full bg-muted px-2.5 py-1 text-muted-foreground">
+                Máximo: {maximum}
               </span>
             )}
           </div>

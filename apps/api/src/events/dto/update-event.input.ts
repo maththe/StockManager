@@ -11,7 +11,7 @@ export class CompleteEventItemInput {
 export class UpdateEventInput {
   eventName?: string;
   startDate?: string;
-  endDate?: string;
+  endDate?: string | null;
   eventLocation?: string;
   status?: EventStatus;
   clientId?: string;

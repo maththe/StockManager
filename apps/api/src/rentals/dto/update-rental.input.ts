@@ -1,7 +1,6 @@
 import { RentalStatus } from '@prisma/client';
 
 export class UpdateRentalInput {
-  rentalCode?: string;
   startDate?: string;
   expectedReturn?: string;
   returnedAt?: string | null;

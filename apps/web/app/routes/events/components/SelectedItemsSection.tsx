@@ -37,6 +37,16 @@ export function SelectedItemsSection({
     0,
   );
 
+  const totalUnits = groupedSelectedItems.reduce(
+    (count, group) =>
+      count +
+      group.items.reduce(
+        (sum, eventItem) => sum + (eventItem.plannedQuantity ?? 0),
+        0,
+      ),
+    0,
+  );
+
   return (
     <section className="flex h-full min-h-0 flex-1 flex-col bg-gradient-to-b from-muted/30 via-background to-background dark:from-card/70 dark:via-background dark:to-background">
       <header className="border-b border-border/60 px-4 py-4 sm:px-6">
@@ -53,6 +63,15 @@ export function SelectedItemsSection({
             <p className="mt-1 text-sm text-muted-foreground">
               {totalItems}{' '}
               {totalItems === 1 ? 'item reservado' : 'itens reservados'}
+              {totalUnits > 0 && (
+                <>
+                  {' • '}
+                  <span className="font-medium text-foreground">
+                    {totalUnits}
+                  </span>{' '}
+                  {totalUnits === 1 ? 'unidade' : 'unidades'}
+                </>
+              )}
             </p>
           </div>
         </div>

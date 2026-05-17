@@ -44,7 +44,6 @@ export interface Rental {
 }
 
 export interface CreateRentalInput {
-  rentalCode: string;
   startDate: string;
   expectedReturn: string;
   location?: string;
@@ -54,7 +53,6 @@ export interface CreateRentalInput {
 }
 
 export interface UpdateRentalInput {
-  rentalCode?: string;
   startDate?: string;
   expectedReturn?: string;
   returnedAt?: string | null;

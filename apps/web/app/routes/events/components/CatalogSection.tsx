@@ -88,8 +88,8 @@ export function CatalogSection(props: CatalogSectionProps) {
               Nenhum item encontrado
             </div>
             <p className="mt-2 max-w-sm text-sm leading-6 text-muted-foreground">
-              Ajuste sua busca ou os filtros de categoria. Itens já selecionados
-              aparecem na coluna da esquerda.
+              Ajuste sua busca ou os filtros de categoria. Itens já reservados
+              ficam disponíveis na tela do evento.
             </p>
             {/* Adicional: um botão de atalho para limpar filtros se estiver vazio */}
             {(props.search || props.activeCategoryId) && (
