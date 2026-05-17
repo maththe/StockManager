@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import { Loader2 } from 'lucide-react';
 import { InputForm } from '~/components/Form/InputForm';
+import { QuantityFormField } from '~/components/Form/QuantityInput';
 import { SelectForm } from '~/components/Form/SelectForm';
 import { Button } from '~/components/ui/button';
 import {
@@ -35,8 +36,7 @@ function getDefaultValues(
         availableQuantity: item.availableQuantity,
         unitCost: item.unitCost,
         categoryId: item.categoryId,
-        imageUrl: item.imageUrl
-        
+        imageUrl: item.imageUrl,
       }
     : {
         name: '',
@@ -44,7 +44,7 @@ function getDefaultValues(
         availableQuantity: 0,
         unitCost: 0,
         categoryId: initialCategoryId ?? '',
-        imageUrl: ''
+        imageUrl: '',
       };
 }
 
@@ -94,26 +94,22 @@ export function ItemFormDialog({
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="totalQuantity">Quantidade Total</Label>
-                <InputForm
-                  name="totalQuantity"
-                  type="number"
-                  placeholder="0"
-                  required
-                  registerOptions={{ valueAsNumber: true }}
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="availableQuantity">Quantidade Disponivel</Label>
-                <InputForm
-                  name="availableQuantity"
-                  type="number"
-                  placeholder="0"
-                  required
-                  registerOptions={{ valueAsNumber: true }}
-                />
-              </div>
+              <QuantityFormField
+                control={form.control}
+                name="totalQuantity"
+                label="Quantidade Total"
+                minimum={0}
+                placeholder="0"
+                required
+              />
+              <QuantityFormField
+                control={form.control}
+                name="availableQuantity"
+                label="Quantidade Disponivel"
+                minimum={0}
+                placeholder="0"
+                required
+              />
             </div>
 
             <div className="grid gap-2">

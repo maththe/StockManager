@@ -27,8 +27,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '~/components/ui/alert-dialog';
+import { QuantityField } from '~/components/Form/QuantityInput';
 import { Button } from '~/components/ui/button';
-import { Input } from '~/components/ui/input';
 import { cn } from '~/lib/utils';
 import {
   useCancelRental,
@@ -60,7 +60,11 @@ interface RentalCardProps {
   onEdit: (rental: Rental) => void;
 }
 
-export function RentalCard({ rental, inventoryItems, onEdit }: RentalCardProps) {
+export function RentalCard({
+  rental,
+  inventoryItems,
+  onEdit,
+}: RentalCardProps) {
   const updateRental = useUpdateRental();
   const cancelRental = useCancelRental();
   const returnRental = useReturnRental();
@@ -75,11 +79,9 @@ export function RentalCard({ rental, inventoryItems, onEdit }: RentalCardProps) 
   const hasItems = rental.rentalItems.length > 0;
   const canActivate = rental.status === 'DRAFT' && hasItems;
   const canReturn = rental.status === 'ACTIVE';
-  const canCancel =
-    rental.status === 'DRAFT' || rental.status === 'ACTIVE';
+  const canCancel = rental.status === 'DRAFT' || rental.status === 'ACTIVE';
   const canDelete =
-    rental.status === 'CANCELLED' ||
-    (rental.status === 'DRAFT' && !hasItems);
+    rental.status === 'CANCELLED' || (rental.status === 'DRAFT' && !hasItems);
 
   const handleActivate = async () => {
     await updateRental.mutateAsync({
@@ -114,14 +116,16 @@ export function RentalCard({ rental, inventoryItems, onEdit }: RentalCardProps) 
     if (pendingAction === 'return') {
       return {
         title: 'Marcar como devolvida?',
-        description: 'Todas as unidades pendentes serão consideradas devolvidas e voltarão ao estoque disponível.',
+        description:
+          'Todas as unidades pendentes serão consideradas devolvidas e voltarão ao estoque disponível.',
         confirmLabel: 'Confirmar devolução',
       };
     }
     if (pendingAction === 'activate') {
       return {
         title: 'Ativar locação?',
-        description: 'Marca os itens como entregues ao cliente. Use esta opção quando os itens saírem do galpão.',
+        description:
+          'Marca os itens como entregues ao cliente. Use esta opção quando os itens saírem do galpão.',
         confirmLabel: 'Ativar locação',
       };
     }
@@ -232,10 +236,14 @@ export function RentalCard({ rental, inventoryItems, onEdit }: RentalCardProps) 
           {hasItems && (
             <div className="flex gap-2 text-xs">
               <span className="rounded-md bg-muted/60 px-2 py-1 text-muted-foreground">
-                Total: <span className="font-semibold text-foreground">{totalUnits}</span>
+                Total:{' '}
+                <span className="font-semibold text-foreground">
+                  {totalUnits}
+                </span>
               </span>
               <span className="rounded-md bg-accent/10 px-2 py-1 text-accent">
-                Devolvido: <span className="font-semibold">{returnedUnits}</span>
+                Devolvido:{' '}
+                <span className="font-semibold">{returnedUnits}</span>
               </span>
               <span className="rounded-md bg-primary/10 px-2 py-1 text-primary">
                 Pendente: <span className="font-semibold">{pending}</span>
@@ -351,7 +359,9 @@ export function RentalCard({ rental, inventoryItems, onEdit }: RentalCardProps) 
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isProcessing}>Voltar</AlertDialogCancel>
+            <AlertDialogCancel disabled={isProcessing}>
+              Voltar
+            </AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirm} disabled={isProcessing}>
               {isProcessing ? 'Processando...' : confirmCopy.confirmLabel}
             </AlertDialogAction>
@@ -420,19 +430,23 @@ function RentalItemForm({ rental, items }: RentalItemFormProps) {
           ))
         )}
       </select>
-      <Input
-        min={1}
-        max={maxQuantity}
-        type="number"
+      <QuantityField
         value={quantity}
-        onChange={(event) => setQuantity(Number(event.target.value))}
+        minimum={1}
+        maximum={maxQuantity}
+        size="compact"
+        className="min-w-[120px]"
+        onChange={(value) => setQuantity(Number(value))}
         disabled={createRentalItem.isPending || !itemId}
         placeholder="Qtd"
       />
       <Button
         type="submit"
         disabled={
-          createRentalItem.isPending || !itemId || quantity < 1 || quantity > maxQuantity
+          createRentalItem.isPending ||
+          !itemId ||
+          quantity < 1 ||
+          quantity > maxQuantity
         }
       >
         {createRentalItem.isPending ? (
@@ -503,26 +517,26 @@ function RentalItemRow({ rental, rentalItem }: RentalItemRowProps) {
       <div className="flex flex-wrap items-center justify-end gap-2">
         <label className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
           Qtd
-          <Input
-            min={1}
-            type="number"
+          <QuantityField
             value={quantity}
-            onChange={(event) => setQuantity(Number(event.target.value))}
+            minimum={1}
+            size="compact"
+            className="w-28"
+            onChange={(value) => setQuantity(Number(value))}
             disabled={closed}
-            className="h-9 w-20"
           />
         </label>
         {showReturnField && (
           <label className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
             Devolvido
-            <Input
-              min={0}
-              max={quantity}
-              type="number"
+            <QuantityField
               value={returnedQuantity}
-              onChange={(event) => setReturnedQuantity(Number(event.target.value))}
+              minimum={0}
+              maximum={quantity}
+              size="compact"
+              className="w-28"
+              onChange={(value) => setReturnedQuantity(Number(value))}
               disabled={closed}
-              className="h-9 w-20"
             />
           </label>
         )}

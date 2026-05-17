@@ -29,27 +29,6 @@ export function EventItemsHeader({ event }: EventItemsHeaderProps) {
           <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-0.5" />
           Voltar para o evento
         </Link>
-
-        <nav
-          aria-label="Trilha de navegação"
-          className="hidden min-w-0 items-center gap-1.5 text-xs text-muted-foreground sm:flex"
-        >
-          <Link
-            to="/dashboard/events"
-            className="transition-colors hover:text-foreground"
-          >
-            Eventos
-          </Link>
-          <span>/</span>
-          <Link
-            to={eventDetailsHref}
-            className="truncate font-medium text-foreground/80 transition-colors hover:text-foreground"
-          >
-            {event?.eventName ?? '...'}
-          </Link>
-          <span>/</span>
-          <span className="font-medium text-foreground">Itens</span>
-        </nav>
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">

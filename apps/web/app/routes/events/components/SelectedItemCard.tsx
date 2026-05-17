@@ -1,6 +1,6 @@
-import { Check, Loader2, Minus, Plus, Trash2 } from 'lucide-react';
+import { Loader2, Trash2 } from 'lucide-react';
+import { QuantityControl } from '~/components/Form/QuantityInput';
 import { Button } from '~/components/ui/button';
-import { Input } from '~/components/ui/input';
 import { ItemThumbnail } from './ItemThumbnail';
 import {
   type SelectedEventItem,
@@ -71,56 +71,19 @@ export function SelectedItemCard(props: SelectedItemCardProps) {
               )}
             </Button>
           </div>
-          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-            <div className="flex w-full max-w-xs items-center rounded-2xl border border-border/70 bg-muted/30 p-1">
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                onClick={() => props.onStepQuantity(props.eventItem, -1)}
-                disabled={Number(props.draftValue) <= minimum || props.isBusy}
-              >
-                <Minus className="h-4 w-4" />
-              </Button>
-              <Input
-                value={props.draftValue}
-                onChange={(currentEvent) =>
-                  props.onDraftChange(
-                    props.eventItem.id,
-                    currentEvent.target.value,
-                  )
-                }
-                className="h-9 min-w-0 flex-1 border-0 bg-transparent px-2 text-center text-sm font-semibold shadow-none focus-visible:ring-0"
-              />
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                onClick={() => props.onStepQuantity(props.eventItem, 1)}
-                disabled={Number(props.draftValue) >= maximum || props.isBusy}
-              >
-                <Plus className="h-4 w-4" />
-              </Button>
-            </div>
-            <Button
-              type="button"
-              size="sm"
-              className="w-full rounded-full bg-foreground text-background hover:bg-foreground/90 sm:w-auto"
-              onClick={() => props.onSaveQuantity(props.eventItem)}
-              disabled={
-                !isDirty || Boolean(error) || props.isSaving || props.isBusy
-              }
-            >
-              {props.isSaving ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <>
-                  <Check className="h-4 w-4" />
-                  Salvar
-                </>
-              )}
-            </Button>
-          </div>
+          <QuantityControl
+            eventItem={props.eventItem}
+            draftValue={props.draftValue}
+            minimum={minimum}
+            maximum={maximum}
+            isDirty={isDirty}
+            error={error}
+            isSaving={props.isSaving}
+            isBusy={props.isBusy}
+            onStepQuantity={props.onStepQuantity}
+            onDraftChange={props.onDraftChange}
+            onSaveQuantity={props.onSaveQuantity}
+          />
           {(missingQuantity > 0 || damagedQuantity > 0) && (
             <div className="mt-4 rounded-2xl border border-destructive/20 bg-destructive/5 p-3 text-xs">
               <div className="flex flex-wrap gap-2">

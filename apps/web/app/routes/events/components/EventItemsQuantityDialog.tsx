@@ -1,5 +1,6 @@
 import { Loader2, Plus } from 'lucide-react';
 
+import { QuantityField } from '~/components/Form/QuantityInput';
 import { Button } from '~/components/ui/button';
 import {
   Dialog,
@@ -9,7 +10,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '~/components/ui/dialog';
-import { Input } from '~/components/ui/input';
 import { ItemThumbnail } from './ItemThumbnail';
 import type { EventCatalogItem } from '../utils/utils';
 
@@ -78,16 +78,13 @@ export function EventItemsQuantityDialog(props: EventItemsQuantityDialogProps) {
                   >
                     Quantidade
                   </label>
-                  <Input
+                  <QuantityField
                     id="event-item-quantity"
-                    type="number"
-                    min={1}
-                    max={props.activeItem.availableQuantity}
                     value={props.activeQuantity}
-                    onChange={(currentEvent) =>
-                      props.onActiveQuantityChange(currentEvent.target.value)
-                    }
-                    className="h-12 rounded-2xl text-center text-lg font-semibold"
+                    minimum={1}
+                    maximum={props.activeItem.availableQuantity}
+                    size="large"
+                    onChange={props.onActiveQuantityChange}
                   />
                   <div className="text-xs text-muted-foreground">
                     Informe um numero inteiro entre 1 e{' '}

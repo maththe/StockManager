@@ -1,8 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
-import { type Control, FormProvider, useController, useForm } from 'react-hook-form';
+import {
+  type Control,
+  FormProvider,
+  useController,
+  useForm,
+} from 'react-hook-form';
 import { Clock3, Loader2 } from 'lucide-react';
 import { InputDate } from '~/components/Form/InputDate';
 import { InputForm } from '~/components/Form/InputForm';
+import { QuantityField } from '~/components/Form/QuantityInput';
 import { SelectForm } from '~/components/Form/SelectForm';
 import { Button } from '~/components/ui/button';
 import {
@@ -22,6 +28,7 @@ import type {
   EventStatus,
   UpdateEventInput,
 } from '~/types/event';
+import { EndTimeInput } from '~/components/Form/EndTimeInput';
 
 interface EventFormDialogProps {
   open: boolean;
@@ -85,30 +92,6 @@ const buildCompletionDrafts = (event?: Event | null) =>
       },
     ]),
   ) as Record<string, CompleteEventItemInput>;
-
-function EndTimeInput({ control }: { control: Control<any> }) {
-  const { field } = useController({ control, name: 'endTime' });
-
-  return (
-    <div className="grid gap-2">
-      <label htmlFor="endTime" className="text-sm font-medium">
-        Horário de término
-        <span className="ml-1.5 text-xs font-normal text-muted-foreground">(opcional)</span>
-      </label>
-      <div className="relative">
-        <Clock3 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-secondary" />
-        <input
-          id="endTime"
-          type="time"
-          className="h-11 w-full rounded-xl border border-input bg-background/80 pl-10 pr-3 text-sm text-foreground shadow-sm outline-none transition hover:border-ring/50 focus:border-ring focus:ring-2 focus:ring-ring/30"
-          value={field.value ?? ''}
-          onChange={field.onChange}
-          onBlur={field.onBlur}
-        />
-      </div>
-    </div>
-  );
-}
 
 export function EventFormDialog({
   open,
@@ -227,7 +210,7 @@ export function EventFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto rounded-2xl bg-card/75 backdrop-blur-md">
+      <DialogContent className="max-h-[90vh] max-w-5xl overflow-y-auto rounded-2xl bg-card/75 backdrop-blur-md">
         <DialogHeader>
           <DialogTitle>{event ? 'Editar Evento' : 'Novo Evento'}</DialogTitle>
         </DialogHeader>
@@ -250,8 +233,12 @@ export function EventFormDialog({
               required
             />
 
-            <div className="grid gap-4 md:grid-cols-2">
-              <InputDate name="startDate" label="Data e hora de início" required />
+            <div className="flex justify-between gap-4 md:grid-cols-2 mt-10">
+              <InputDate
+                name="startDate"
+                label="Data e hora de início"
+                required
+              />
               <EndTimeInput control={form.control} />
             </div>
 
@@ -342,48 +329,48 @@ export function EventFormDialog({
                             <div className="mt-3 grid gap-3 md:grid-cols-3">
                               <label className="space-y-1 text-xs font-medium text-muted-foreground">
                                 Retornaram
-                                <input
-                                  type="number"
-                                  min={0}
-                                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground"
+                                <QuantityField
                                   value={draft?.returnedQuantity ?? 0}
-                                  onChange={(currentEvent) =>
+                                  minimum={0}
+                                  maximum={eventItem.plannedQuantity}
+                                  size="compact"
+                                  onChange={(value) =>
                                     handleCompletionDraftChange(
                                       eventItem.id,
                                       'returnedQuantity',
-                                      currentEvent.target.value,
+                                      value,
                                     )
                                   }
                                 />
                               </label>
                               <label className="space-y-1 text-xs font-medium text-muted-foreground">
                                 Faltantes
-                                <input
-                                  type="number"
-                                  min={0}
-                                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground"
+                                <QuantityField
                                   value={draft?.missingQuantity ?? 0}
-                                  onChange={(currentEvent) =>
+                                  minimum={0}
+                                  maximum={eventItem.plannedQuantity}
+                                  size="compact"
+                                  onChange={(value) =>
                                     handleCompletionDraftChange(
                                       eventItem.id,
                                       'missingQuantity',
-                                      currentEvent.target.value,
+                                      value,
                                     )
                                   }
                                 />
                               </label>
                               <label className="space-y-1 text-xs font-medium text-muted-foreground">
                                 Avariados
-                                <input
-                                  type="number"
-                                  min={0}
-                                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground"
+                                <QuantityField
                                   value={draft?.damagedQuantity ?? 0}
-                                  onChange={(currentEvent) =>
+                                  minimum={0}
+                                  maximum={eventItem.plannedQuantity}
+                                  size="compact"
+                                  onChange={(value) =>
                                     handleCompletionDraftChange(
                                       eventItem.id,
                                       'damagedQuantity',
-                                      currentEvent.target.value,
+                                      value,
                                     )
                                   }
                                 />
