@@ -40,11 +40,15 @@ interface EventFormDialogProps {
   isLoading?: boolean;
 }
 
-const statusOptions: Array<{ value: EventStatus; label: string }> = [
+const createStatusOptions: Array<{ value: EventStatus; label: string }> = [
+  { value: 'PLANNING', label: 'Planejamento' },
+  { value: 'IN_PROGRESS', label: 'Em andamento' },
+];
+
+const editStatusOptions: Array<{ value: EventStatus; label: string }> = [
   { value: 'PLANNING', label: 'Planejamento' },
   { value: 'IN_PROGRESS', label: 'Em andamento' },
   { value: 'COMPLETED', label: 'Concluído' },
-  { value: 'CANCELLED', label: 'Cancelado' },
 ];
 
 const toDateTimeLocal = (value?: string | null) => {
@@ -136,6 +140,7 @@ export function EventFormDialog({
     setCompletionDrafts(buildCompletionDrafts(event));
   }, [event]);
 
+  const statusOptions = event ? editStatusOptions : createStatusOptions;
   const currentStatus = form.watch('status');
   const needsInventoryConfirmation =
     currentStatus === 'COMPLETED' && event?.status !== 'COMPLETED';

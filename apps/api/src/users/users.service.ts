@@ -45,6 +45,10 @@ export class UsersService {
     });
   }
 
+  async findMe(id: string, tenantUuid: string): Promise<User | null> {
+    return this.findOne(id, tenantUuid);
+  }
+
   async update(
     id: string,
     updateUserInput: UpdateUserInput,

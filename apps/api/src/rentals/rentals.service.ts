@@ -66,8 +66,8 @@ export class RentalsService {
     return quantity;
   }
 
-  private async ensureClientExists(clientId: string) {
-    const client = await this.prisma.client.findUnique({ where: { id: clientId } });
+  private async ensureClientExists(clientId: string, tenantUuid: string) {
+    const client = await this.prisma.client.findFirst({ where: { id: clientId, tenantUuid } });
 
     if (!client) {
       throw new BadRequestException('Cliente não encontrado.');
@@ -81,7 +81,7 @@ export class RentalsService {
       input.startDate,
       input.expectedReturn,
     );
-    await this.ensureClientExists(input.clientId);
+    await this.ensureClientExists(input.clientId, tenantUuid);
 
     const requestedStatus = input.status ?? RentalStatus.DRAFT;
     if (requestedStatus === RentalStatus.RETURNED || requestedStatus === RentalStatus.CANCELLED) {
@@ -157,8 +157,16 @@ export class RentalsService {
       throw new NotFoundException('Locação não encontrada.');
     }
 
+    if (existing.status === RentalStatus.CANCELLED || existing.status === RentalStatus.RETURNED) {
+      throw new BadRequestException('Não é possível editar uma locação encerrada.');
+    }
+
+    if ((input as any).returnedAt !== undefined) {
+      throw new BadRequestException('A data de devolução efetiva é controlada pela ação de devolver.');
+    }
+
     if (input.clientId && input.clientId !== existing.clientId) {
-      await this.ensureClientExists(input.clientId);
+      await this.ensureClientExists(input.clientId, tenantUuid);
     }
 
     const statusChanged = input.status !== undefined && input.status !== existing.status;
@@ -182,19 +190,11 @@ export class RentalsService {
     const nextStartDate = input.startDate ?? existing.startDate.toISOString();
     const nextExpectedReturn = input.expectedReturn ?? existing.expectedReturn.toISOString();
     const { parsedStart, parsedReturn } = this.parseRentalDates(nextStartDate, nextExpectedReturn);
-    const returnedAt =
-      input.returnedAt === null ? null : input.returnedAt ? new Date(input.returnedAt) : undefined;
-
-    if (returnedAt && Number.isNaN(returnedAt.getTime())) {
-      throw new BadRequestException('Data de devolução efetiva inválida.');
-    }
-
     return this.prisma.rental.update({
       where: { id },
       data: {
         startDate: input.startDate ? parsedStart : undefined,
         expectedReturn: input.expectedReturn ? parsedReturn : undefined,
-        returnedAt,
         location: input.location,
         notes: input.notes,
         status: input.status,
@@ -315,10 +315,14 @@ export class RentalsService {
     }
 
     return this.prisma.$transaction(async (tx) => {
-      await tx.item.update({
-        where: { id: item.id },
+      const reserved = await tx.item.updateMany({
+        where: { id: item.id, tenantUuid, availableQuantity: { gte: quantity } },
         data: { availableQuantity: { decrement: quantity } },
       });
+
+      if (reserved.count !== 1) {
+        throw new BadRequestException('Estoque insuficiente para o item selecionado.');
+      }
 
       return tx.rentalItem.create({
         data: { rentalId, itemId: input.itemId, quantity, tenantUuid },
@@ -371,13 +375,21 @@ export class RentalsService {
 
     return this.prisma.$transaction(async (tx) => {
       if (stockDelta !== 0) {
-        await tx.item.update({
-          where: { id: rentalItem.itemId },
-          data: {
-            availableQuantity:
-              stockDelta > 0 ? { increment: stockDelta } : { decrement: Math.abs(stockDelta) },
-          },
-        });
+        if (stockDelta > 0) {
+          await tx.item.update({
+            where: { id: rentalItem.itemId },
+            data: { availableQuantity: { increment: stockDelta } },
+          });
+        } else {
+          const reserved = await tx.item.updateMany({
+            where: { id: rentalItem.itemId, tenantUuid, availableQuantity: { gte: Math.abs(stockDelta) } },
+            data: { availableQuantity: { decrement: Math.abs(stockDelta) } },
+          });
+
+          if (reserved.count !== 1) {
+            throw new BadRequestException('Estoque insuficiente para aumentar a quantidade locada.');
+          }
+        }
       }
 
       return tx.rentalItem.update({
