@@ -34,15 +34,49 @@ enum DivergenceStatus {
   RESOLVED
 }
 
+// Origem da divergência. sourceId aponta para a entidade correspondente.
+enum DivergenceSource {
+  EVENT
+  RENTAL
+  MANUAL
+  MAINTENANCE
+}
+
+enum UserRole {
+  ADMIN
+  DECORADOR
+  FUNCIONARIO
+}
+
+enum TaskStatus {
+  PENDENTE
+  CONCLUIDA
+  CANCELADA
+}
+
+enum MaintenanceStatus {
+  PENDENTE
+  EM_ANDAMENTO
+  CONCLUIDA
+  CANCELADA
+}
+
 // ================= MODELS =================
 
 model User {
-  id                String   @id @default(uuid())
-  name              String
-  email             String   @unique
-  password          String   @unique
-  tenantUuid        String   @default(uuid())
-  responsibleEvents Event[]  @relation("EventResponsible")
+  id                   String        @id @default(uuid())
+  name                 String
+  email                String        @unique
+  password             String        @unique
+  tenantUuid           String        @default(uuid())
+  role                 UserRole      @default(FUNCIONARIO)
+  responsibleEvents    Event[]       @relation("EventResponsible")
+  divergencesCreated   Divergence[]  @relation("DivergenceCreator")
+  divergencesResolved  Divergence[]  @relation("DivergencesResolved")
+  tasksAssigned        Task[]        @relation("TasksAssigned")
+  tasksCreated         Task[]        @relation("TasksCreated")
+  maintenancesAssigned Maintenance[] @relation("MaintenancesAssigned")
+  maintenancesCreated  Maintenance[] @relation("MaintenancesCreated")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -90,8 +124,10 @@ model Item {
   category          Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   imageUrl          String?  @map("image_url")
 
-  eventItems  EventItem[]
-  rentalItems RentalItem[]
+  eventItems      EventItem[]
+  rentalItems     RentalItem[]
+  divergenceItems DivergenceItem[]
+  maintenances    Maintenance[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -117,6 +153,7 @@ model Event {
   responsible   User?       @relation("EventResponsible", fields: [responsibleId], references: [id], onDelete: SetNull)
 
   eventItems EventItem[]
+  tasks      Task[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -139,7 +176,7 @@ model EventItem {
   itemId String
   item   Item   @relation(fields: [itemId], references: [id], onDelete: Restrict)
 
-  divergences Divergence[] // Relacionamento com as divergências
+  taskItems TaskItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -196,14 +233,98 @@ model RentalItem {
   @@map("rental_items")
 }
 
-// NOVA TABELA: Divergências
+// Divergência (header): representa a ocorrência/ato.
+// sourceId aponta para Event/Rental conforme `source`; null em MANUAL/MAINTENANCE.
 model Divergence {
-  id          String           @id @default(uuid())
-  quantity    Int              // Quantidade que faltou ou quebrou
-  type        DivergenceType   // MISSING (Faltou) ou DAMAGED (Danificado)
-  status      DivergenceStatus @default(PENDING) // Começa como pendente de resolução
-  notes       String?          // Observações (Ex: "Cadeira quebrou a perna traseira")
+  id           String           @id @default(uuid())
+  source       DivergenceSource
+  sourceId     String?
+  status       DivergenceStatus @default(PENDING)
+  notes        String?
+  occurredAt   DateTime         @default(now())
+  tenantUuid   String
+  resolvedAt   DateTime?
+  resolvedById String?
+  resolvedBy   User?            @relation("DivergencesResolved", fields: [resolvedById], references: [id], onDelete: SetNull)
+
+  createdById String?
+  createdBy   User?   @relation("DivergenceCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  items        DivergenceItem[]
+  maintenances Maintenance[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantUuid, source])
+  @@index([source, sourceId])
+  @@map("divergences")
+}
+
+// Linha da divergência: o que faltou/quebrou de cada item dentro daquela ocorrência.
+// sourceItemId aponta para EventItem/RentalItem conforme `divergence.source`; null em MANUAL/MAINTENANCE.
+model DivergenceItem {
+  id         String         @id @default(uuid())
+  quantity   Int
+  type       DivergenceType
+  notes      String?
+  tenantUuid String
+
+  divergenceId String
+  divergence   Divergence @relation(fields: [divergenceId], references: [id], onDelete: Cascade)
+
+  itemId String
+  item   Item   @relation(fields: [itemId], references: [id], onDelete: Restrict)
+
+  sourceItemId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([divergenceId])
+  @@index([itemId])
+  @@index([sourceItemId])
+  @@map("divergence_items")
+}
+
+// Tarefa de confirmação de saída do galpão (criada automaticamente ao evento → IN_PROGRESS).
+model Task {
+  id           String     @id @default(uuid())
+  code         String
+  status       TaskStatus @default(PENDENTE)
+  notes        String?
+  tenantUuid   String
+  completedAt  DateTime?
+
+  eventId String
+  event   Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  assignedToId String?
+  assignedTo   User?   @relation("TasksAssigned", fields: [assignedToId], references: [id], onDelete: SetNull)
+
+  createdById String?
+  createdBy   User?   @relation("TasksCreated", fields: [createdById], references: [id], onDelete: SetNull)
+
+  taskItems TaskItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantUuid, code])
+  @@index([tenantUuid])
+  @@index([eventId])
+  @@map("tasks")
+}
+
+model TaskItem {
+  id                String  @id @default(uuid())
+  confirmedQuantity Int     @default(0)
+  confirmed         Boolean @default(false)
+  notes             String?
   tenantUuid        String
+
+  taskId String
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
   eventItemId String
   eventItem   EventItem @relation(fields: [eventItemId], references: [id], onDelete: Cascade)
@@ -211,6 +332,40 @@ model Divergence {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([taskId])
   @@index([eventItemId])
-  @@map("divergences")
+  @@map("task_items")
+}
+
+// Registro de manutenção de item.
+// divergenceId != null → gerado automaticamente de itens DAMAGED em divergência.
+// divergenceId == null → criado manualmente; neste caso availableQuantity foi decrementado na criação.
+model Maintenance {
+  id           String            @id @default(uuid())
+  code         String
+  status       MaintenanceStatus @default(PENDENTE)
+  quantity     Int
+  notes        String?
+  tenantUuid   String
+  completedAt  DateTime?
+
+  itemId String
+  item   Item   @relation(fields: [itemId], references: [id], onDelete: Restrict)
+
+  divergenceId String?
+  divergence   Divergence? @relation(fields: [divergenceId], references: [id], onDelete: SetNull)
+
+  assignedToId String?
+  assignedTo   User?   @relation("MaintenancesAssigned", fields: [assignedToId], references: [id], onDelete: SetNull)
+
+  createdById String?
+  createdBy   User?   @relation("MaintenancesCreated", fields: [createdById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantUuid, code])
+  @@index([tenantUuid])
+  @@index([itemId])
+  @@map("maintenances")
 }

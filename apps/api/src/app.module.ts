@@ -9,6 +9,9 @@ import { CategoriesModule } from './categories/categories.module';
 import { EventsModule } from './events/events.module';
 import { ClientsModule } from './clients/clients.module';
 import { RentalsModule } from './rentals/rentals.module';
+import { TasksModule } from './tasks/tasks.module';
+import { MaintenanceModule } from './maintenance/maintenance.module';
+import { DivergencesModule } from './divergences/divergences.module';
 
 @Module({
   imports: [
@@ -20,6 +23,9 @@ import { RentalsModule } from './rentals/rentals.module';
     EventsModule,
     ClientsModule,
     RentalsModule,
+    TasksModule,
+    MaintenanceModule,
+    DivergencesModule,
   ],
   controllers: [],
   providers: [

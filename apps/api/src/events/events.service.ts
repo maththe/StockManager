@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { DivergenceType, Event, EventStatus, Prisma } from '@prisma/client';
+import { DivergenceSource, DivergenceType, Event, EventStatus, Prisma } from '@prisma/client';
 import { PrismaService } from 'src/services/prisma.service';
+import { TasksService } from 'src/tasks/tasks.service';
 import { CreateEventInput } from './dto/create-event.input';
 import { CompleteEventItemInput, UpdateEventInput } from './dto/update-event.input';
 import { CreateEventItemInput } from './dto/create-event-item.input';
@@ -8,7 +9,10 @@ import { UpdateEventItemInput } from './dto/update-event-item.input';
 
 @Injectable()
 export class EventsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly tasksService: TasksService,
+  ) {}
 
   private readonly responsibleSelect = {
     id: true,
@@ -69,7 +73,6 @@ export class EventsService {
   ) {
     const eventItems = await tx.eventItem.findMany({
       where: { eventId, tenantUuid },
-      include: { divergences: true },
     });
 
     if (eventItems.length === 0) {
@@ -120,6 +123,28 @@ export class EventsService {
       }
     }
 
+    const previousDivergenceItems = await tx.divergenceItem.findMany({
+      where: {
+        sourceItemId: { in: eventItems.map((eventItem) => eventItem.id) },
+        tenantUuid,
+        divergence: { source: DivergenceSource.EVENT, sourceId: eventId },
+      },
+    });
+    const previousLossByEventItemId = new Map<string, number>();
+    for (const divergenceItem of previousDivergenceItems) {
+      if (!divergenceItem.sourceItemId) continue;
+      previousLossByEventItemId.set(
+        divergenceItem.sourceItemId,
+        (previousLossByEventItemId.get(divergenceItem.sourceItemId) ?? 0) + divergenceItem.quantity,
+      );
+    }
+
+    await tx.divergence.deleteMany({
+      where: { source: DivergenceSource.EVENT, sourceId: eventId, tenantUuid },
+    });
+
+    const divergenceItemsToCreate: Omit<Prisma.DivergenceItemCreateManyInput, 'divergenceId'>[] = [];
+
     for (const eventItem of eventItems) {
       const completionItem = completionByEventItemId.get(eventItem.id)!;
       const returnedQuantity = this.normalizeCompletionQuantity(
@@ -135,10 +160,7 @@ export class EventsService {
         'Quantidade avariada',
       );
       const lossQuantity = missingQuantity + damagedQuantity;
-      const previousLossQuantity = eventItem.divergences.reduce(
-        (total, divergence) => total + divergence.quantity,
-        0,
-      );
+      const previousLossQuantity = previousLossByEventItemId.get(eventItem.id) ?? 0;
       const availableDelta = returnedQuantity - eventItem.returnedQuantity;
       const totalQuantityDelta = previousLossQuantity - lossQuantity;
 
@@ -152,33 +174,25 @@ export class EventsService {
         });
       }
 
-      await tx.divergence.deleteMany({
-        where: { eventItemId: eventItem.id },
-      });
-
-      const divergenceData = [
-        missingQuantity > 0
-          ? {
-              eventItemId: eventItem.id,
-              quantity: missingQuantity,
-              type: DivergenceType.MISSING,
-              notes: completionItem.notes,
-              tenantUuid,
-            }
-          : null,
-        damagedQuantity > 0
-          ? {
-              eventItemId: eventItem.id,
-              quantity: damagedQuantity,
-              type: DivergenceType.DAMAGED,
-              notes: completionItem.notes,
-              tenantUuid,
-            }
-          : null,
-      ].filter((divergence): divergence is NonNullable<typeof divergence> => Boolean(divergence));
-
-      if (divergenceData.length) {
-        await tx.divergence.createMany({ data: divergenceData });
+      if (missingQuantity > 0) {
+        divergenceItemsToCreate.push({
+          quantity: missingQuantity,
+          type: DivergenceType.MISSING,
+          notes: completionItem.notes,
+          tenantUuid,
+          itemId: eventItem.itemId,
+          sourceItemId: eventItem.id,
+        });
+      }
+      if (damagedQuantity > 0) {
+        divergenceItemsToCreate.push({
+          quantity: damagedQuantity,
+          type: DivergenceType.DAMAGED,
+          notes: completionItem.notes,
+          tenantUuid,
+          itemId: eventItem.itemId,
+          sourceItemId: eventItem.id,
+        });
       }
 
       await tx.eventItem.update({
@@ -187,6 +201,22 @@ export class EventsService {
           shippedQuantity: eventItem.plannedQuantity,
           returnedQuantity,
         },
+      });
+    }
+
+    if (divergenceItemsToCreate.length > 0) {
+      const divergenceHeader = await tx.divergence.create({
+        data: {
+          source: DivergenceSource.EVENT,
+          sourceId: eventId,
+          tenantUuid,
+        },
+      });
+      await tx.divergenceItem.createMany({
+        data: divergenceItemsToCreate.map((divergenceItem) => ({
+          ...divergenceItem,
+          divergenceId: divergenceHeader.id,
+        })),
       });
     }
   }
@@ -273,7 +303,6 @@ export class EventsService {
         eventItems: {
           include: {
             item: true,
-            divergences: true,
           },
         },
       },
@@ -290,14 +319,13 @@ export class EventsService {
         eventItems: {
           include: {
             item: true,
-            divergences: true,
           },
         },
       },
     });
   }
 
-  async update(id: string, updateEventInput: UpdateEventInput, tenantUuid: string) {
+  async update(id: string, updateEventInput: UpdateEventInput, tenantUuid: string, userId?: string) {
     const existing = await this.findOne(id, tenantUuid);
     if (!existing) {
       throw new NotFoundException('Evento não encontrado.');
@@ -322,6 +350,9 @@ export class EventsService {
     const isFinishingEvent =
       updateEventInput.status === EventStatus.COMPLETED &&
       existing.status !== EventStatus.COMPLETED;
+    const isStartingEvent =
+      updateEventInput.status === EventStatus.IN_PROGRESS &&
+      existing.status !== EventStatus.IN_PROGRESS;
 
     if (
       updateEventInput.status === EventStatus.CANCELLED &&
@@ -374,14 +405,19 @@ export class EventsService {
           eventItems: {
             include: {
               item: true,
-              divergences: true,
             },
           },
         },
       });
     };
 
-    return this.prisma.$transaction(updateEvent);
+    const result = await this.prisma.$transaction(updateEvent);
+
+    if (isStartingEvent && existing.eventItems.length > 0) {
+      await this.tasksService.createSaidaGalpaoTask(id, existing.eventItems, tenantUuid, userId);
+    }
+
+    return result;
   }
 
   async remove(id: string, tenantUuid: string) {
@@ -390,12 +426,18 @@ export class EventsService {
       throw new NotFoundException('Evento não encontrado.');
     }
 
-    return this.prisma.event.delete({
-      where: { id },
-      include: {
-        client: true,
-        responsible: { select: this.responsibleSelect },
-      },
+    return this.prisma.$transaction(async (tx) => {
+      await tx.divergence.deleteMany({
+        where: { source: DivergenceSource.EVENT, sourceId: id, tenantUuid },
+      });
+
+      return tx.event.delete({
+        where: { id },
+        include: {
+          client: true,
+          responsible: { select: this.responsibleSelect },
+        },
+      });
     });
   }
 
@@ -503,7 +545,6 @@ export class EventsService {
       },
       include: {
         item: true,
-        divergences: true,
       },
       orderBy: {
         createdAt: 'desc',
@@ -567,7 +608,6 @@ export class EventsService {
         },
         include: {
           item: true,
-          divergences: true,
         },
       });
     });
@@ -587,7 +627,6 @@ export class EventsService {
       },
       include: {
         item: true,
-        divergences: true,
       },
     });
 
@@ -629,7 +668,6 @@ export class EventsService {
         },
         include: {
           item: true,
-          divergences: true,
         },
       });
     });
@@ -655,6 +693,13 @@ export class EventsService {
           availableQuantity: {
             increment: eventItem.plannedQuantity,
           },
+        },
+      });
+
+      await tx.divergenceItem.deleteMany({
+        where: {
+          sourceItemId: eventItem.id,
+          divergence: { source: DivergenceSource.EVENT, sourceId: eventId },
         },
       });
 

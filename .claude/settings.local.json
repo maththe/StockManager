@@ -1,8 +1,22 @@
 {
   "permissions": {
     "allow": [
+      "Bash(dir C:UsersmatheStockManager *)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\mathe\\\\StockManager\" -Directory)",
+      "Bash(Select-Object Name)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\mathe\\\\StockManager\" -Recurse -Directory)",
+      "Bash(Select-Object FullName)",
+      "Bash(xargs grep -l \"divergence\")",
+      "Bash(npx prisma *)",
       "Bash(npx tsc *)",
-      "Bash(npx prisma *)"
+      "Bash(echo \"EXIT_CODE=$?\")",
+      "Bash(xargs wc -l)",
+      "Bash(New-Item -ItemType Directory -Force \"C:\\\\Users\\\\mathe\\\\StockManager\\\\apps\\\\api\\\\prisma\\\\migrations\\\\20260518100000_add_tasks_maintenance_user_roles\")",
+      "Bash(Out-Null)",
+      "Bash(New-Item -ItemType Directory -Force \"C:\\\\Users\\\\mathe\\\\StockManager\\\\apps\\\\api\\\\src\\\\tasks\\\\dto\")",
+      "Bash(New-Item -ItemType Directory -Force \"C:\\\\Users\\\\mathe\\\\StockManager\\\\apps\\\\api\\\\src\\\\maintenance\\\\dto\")",
+      "Bash(New-Item -ItemType Directory -Force \"C:\\\\Users\\\\mathe\\\\StockManager\\\\apps\\\\api\\\\src\\\\divergences\")",
+      "Bash(pnpm typecheck *)"
     ]
   }
 }

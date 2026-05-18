@@ -58,6 +58,7 @@ import type {
 
 import { EventCompleteDialog } from './components/EventCompleteDialog';
 import { EventFormDialog } from './components/EventFormDialog';
+import { useTasks } from '~/services/tanStackQuery/tasks';
 import { EventItemEditDialog } from './components/EventItemEditDialog';
 import { ItemThumbnail } from './components/ItemThumbnail';
 import { downloadEventPdf } from './utils/eventPdf';
@@ -79,6 +80,8 @@ export default function EventDetailsPage() {
   const { data: categories = [] } = useCategories();
   const { data: clients = [] } = useClients();
   const { data: users = [] } = useUsers();
+  const { data: tasks = [] } = useTasks();
+  const eventTask = tasks.find((t) => t.eventId === eventId);
 
   const updateEvent = useUpdateEvent();
   const deleteEvent = useDeleteEvent();
@@ -323,6 +326,20 @@ export default function EventDetailsPage() {
               >
                 {eventStatusLabel[event.status]}
               </span>
+              {eventTask && (
+                <Link
+                  to={`/dashboard/tasks/${eventTask.id}`}
+                  className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold transition-opacity hover:opacity-80 ${
+                    eventTask.status === 'PENDENTE'
+                      ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
+                      : eventTask.status === 'CONCLUIDA'
+                        ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                        : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
+                  }`}
+                >
+                  Tarefa: {eventTask.status === 'PENDENTE' ? 'Saída pendente' : eventTask.status === 'CONCLUIDA' ? 'Saída confirmada' : 'Cancelada'}
+                </Link>
+              )}
             </div>
           </div>
 

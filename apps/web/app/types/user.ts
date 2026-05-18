@@ -10,10 +10,13 @@ export interface UpdateUserInput {
   senha?: string;
 }
 
+export type UserRole = 'ADMIN' | 'DECORADOR' | 'FUNCIONARIO';
+
 export interface User {
   id: string;
   name: string;
   email: string;
+  role: UserRole;
   createdAt: string;
   updatedAt: string;
 }

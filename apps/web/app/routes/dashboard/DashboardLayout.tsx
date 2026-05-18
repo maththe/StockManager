@@ -3,9 +3,11 @@ import {
   Box,
   CalendarDays,
   CalendarRange,
+  ClipboardList,
   HandCoins,
   PanelLeftClose,
   PanelLeftOpen,
+  Settings,
   ShieldUser,
   Users,
 } from 'lucide-react';
@@ -22,6 +24,8 @@ const navItems = [
   { to: '/dashboard/events', label: 'Eventos', icon: CalendarDays },
   { to: '/dashboard/calendar', label: 'Calendário', icon: CalendarRange },
   { to: '/dashboard/rentals', label: 'Locações', icon: HandCoins },
+  { to: '/dashboard/tasks', label: 'Tarefas', icon: ClipboardList },
+  { to: '/dashboard/maintenance', label: 'Manutenções', icon: Settings },
 ];
 
 export default function DashboardLayout() {

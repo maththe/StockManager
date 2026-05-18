@@ -45,7 +45,7 @@ export class EventsController {
     @Req() req: Request,
   ) {
     const user = (req as any).user;
-    return this.eventsService.update(id, updateEventDto, user.tenantUuid);
+    return this.eventsService.update(id, updateEventDto, user.tenantUuid, user.sub);
   }
 
   @Patch(':id/cancel')

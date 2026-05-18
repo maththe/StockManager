@@ -16,5 +16,9 @@ export default [
       route(':eventId', 'routes/events/EventDetailsPage.tsx'),
       route(':eventId/items', 'routes/events/EventReservedItemsPage.tsx'),
     ]),
+    route('tasks', 'routes/tasks/TasksPage.tsx'),
+    route('tasks/:taskId', 'routes/tasks/TaskDetailsPage.tsx'),
+    route('maintenance', 'routes/maintenance/MaintenancePage.tsx'),
+    route('maintenance/:maintenanceId', 'routes/maintenance/MaintenanceDetailsPage.tsx'),
   ]),
 ] satisfies RouteConfig;
