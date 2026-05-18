@@ -3,6 +3,7 @@ export interface Client {
   companyName: string;
   taxId: string;
   contactName?: string | null;
+  tenantUuid?: string;
   createdAt: string;
   updatedAt: string;
 }

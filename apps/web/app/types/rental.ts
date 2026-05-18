@@ -48,14 +48,13 @@ export interface CreateRentalInput {
   expectedReturn: string;
   location?: string;
   notes?: string;
-  status: RentalStatus;
+  status?: RentalStatus;
   clientId: string;
 }
 
 export interface UpdateRentalInput {
   startDate?: string;
   expectedReturn?: string;
-  returnedAt?: string | null;
   location?: string | null;
   notes?: string | null;
   status?: RentalStatus;

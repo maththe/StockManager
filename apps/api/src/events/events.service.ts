@@ -20,6 +20,46 @@ export class EventsService {
     email: true,
   } as const;
 
+  private async attachDivergencesToEventItems<T extends { id: string }>(
+    eventItems: T[],
+    tenantUuid: string,
+  ) {
+    if (eventItems.length === 0) return eventItems;
+
+    const divergenceItems = await this.prisma.divergenceItem.findMany({
+      where: {
+        tenantUuid,
+        sourceItemId: { in: eventItems.map((eventItem) => eventItem.id) },
+        divergence: { source: DivergenceSource.EVENT },
+      },
+      include: { divergence: { select: { status: true } } },
+    });
+
+    const divergencesByEventItemId = new Map<string, any[]>();
+    for (const divergenceItem of divergenceItems) {
+      if (!divergenceItem.sourceItemId) continue;
+
+      const current = divergencesByEventItemId.get(divergenceItem.sourceItemId) ?? [];
+      current.push({
+        id: divergenceItem.id,
+        quantity: divergenceItem.quantity,
+        type: divergenceItem.type,
+        status: divergenceItem.divergence.status,
+        notes: divergenceItem.notes,
+        tenantUuid: divergenceItem.tenantUuid,
+        eventItemId: divergenceItem.sourceItemId,
+        createdAt: divergenceItem.createdAt,
+        updatedAt: divergenceItem.updatedAt,
+      });
+      divergencesByEventItemId.set(divergenceItem.sourceItemId, current);
+    }
+
+    return eventItems.map((eventItem) => ({
+      ...eventItem,
+      divergences: divergencesByEventItemId.get(eventItem.id) ?? [],
+    }));
+  }
+
   private parseEventDates(startDate: string, endDate?: string | null) {
     const parsedStart = new Date(startDate);
 
@@ -301,7 +341,7 @@ export class EventsService {
       ];
     }
 
-    return this.prisma.event.findMany({
+    const events = await this.prisma.event.findMany({
       where,
       include: {
         client: true,
@@ -314,10 +354,23 @@ export class EventsService {
       },
       orderBy: { startDate: 'asc' },
     });
+
+    const eventItemsWithDivergences = await this.attachDivergencesToEventItems(
+      events.flatMap((event) => event.eventItems),
+      tenantUuid,
+    );
+    const eventItemsById = new Map(
+      eventItemsWithDivergences.map((eventItem) => [eventItem.id, eventItem]),
+    );
+
+    return events.map((event) => ({
+      ...event,
+      eventItems: event.eventItems.map((eventItem) => eventItemsById.get(eventItem.id) ?? eventItem),
+    }));
   }
 
   async findOne(id: string, tenantUuid: string) {
-    return this.prisma.event.findFirst({
+    const event = await this.prisma.event.findFirst({
       where: { id, tenantUuid },
       include: {
         client: true,
@@ -329,6 +382,13 @@ export class EventsService {
         },
       },
     });
+
+    if (!event) return null;
+
+    return {
+      ...event,
+      eventItems: await this.attachDivergencesToEventItems(event.eventItems, tenantUuid),
+    };
   }
 
   async update(id: string, updateEventInput: UpdateEventInput, tenantUuid: string, userId?: string) {
@@ -515,7 +575,7 @@ export class EventsService {
       throw new NotFoundException('Evento não encontrado.');
     }
 
-    return this.prisma.eventItem.findMany({
+    const eventItems = await this.prisma.eventItem.findMany({
       where: {
         eventId,
         tenantUuid,
@@ -527,6 +587,8 @@ export class EventsService {
         createdAt: 'desc',
       },
     });
+
+    return this.attachDivergencesToEventItems(eventItems, tenantUuid);
   }
 
   async addItem(eventId: string, input: CreateEventItemInput, tenantUuid: string) {
