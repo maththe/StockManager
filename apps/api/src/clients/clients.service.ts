@@ -9,18 +9,20 @@ import { UpdateClientInput } from './dto/update-client.input';
 export class ClientsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(createClientInput: CreateClientInput): Promise<Client> {
+  async create(createClientInput: CreateClientInput, tenantUuid: string): Promise<Client> {
     return this.prisma.client.create({
       data: {
         companyName: createClientInput.companyName,
         taxId: createClientInput.taxId,
         contactName: createClientInput.contactName,
+        tenantUuid,
       },
     });
   }
 
-  async findAll(search?: string): Promise<Client[]> {
+  async findAll(tenantUuid: string, search?: string): Promise<Client[]> {
     const clients = await this.prisma.client.findMany({
+      where: { tenantUuid },
       orderBy: { companyName: 'asc' },
     });
 
@@ -29,14 +31,14 @@ export class ClientsService {
     );
   }
 
-  async findOne(id: string): Promise<Client | null> {
-    return this.prisma.client.findUnique({
-      where: { id },
+  async findOne(id: string, tenantUuid: string): Promise<Client | null> {
+    return this.prisma.client.findFirst({
+      where: { id, tenantUuid },
     });
   }
 
-  async update(id: string, updateClientInput: UpdateClientInput): Promise<Client> {
-    const existing = await this.findOne(id);
+  async update(id: string, updateClientInput: UpdateClientInput, tenantUuid: string): Promise<Client> {
+    const existing = await this.findOne(id, tenantUuid);
     if (!existing) {
       throw new NotFoundException('Cliente não encontrado.');
     }
@@ -47,8 +49,8 @@ export class ClientsService {
     });
   }
 
-  async remove(id: string): Promise<Client> {
-    const existing = await this.findOne(id);
+  async remove(id: string, tenantUuid: string): Promise<Client> {
+    const existing = await this.findOne(id, tenantUuid);
     if (!existing) {
       throw new NotFoundException('Cliente não encontrado.');
     }

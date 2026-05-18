@@ -53,6 +53,14 @@ export class EventsService {
     return { parsedStart, parsedEnd };
   }
 
+  private normalizePositiveQuantity(value: number | undefined, fieldName: string) {
+    if (typeof value !== 'number' || !Number.isInteger(value) || value <= 0) {
+      throw new BadRequestException(`${fieldName} deve ser um número inteiro maior que zero.`);
+    }
+
+    return value;
+  }
+
   private normalizeCompletionQuantity(value: number | undefined, fieldName: string) {
     const quantity = value ?? 0;
 
@@ -221,9 +229,9 @@ export class EventsService {
     }
   }
 
-  private async ensureClientExists(clientId: string) {
-    const client = await this.prisma.client.findUnique({
-      where: { id: clientId },
+  private async ensureClientExists(clientId: string, tenantUuid: string) {
+    const client = await this.prisma.client.findFirst({
+      where: { id: clientId, tenantUuid },
     });
 
     if (!client) {
@@ -251,18 +259,16 @@ export class EventsService {
       createEventInput.endDate ?? null,
     );
 
-    await this.ensureClientExists(createEventInput.clientId);
+    await this.ensureClientExists(createEventInput.clientId, tenantUuid);
     if (createEventInput.responsibleId) {
       await this.ensureResponsibleExists(createEventInput.responsibleId, tenantUuid);
     }
 
     if (
-      createEventInput.status === EventStatus.COMPLETED &&
-      !createEventInput.inventoryCountConfirmed
+      createEventInput.status === EventStatus.COMPLETED ||
+      createEventInput.status === EventStatus.CANCELLED
     ) {
-      throw new BadRequestException(
-        'Para finalizar o evento, confirme a contagem dos itens para validar o retorno ao estoque.',
-      );
+      throw new BadRequestException('Um novo evento só pode iniciar em planejamento ou em andamento.');
     }
 
     return this.prisma.event.create({
@@ -332,7 +338,7 @@ export class EventsService {
     }
 
     if (updateEventInput.clientId && updateEventInput.clientId !== existing.clientId) {
-      await this.ensureClientExists(updateEventInput.clientId);
+      await this.ensureClientExists(updateEventInput.clientId, tenantUuid);
     }
 
     if (updateEventInput.responsibleId !== undefined) {
@@ -426,6 +432,10 @@ export class EventsService {
       throw new NotFoundException('Evento não encontrado.');
     }
 
+    if (existing.eventItems.length > 0) {
+      throw new BadRequestException('Remova os itens do evento antes de excluí-lo.');
+    }
+
     return this.prisma.$transaction(async (tx) => {
       await tx.divergence.deleteMany({
         where: { source: DivergenceSource.EVENT, sourceId: id, tenantUuid },
@@ -487,48 +497,15 @@ export class EventsService {
   }
 
   async complete(id: string, tenantUuid: string) {
-    const event = await this.prisma.event.findFirst({
-      where: { id, tenantUuid },
-      include: {
-        eventItems: true,
-      },
-    });
+    const event = await this.prisma.event.findFirst({ where: { id, tenantUuid } });
 
     if (!event) {
       throw new NotFoundException('Evento não encontrado.');
     }
 
-    if (event.status === EventStatus.COMPLETED) {
-      throw new BadRequestException('Este evento já está concluído.');
-    }
-
-    if (event.status === EventStatus.CANCELLED) {
-      throw new BadRequestException('Não é possível concluir um evento cancelado.');
-    }
-
-    return this.prisma.$transaction(async (tx) => {
-      for (const eventItem of event.eventItems) {
-        await tx.item.update({
-          where: { id: eventItem.itemId },
-          data: {
-            availableQuantity: {
-              increment: eventItem.plannedQuantity,
-            },
-          },
-        });
-      }
-
-      return tx.event.update({
-        where: { id },
-        data: {
-          status: EventStatus.COMPLETED,
-        },
-        include: {
-          client: true,
-          responsible: { select: this.responsibleSelect },
-        },
-      });
-    });
+    throw new BadRequestException(
+      'Use PATCH /events/:id com inventoryCountConfirmed e completionItems para concluir o evento com contagem de estoque.',
+    );
   }
 
   async findItems(eventId: string, tenantUuid: string) {
@@ -553,13 +530,15 @@ export class EventsService {
   }
 
   async addItem(eventId: string, input: CreateEventItemInput, tenantUuid: string) {
-    if (!input.plannedQuantity || input.plannedQuantity <= 0) {
-      throw new BadRequestException('Quantidade planejada deve ser maior que zero.');
-    }
+    const plannedQuantity = this.normalizePositiveQuantity(input.plannedQuantity, 'Quantidade planejada');
 
     const event = await this.findOne(eventId, tenantUuid);
     if (!event) {
       throw new NotFoundException('Evento não encontrado.');
+    }
+
+    if (event.status !== EventStatus.PLANNING) {
+      throw new BadRequestException('Itens só podem ser adicionados enquanto o evento está em planejamento.');
     }
 
     const item = await this.prisma.item.findFirst({
@@ -573,7 +552,7 @@ export class EventsService {
       throw new NotFoundException('Item não encontrado.');
     }
 
-    if (item.availableQuantity < input.plannedQuantity) {
+    if (item.availableQuantity < plannedQuantity) {
       throw new BadRequestException('Estoque insuficiente para o item selecionado.');
     }
 
@@ -590,20 +569,20 @@ export class EventsService {
     }
 
     return this.prisma.$transaction(async (tx) => {
-      await tx.item.update({
-        where: { id: item.id },
-        data: {
-          availableQuantity: {
-            decrement: input.plannedQuantity,
-          },
-        },
+      const reserved = await tx.item.updateMany({
+        where: { id: item.id, tenantUuid, availableQuantity: { gte: plannedQuantity } },
+        data: { availableQuantity: { decrement: plannedQuantity } },
       });
+
+      if (reserved.count !== 1) {
+        throw new BadRequestException('Estoque insuficiente para o item selecionado.');
+      }
 
       return tx.eventItem.create({
         data: {
           eventId,
           itemId: input.itemId,
-          plannedQuantity: input.plannedQuantity,
+          plannedQuantity,
           tenantUuid,
         },
         include: {
@@ -627,6 +606,7 @@ export class EventsService {
       },
       include: {
         item: true,
+        event: true,
       },
     });
 
@@ -634,10 +614,27 @@ export class EventsService {
       throw new NotFoundException('Item do evento não encontrado.');
     }
 
-    const nextPlannedQuantity = input.plannedQuantity ?? eventItem.plannedQuantity;
+    if (eventItem.event.status !== EventStatus.PLANNING) {
+      throw new BadRequestException('Itens só podem ser editados enquanto o evento está em planejamento.');
+    }
 
-    if (nextPlannedQuantity <= 0) {
-      throw new BadRequestException('Quantidade planejada deve ser maior que zero.');
+    const nextPlannedQuantity =
+      input.plannedQuantity === undefined
+        ? eventItem.plannedQuantity
+        : this.normalizePositiveQuantity(input.plannedQuantity, 'Quantidade planejada');
+    const nextShippedQuantity =
+      input.shippedQuantity === undefined
+        ? eventItem.shippedQuantity
+        : this.normalizeCompletionQuantity(input.shippedQuantity, 'Quantidade enviada');
+    const nextReturnedQuantity =
+      input.returnedQuantity === undefined
+        ? eventItem.returnedQuantity
+        : this.normalizeCompletionQuantity(input.returnedQuantity, 'Quantidade retornada');
+
+    if (nextShippedQuantity > nextPlannedQuantity || nextReturnedQuantity > nextPlannedQuantity) {
+      throw new BadRequestException(
+        'Quantidades enviada e retornada não podem ser maiores que a quantidade planejada.',
+      );
     }
 
     const plannedDelta = nextPlannedQuantity - eventItem.plannedQuantity;
@@ -647,24 +644,28 @@ export class EventsService {
     }
 
     return this.prisma.$transaction(async (tx) => {
-      if (plannedDelta !== 0) {
+      if (plannedDelta > 0) {
+        const reserved = await tx.item.updateMany({
+          where: { id: eventItem.itemId, tenantUuid, availableQuantity: { gte: plannedDelta } },
+          data: { availableQuantity: { decrement: plannedDelta } },
+        });
+
+        if (reserved.count !== 1) {
+          throw new BadRequestException('Estoque insuficiente para aumentar a quantidade planejada.');
+        }
+      } else if (plannedDelta < 0) {
         await tx.item.update({
           where: { id: eventItem.itemId },
-          data: {
-            availableQuantity:
-              plannedDelta > 0
-                ? { decrement: plannedDelta }
-                : { increment: Math.abs(plannedDelta) },
-          },
+          data: { availableQuantity: { increment: Math.abs(plannedDelta) } },
         });
       }
 
       return tx.eventItem.update({
         where: { id: eventItemId },
         data: {
-          plannedQuantity: input.plannedQuantity,
-          shippedQuantity: input.shippedQuantity,
-          returnedQuantity: input.returnedQuantity,
+          plannedQuantity: nextPlannedQuantity,
+          shippedQuantity: nextShippedQuantity,
+          returnedQuantity: nextReturnedQuantity,
         },
         include: {
           item: true,
@@ -680,10 +681,15 @@ export class EventsService {
         eventId,
         tenantUuid,
       },
+      include: { event: true },
     });
 
     if (!eventItem) {
       throw new NotFoundException('Item do evento não encontrado.');
+    }
+
+    if (eventItem.event.status !== EventStatus.PLANNING) {
+      throw new BadRequestException('Itens só podem ser removidos enquanto o evento está em planejamento.');
     }
 
     return this.prisma.$transaction(async (tx) => {
@@ -708,4 +714,5 @@ export class EventsService {
       });
     });
   }
+
 }
