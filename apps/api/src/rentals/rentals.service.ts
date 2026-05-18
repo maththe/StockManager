@@ -161,7 +161,7 @@ export class RentalsService {
       throw new BadRequestException('Não é possível editar uma locação encerrada.');
     }
 
-    if ((input as any).returnedAt !== undefined) {
+    if (input.returnedAt !== undefined) {
       throw new BadRequestException('A data de devolução efetiva é controlada pela ação de devolver.');
     }
 
