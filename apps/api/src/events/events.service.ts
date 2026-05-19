@@ -350,9 +350,15 @@ export class EventsService {
     const isFinishingEvent =
       updateEventInput.status === EventStatus.COMPLETED &&
       existing.status !== EventStatus.COMPLETED;
-    const isStartingEvent =
+
+    if (
       updateEventInput.status === EventStatus.IN_PROGRESS &&
-      existing.status !== EventStatus.IN_PROGRESS;
+      existing.status !== EventStatus.IN_PROGRESS
+    ) {
+      throw new BadRequestException(
+        'Use a ação de iniciar evento para movê-lo para Em andamento.',
+      );
+    }
 
     if (
       updateEventInput.status === EventStatus.CANCELLED &&
@@ -375,6 +381,17 @@ export class EventsService {
       updateEventInput.status !== EventStatus.COMPLETED
     ) {
       throw new BadRequestException('Não é possível reabrir um evento concluído.');
+    }
+
+    if (
+      existing.status === EventStatus.IN_PROGRESS &&
+      updateEventInput.status &&
+      updateEventInput.status !== EventStatus.IN_PROGRESS &&
+      updateEventInput.status !== EventStatus.COMPLETED
+    ) {
+      throw new BadRequestException(
+        'Eventos em andamento só podem ser concluídos ou cancelados pelas ações dedicadas.',
+      );
     }
 
     if (isFinishingEvent && !updateEventInput.inventoryCountConfirmed) {
@@ -413,11 +430,53 @@ export class EventsService {
 
     const result = await this.prisma.$transaction(updateEvent);
 
-    if (isStartingEvent && existing.eventItems.length > 0) {
-      await this.tasksService.createSaidaGalpaoTask(id, existing.eventItems, tenantUuid, userId);
+    return result;
+  }
+
+  async iniciar(id: string, tenantUuid: string, userId?: string) {
+    const existing = await this.findOne(id, tenantUuid);
+    if (!existing) {
+      throw new NotFoundException('Evento não encontrado.');
     }
 
-    return result;
+    if (existing.status !== EventStatus.PLANNING) {
+      throw new BadRequestException(
+        'Apenas eventos em planejamento podem ser iniciados.',
+      );
+    }
+
+    if (!existing.eventItems || existing.eventItems.length === 0) {
+      throw new BadRequestException(
+        'Adicione ao menos um item ao evento antes de iniciar.',
+      );
+    }
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const event = await tx.event.update({
+        where: { id },
+        data: { status: EventStatus.IN_PROGRESS },
+        include: {
+          client: true,
+          responsible: { select: this.responsibleSelect },
+          eventItems: { include: { item: true } },
+        },
+      });
+
+      await this.tasksService.createSaidaGalpaoTask(
+        id,
+        existing.eventItems.map((eventItem) => ({
+          eventItemId: eventItem.id,
+          requestedQuantity: eventItem.plannedQuantity,
+        })),
+        tenantUuid,
+        userId,
+        tx,
+      );
+
+      return event;
+    });
+
+    return updated;
   }
 
   async remove(id: string, tenantUuid: string) {

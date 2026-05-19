@@ -8,6 +8,7 @@ export interface TaskItemEventItem {
 
 export interface TaskItem {
   id: string;
+  requestedQuantity: number;
   confirmedQuantity: number;
   confirmed: boolean;
   notes?: string;
@@ -54,4 +55,16 @@ export interface ConfirmTaskItemInput {
 
 export interface ConfirmTaskInput {
   items: ConfirmTaskItemInput[];
+}
+
+export interface CreatePartialTaskItemInput {
+  eventItemId: string;
+  requestedQuantity: number;
+  notes?: string;
+}
+
+export interface CreatePartialTaskInput {
+  items: CreatePartialTaskItemInput[];
+  assignedToId?: string | null;
+  notes?: string;
 }

@@ -12,6 +12,8 @@ import {
   MapPin,
   Package,
   PackagePlus,
+  Play,
+  PlusSquare,
   Trash2,
   UserRound,
 } from 'lucide-react';
@@ -46,19 +48,23 @@ import {
   useDeleteEventItem,
   useEventItems,
   useEvents,
+  useStartEvent,
   useUpdateEvent,
   useUpdateEventItem,
 } from '~/services/tanStackQuery/events';
 import { useUsers } from '~/services/tanStackQuery/users';
+import { getCurrentUser, hasRole } from '~/services/auth/currentUser';
 import type {
   CreateEventInput,
   Event,
   UpdateEventInput,
 } from '~/types/event';
+import type { CreatePartialTaskInput } from '~/types/task';
 
 import { EventCompleteDialog } from './components/EventCompleteDialog';
 import { EventFormDialog } from './components/EventFormDialog';
-import { useTasks } from '~/services/tanStackQuery/tasks';
+import { PartialTaskDialog } from './components/PartialTaskDialog';
+import { useCreatePartialTask, useTasks } from '~/services/tanStackQuery/tasks';
 import { EventItemEditDialog } from './components/EventItemEditDialog';
 import { ItemThumbnail } from './components/ItemThumbnail';
 import { downloadEventPdf } from './utils/eventPdf';
@@ -81,25 +87,35 @@ export default function EventDetailsPage() {
   const { data: clients = [] } = useClients();
   const { data: users = [] } = useUsers();
   const { data: tasks = [] } = useTasks();
-  const eventTask = tasks.find((t) => t.eventId === eventId);
+  const eventTasks = useMemo(
+    () => tasks.filter((t) => t.eventId === eventId),
+    [tasks, eventId],
+  );
+
+  const currentUser = useMemo(() => getCurrentUser(), []);
+  const canManageTasks = hasRole(currentUser, 'ADMIN', 'DECORADOR');
 
   const updateEvent = useUpdateEvent();
   const deleteEvent = useDeleteEvent();
   const cancelEvent = useCancelEvent();
   const completeEvent = useCompleteEvent();
+  const startEvent = useStartEvent();
+  const createPartialTask = useCreatePartialTask();
   const updateEventItem = useUpdateEventItem();
   const deleteEventItem = useDeleteEventItem();
 
   const event = events.find((current) => current.id === eventId);
 
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [partialTaskDialogOpen, setPartialTaskDialogOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<{
-    type: 'cancel' | 'complete' | 'delete';
+    type: 'cancel' | 'complete' | 'delete' | 'start';
     event: Event;
   } | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [completingId, setCompletingId] = useState<string | null>(null);
+  const [startingId, setStartingId] = useState<string | null>(null);
   const [editingItem, setEditingItem] = useState<SelectedEventItem | null>(
     null,
   );
@@ -144,6 +160,21 @@ export default function EventDetailsPage() {
     }
   };
 
+  const handleStart = async (id: string) => {
+    try {
+      setStartingId(id);
+      await startEvent.mutateAsync(id);
+    } finally {
+      setStartingId(null);
+    }
+  };
+
+  const handleCreatePartialTask = async (data: CreatePartialTaskInput) => {
+    if (!event) return;
+    await createPartialTask.mutateAsync({ eventId: event.id, data });
+    setPartialTaskDialogOpen(false);
+  };
+
   const handleConfirmPendingAction = async () => {
     if (!pendingAction) return;
     const targetEvent = pendingAction.event;
@@ -152,6 +183,8 @@ export default function EventDetailsPage() {
       await handleDelete(targetEvent.id);
     } else if (pendingAction.type === 'complete') {
       await handleComplete(targetEvent.id);
+    } else if (pendingAction.type === 'start') {
+      await handleStart(targetEvent.id);
     } else {
       await handleCancel(targetEvent.id);
     }
@@ -326,20 +359,26 @@ export default function EventDetailsPage() {
               >
                 {eventStatusLabel[event.status]}
               </span>
-              {eventTask && (
+              {eventTasks.map((task) => (
                 <Link
-                  to={`/dashboard/tasks/${eventTask.id}`}
+                  key={task.id}
+                  to={`/dashboard/tasks/${task.id}`}
                   className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold transition-opacity hover:opacity-80 ${
-                    eventTask.status === 'PENDENTE'
+                    task.status === 'PENDENTE'
                       ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
-                      : eventTask.status === 'CONCLUIDA'
+                      : task.status === 'CONCLUIDA'
                         ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
                         : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
                   }`}
                 >
-                  Tarefa: {eventTask.status === 'PENDENTE' ? 'Saída pendente' : eventTask.status === 'CONCLUIDA' ? 'Saída confirmada' : 'Cancelada'}
+                  {task.code}:{' '}
+                  {task.status === 'PENDENTE'
+                    ? 'Saída pendente'
+                    : task.status === 'CONCLUIDA'
+                      ? 'Saída confirmada'
+                      : 'Cancelada'}
                 </Link>
-              )}
+              ))}
             </div>
           </div>
 
@@ -363,6 +402,45 @@ export default function EventDetailsPage() {
               </Button>
             ) : (
               <>
+                {event.status === 'PLANNING' &&
+                  (eventItems.length > 0) &&
+                  canManageTasks && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="border-blue-200/60 text-blue-600 transition-colors hover:bg-blue-50 hover:text-blue-700 dark:border-blue-900/50 dark:hover:bg-blue-950"
+                      onClick={() =>
+                        setPendingAction({ type: 'start', event })
+                      }
+                      disabled={
+                        startingId === event.id || Boolean(pendingAction)
+                      }
+                    >
+                      {startingId === event.id ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <Play className="mr-2 h-4 w-4" />
+                      )}
+                      Iniciar evento
+                    </Button>
+                  )}
+                {(event.status === 'PLANNING' ||
+                  event.status === 'IN_PROGRESS') &&
+                  eventItems.length > 0 &&
+                  canManageTasks && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="border-primary/40 text-primary transition-colors hover:bg-primary/10"
+                      onClick={() => setPartialTaskDialogOpen(true)}
+                      disabled={Boolean(pendingAction)}
+                    >
+                      <PlusSquare className="mr-2 h-4 w-4" />
+                      Criar tarefa parcial
+                    </Button>
+                  )}
                 <Button
                   type="button"
                   variant="outline"
@@ -642,27 +720,47 @@ export default function EventDetailsPage() {
             <AlertDialogTitle>
               {pendingAction?.type === 'delete'
                 ? 'Excluir evento?'
-                : 'Cancelar evento?'}
+                : pendingAction?.type === 'start'
+                  ? 'Iniciar evento?'
+                  : 'Cancelar evento?'}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {pendingAction?.type === 'delete'
                 ? `Esta ação removerá permanentemente o evento "${pendingAction.event.eventName}".`
-                : `Ao cancelar "${pendingAction?.event.eventName}", todos os itens reservados voltarão ao estoque.`}
+                : pendingAction?.type === 'start'
+                  ? `Ao iniciar "${pendingAction.event.eventName}", uma tarefa de saída do galpão com todos os itens será criada e o status mudará para Em andamento.`
+                  : `Ao cancelar "${pendingAction?.event.eventName}", todos os itens reservados voltarão ao estoque.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={Boolean(deletingId || cancellingId)}>
+            <AlertDialogCancel
+              disabled={Boolean(deletingId || cancellingId || startingId)}
+            >
               Voltar
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleConfirmPendingAction}
-              disabled={Boolean(deletingId || cancellingId)}
+              disabled={Boolean(deletingId || cancellingId || startingId)}
             >
-              {deletingId || cancellingId ? 'Processando...' : 'Confirmar'}
+              {deletingId || cancellingId || startingId
+                ? 'Processando...'
+                : 'Confirmar'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <PartialTaskDialog
+        open={partialTaskDialogOpen}
+        onOpenChange={setPartialTaskDialogOpen}
+        eventItems={eventItems}
+        eventTasks={eventTasks}
+        funcionarios={users.filter(
+          (u) => u.role === 'FUNCIONARIO' || u.role === 'DECORADOR',
+        )}
+        isLoading={createPartialTask.isPending}
+        onSubmit={handleCreatePartialTask}
+      />
 
       <EventCompleteDialog
         open={pendingAction?.type === 'complete'}

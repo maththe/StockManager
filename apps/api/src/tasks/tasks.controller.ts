@@ -1,9 +1,22 @@
-import { Body, Controller, Get, Param, Patch, Query, Req } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import type { Request } from 'express';
-import { TaskStatus } from '@prisma/client';
+import { TaskStatus, UserRole } from '@prisma/client';
+import { Roles } from '../auth/roles.decorator';
+import { RolesGuard } from '../auth/roles.guard';
 import { TasksService } from './tasks.service';
 import { UpdateTaskInput } from './dto/update-task.input';
 import { ConfirmTaskInput } from './dto/confirm-task.input';
+import { CreatePartialTaskInput } from './dto/create-partial-task.input';
 
 @Controller('tasks')
 export class TasksController {
@@ -19,6 +32,18 @@ export class TasksController {
   findOne(@Param('id') id: string, @Req() req: Request) {
     const { tenantUuid } = (req as any).user;
     return this.tasksService.findOne(id, tenantUuid);
+  }
+
+  @Post('evento/:eventId')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.DECORADOR)
+  criarParcial(
+    @Param('eventId') eventId: string,
+    @Body() body: CreatePartialTaskInput,
+    @Req() req: Request,
+  ) {
+    const { tenantUuid, sub } = (req as any).user;
+    return this.tasksService.criarTaskParcial(eventId, body, tenantUuid, sub);
   }
 
   @Patch(':id')

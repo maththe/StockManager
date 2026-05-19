@@ -40,9 +40,13 @@ interface EventFormDialogProps {
   isLoading?: boolean;
 }
 
-const statusOptions: Array<{ value: EventStatus; label: string }> = [
+const statusOptions: Array<{
+  value: EventStatus;
+  label: string;
+  disabled?: boolean;
+}> = [
   { value: 'PLANNING', label: 'Planejamento' },
-  { value: 'IN_PROGRESS', label: 'Em andamento' },
+  { value: 'IN_PROGRESS', label: 'Em andamento (use Iniciar evento)', disabled: true },
   { value: 'COMPLETED', label: 'Concluído' },
   { value: 'CANCELLED', label: 'Cancelado' },
 ];

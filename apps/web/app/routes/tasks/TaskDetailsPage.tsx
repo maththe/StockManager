@@ -56,7 +56,11 @@ function ItemRow({
           {taskItem.eventItem.item.name}
         </p>
         <p className="text-xs text-muted-foreground">
-          Planejado: {taskItem.eventItem.plannedQuantity} unidade(s)
+          Solicitado nesta tarefa:{' '}
+          <span className="font-semibold text-foreground">
+            {taskItem.requestedQuantity}
+          </span>{' '}
+          · Planejado total do evento: {taskItem.eventItem.plannedQuantity}
         </p>
       </div>
       <div className="flex items-center gap-2">
@@ -68,7 +72,7 @@ function ItemRow({
           <Input
             type="number"
             min={0}
-            max={taskItem.eventItem.plannedQuantity}
+            max={taskItem.requestedQuantity}
             value={confirmedQuantity}
             onChange={(e) => onChange(Number(e.target.value))}
             disabled={locked}
@@ -118,8 +122,11 @@ export default function TaskDetailsPage() {
   const locked = task.status !== 'PENDENTE';
   const taskItems = task.taskItems ?? [];
 
-  const getQty = (ti: TaskItem) =>
-    quantities[ti.id] !== undefined ? quantities[ti.id] : ti.confirmedQuantity;
+  const getQty = (ti: TaskItem) => {
+    if (quantities[ti.id] !== undefined) return quantities[ti.id];
+    if (ti.confirmed) return ti.confirmedQuantity;
+    return ti.requestedQuantity;
+  };
 
   const handleConfirm = async () => {
     const items: ConfirmTaskItemInput[] = taskItems.map((ti) => ({

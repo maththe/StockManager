@@ -16,7 +16,8 @@
       "Bash(New-Item -ItemType Directory -Force \"C:\\\\Users\\\\mathe\\\\StockManager\\\\apps\\\\api\\\\src\\\\tasks\\\\dto\")",
       "Bash(New-Item -ItemType Directory -Force \"C:\\\\Users\\\\mathe\\\\StockManager\\\\apps\\\\api\\\\src\\\\maintenance\\\\dto\")",
       "Bash(New-Item -ItemType Directory -Force \"C:\\\\Users\\\\mathe\\\\StockManager\\\\apps\\\\api\\\\src\\\\divergences\")",
-      "Bash(pnpm typecheck *)"
+      "Bash(pnpm typecheck *)",
+      "Bash(pnpm exec *)"
     ]
   }
 }

@@ -75,6 +75,25 @@ export const useDeleteEvent = () => {
   });
 };
 
+export const useStartEvent = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const response = await api.post<Event>(`/events/${id}/iniciar`);
+      return response.data;
+    },
+    onSuccess: (_, eventId) => {
+      queryClient.invalidateQueries({ queryKey: ['events'] });
+      queryClient.invalidateQueries({ queryKey: ['events', eventId] });
+      queryClient.invalidateQueries({ queryKey: ['event-items', eventId] });
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['items'] });
+      mutationSuccess('Evento iniciado e tarefa de saída criada.');
+    },
+    onError: (error) => mutationError('Erro ao iniciar evento.', error),
+  });
+};
+
 export const useCancelEvent = () => {
   const queryClient = useQueryClient();
   return useMutation({

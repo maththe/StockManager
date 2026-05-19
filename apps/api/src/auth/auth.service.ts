@@ -24,7 +24,12 @@ export class AuthService {
       throw new UnauthorizedException('E-mail ou senha incorretos.');
     }
 
-    const payload = { sub: user.id, email: user.email, tenantUuid: user.tenantUuid };
+    const payload = {
+      sub: user.id,
+      email: user.email,
+      tenantUuid: user.tenantUuid,
+      role: user.role,
+    };
 
     return {
       access_token: await this.jwtService.signAsync(payload),

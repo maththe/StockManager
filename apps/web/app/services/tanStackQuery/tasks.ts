@@ -6,6 +6,7 @@ import type {
   TaskStatus,
   UpdateTaskInput,
   ConfirmTaskInput,
+  CreatePartialTaskInput,
 } from '~/types/task';
 
 export const useTasks = (status?: TaskStatus) => {
@@ -59,6 +60,32 @@ export const useConcluirTask = () => {
       mutationSuccess('Saída do galpão confirmada com sucesso.');
     },
     onError: (error) => mutationError('Erro ao confirmar saída.', error),
+  });
+};
+
+export const useCreatePartialTask = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      eventId,
+      data,
+    }: {
+      eventId: string;
+      data: CreatePartialTaskInput;
+    }) => {
+      const response = await api.post<Task>(`/tasks/evento/${eventId}`, data);
+      return response.data;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['events'] });
+      queryClient.invalidateQueries({ queryKey: ['events', variables.eventId] });
+      queryClient.invalidateQueries({
+        queryKey: ['event-items', variables.eventId],
+      });
+      mutationSuccess('Tarefa parcial criada com sucesso.');
+    },
+    onError: (error) => mutationError('Erro ao criar tarefa parcial.', error),
   });
 };
 

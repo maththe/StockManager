@@ -1,18 +1,30 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { EventItem, TaskStatus } from '@prisma/client';
+import { EventStatus, Prisma, TaskStatus } from '@prisma/client';
 import { PrismaService } from 'src/services/prisma.service';
 import { UpdateTaskInput } from './dto/update-task.input';
 import { ConfirmTaskInput } from './dto/confirm-task.input';
+import { CreatePartialTaskInput } from './dto/create-partial-task.input';
+
+type PrismaTx = Prisma.TransactionClient;
+
+interface CreateSaidaGalpaoTaskItem {
+  eventItemId: string;
+  requestedQuantity: number;
+  notes?: string;
+}
 
 @Injectable()
 export class TasksService {
   constructor(private readonly prisma: PrismaService) {}
 
-  private async generateTaskCode(tenantUuid: string): Promise<string> {
+  private async generateTaskCode(
+    tenantUuid: string,
+    client: PrismaTx | PrismaService = this.prisma,
+  ): Promise<string> {
     const year = new Date().getFullYear();
     const prefix = `TRB-${year}-`;
 
-    const last = await this.prisma.task.findFirst({
+    const last = await client.task.findFirst({
       where: { tenantUuid, code: { startsWith: prefix } },
       orderBy: { code: 'desc' },
       select: { code: true },
@@ -31,26 +43,33 @@ export class TasksService {
 
   async createSaidaGalpaoTask(
     eventId: string,
-    eventItems: EventItem[],
+    items: CreateSaidaGalpaoTaskItem[],
     tenantUuid: string,
     createdById?: string,
+    tx?: PrismaTx,
+    options?: { assignedToId?: string | null; notes?: string },
   ) {
-    if (!eventItems.length) return null;
+    if (!items.length) return null;
 
-    const code = await this.generateTaskCode(tenantUuid);
+    const client: PrismaTx | PrismaService = tx ?? this.prisma;
+    const code = await this.generateTaskCode(tenantUuid, client);
 
-    return this.prisma.task.create({
+    return client.task.create({
       data: {
         code,
         tenantUuid,
         eventId,
         createdById: createdById ?? null,
+        assignedToId: options?.assignedToId ?? null,
+        notes: options?.notes ?? null,
         taskItems: {
-          create: eventItems.map((ei) => ({
+          create: items.map((it) => ({
             tenantUuid,
-            eventItemId: ei.id,
+            eventItemId: it.eventItemId,
+            requestedQuantity: it.requestedQuantity,
             confirmedQuantity: 0,
             confirmed: false,
+            notes: it.notes ?? null,
           })),
         },
       },
@@ -59,6 +78,123 @@ export class TasksService {
         assignedTo: { select: { id: true, name: true } },
         event: { select: { id: true, eventName: true } },
       },
+    });
+  }
+
+  async criarTaskParcial(
+    eventId: string,
+    input: CreatePartialTaskInput,
+    tenantUuid: string,
+    createdById?: string,
+  ) {
+    if (!input.items?.length) {
+      throw new BadRequestException('Selecione ao menos um item para a tarefa.');
+    }
+
+    const seen = new Set<string>();
+    for (const item of input.items) {
+      if (!item.eventItemId) {
+        throw new BadRequestException('Item inválido na seleção.');
+      }
+      if (seen.has(item.eventItemId)) {
+        throw new BadRequestException('Item duplicado na seleção.');
+      }
+      seen.add(item.eventItemId);
+
+      if (
+        !Number.isInteger(item.requestedQuantity) ||
+        item.requestedQuantity <= 0
+      ) {
+        throw new BadRequestException(
+          'Quantidade solicitada deve ser inteiro maior que zero.',
+        );
+      }
+    }
+
+    const event = await this.prisma.event.findFirst({
+      where: { id: eventId, tenantUuid },
+      include: { eventItems: true },
+    });
+
+    if (!event) throw new NotFoundException('Evento não encontrado.');
+
+    if (
+      event.status !== EventStatus.PLANNING &&
+      event.status !== EventStatus.IN_PROGRESS
+    ) {
+      throw new BadRequestException(
+        'Só é possível criar tarefas para eventos em planejamento ou em andamento.',
+      );
+    }
+
+    const eventItemsById = new Map(event.eventItems.map((ei) => [ei.id, ei]));
+    for (const item of input.items) {
+      if (!eventItemsById.has(item.eventItemId)) {
+        throw new BadRequestException('Um dos itens não pertence a este evento.');
+      }
+    }
+
+    const existingTaskItems = await this.prisma.taskItem.findMany({
+      where: {
+        tenantUuid,
+        eventItemId: { in: input.items.map((it) => it.eventItemId) },
+        task: {
+          eventId,
+          status: { in: [TaskStatus.PENDENTE, TaskStatus.CONCLUIDA] },
+        },
+      },
+      select: { eventItemId: true, requestedQuantity: true },
+    });
+
+    const alreadyRequested = new Map<string, number>();
+    for (const ti of existingTaskItems) {
+      alreadyRequested.set(
+        ti.eventItemId,
+        (alreadyRequested.get(ti.eventItemId) ?? 0) + ti.requestedQuantity,
+      );
+    }
+
+    for (const item of input.items) {
+      const eventItem = eventItemsById.get(item.eventItemId)!;
+      const already = alreadyRequested.get(item.eventItemId) ?? 0;
+      const restante = eventItem.plannedQuantity - already;
+      if (item.requestedQuantity > restante) {
+        throw new BadRequestException(
+          `Quantidade solicitada (${item.requestedQuantity}) excede o restante (${restante}) para um dos itens.`,
+        );
+      }
+    }
+
+    if (input.assignedToId) {
+      const assignee = await this.prisma.user.findFirst({
+        where: { id: input.assignedToId, tenantUuid },
+        select: { id: true },
+      });
+      if (!assignee) {
+        throw new BadRequestException('Usuário responsável inválido.');
+      }
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      if (event.status === EventStatus.PLANNING) {
+        await tx.event.update({
+          where: { id: eventId },
+          data: { status: EventStatus.IN_PROGRESS },
+        });
+      }
+
+      return this.createSaidaGalpaoTask(
+        eventId,
+        input.items.map((it) => ({
+          eventItemId: it.eventItemId,
+          requestedQuantity: it.requestedQuantity,
+          notes: it.notes,
+        })),
+        tenantUuid,
+        createdById,
+        tx,
+        { assignedToId: input.assignedToId ?? null, notes: input.notes },
+      );
     });
   }
 

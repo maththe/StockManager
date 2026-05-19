@@ -8,8 +8,12 @@ import {
   Post,
   Req,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import type { Request } from 'express';
+import { UserRole } from '@prisma/client';
+import { Roles } from '../auth/roles.decorator';
+import { RolesGuard } from '../auth/roles.guard';
 import { CreateEventInput } from './dto/create-event.input';
 import { UpdateEventInput } from './dto/update-event.input';
 import { EventsService } from './events.service';
@@ -46,6 +50,14 @@ export class EventsController {
   ) {
     const user = (req as any).user;
     return this.eventsService.update(id, updateEventDto, user.tenantUuid, user.sub);
+  }
+
+  @Post(':id/iniciar')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.DECORADOR)
+  async iniciar(@Param('id') id: string, @Req() req: Request) {
+    const user = (req as any).user;
+    return this.eventsService.iniciar(id, user.tenantUuid, user.sub);
   }
 
   @Patch(':id/cancel')

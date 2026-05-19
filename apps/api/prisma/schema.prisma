@@ -318,6 +318,7 @@ model Task {
 
 model TaskItem {
   id                String  @id @default(uuid())
+  requestedQuantity Int     @default(0)
   confirmedQuantity Int     @default(0)
   confirmed         Boolean @default(false)
   notes             String?
