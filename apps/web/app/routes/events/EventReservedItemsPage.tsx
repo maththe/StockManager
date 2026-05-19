@@ -64,6 +64,37 @@ export default function EventReservedItemsPage() {
     );
   }
 
+  if (event.status !== 'PLANNING') {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center gap-3">
+          <Link to={`/dashboard/events/${event.id}`}>
+            <Button variant="outline" size="icon" className="border-border/50 hover:bg-muted">
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+          </Link>
+          <h1 className="text-2xl font-bold text-foreground">Itens bloqueados</h1>
+        </div>
+        <Card className="border-amber-300/40 bg-amber-50/70 dark:bg-amber-950/20">
+          <CardHeader>
+            <CardTitle>Evento fora do planejamento</CardTitle>
+            <CardDescription>
+              Itens só podem ser adicionados, editados ou removidos enquanto o evento está em planejamento.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Link to={`/dashboard/events/${event.id}`}>
+              <Button variant="outline" className="border-border/50">
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Voltar para detalhes
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <EventItemsDialog event={event} />

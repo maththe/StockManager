@@ -35,6 +35,15 @@ export class MaintenanceService {
     }
   }
 
+  private async ensureAssignedUserBelongsToTenant(assignedToId: string | null | undefined, tenantUuid: string) {
+    if (!assignedToId) return;
+
+    const user = await this.prisma.user.findFirst({ where: { id: assignedToId, tenantUuid } });
+    if (!user) {
+      throw new BadRequestException('Responsável não encontrado ou sem permissão.');
+    }
+  }
+
   // Criação automática a partir de DivergenceItems DAMAGED.
   // Não altera estoque — já foi ajustado na conclusão do evento.
   async createFromDivergence(
@@ -66,6 +75,7 @@ export class MaintenanceService {
 
   async create(input: CreateMaintenanceInput, tenantUuid: string, createdById?: string) {
     this.validateQuantity(input.quantity);
+    await this.ensureAssignedUserBelongsToTenant(input.assignedToId, tenantUuid);
 
     const item = await this.prisma.item.findFirst({ where: { id: input.itemId, tenantUuid } });
     if (!item) throw new NotFoundException('Item não encontrado.');
@@ -77,10 +87,14 @@ export class MaintenanceService {
     const code = await this.generateCode(tenantUuid);
 
     return this.prisma.$transaction(async (tx) => {
-      await tx.item.update({
-        where: { id: input.itemId },
+      const reserved = await tx.item.updateMany({
+        where: { id: input.itemId, tenantUuid, availableQuantity: { gte: input.quantity } },
         data: { availableQuantity: { decrement: input.quantity } },
       });
+
+      if (reserved.count !== 1) {
+        throw new BadRequestException('Estoque insuficiente para criar a manutenção.');
+      }
 
       return tx.maintenance.create({
         data: {
@@ -137,6 +151,8 @@ export class MaintenanceService {
     if (m.status === MaintenanceStatus.CONCLUIDA || m.status === MaintenanceStatus.CANCELADA) {
       throw new BadRequestException('Não é possível editar uma manutenção encerrada.');
     }
+
+    await this.ensureAssignedUserBelongsToTenant(input.assignedToId, tenantUuid);
 
     const advanceToInProgress =
       m.status === MaintenanceStatus.PENDENTE &&

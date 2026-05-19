@@ -55,6 +55,7 @@ import {
 import { useUsers } from '~/services/tanStackQuery/users';
 import { getCurrentUser, hasRole } from '~/services/auth/currentUser';
 import type {
+  CompleteEventItemInput,
   CreateEventInput,
   Event,
   UpdateEventInput,
@@ -151,10 +152,10 @@ export default function EventDetailsPage() {
     }
   };
 
-  const handleComplete = async (id: string) => {
+  const handleComplete = async (id: string, completionItems: CompleteEventItemInput[]) => {
     try {
       setCompletingId(id);
-      await completeEvent.mutateAsync(id);
+      await completeEvent.mutateAsync({ id, completionItems });
     } finally {
       setCompletingId(null);
     }
@@ -181,11 +182,9 @@ export default function EventDetailsPage() {
 
     if (pendingAction.type === 'delete') {
       await handleDelete(targetEvent.id);
-    } else if (pendingAction.type === 'complete') {
-      await handleComplete(targetEvent.id);
     } else if (pendingAction.type === 'start') {
       await handleStart(targetEvent.id);
-    } else {
+    } else if (pendingAction.type === 'cancel') {
       await handleCancel(targetEvent.id);
     }
 
@@ -327,8 +326,7 @@ export default function EventDetailsPage() {
     );
   }
 
-  const isLocked =
-    event.status === 'CANCELLED' || event.status === 'COMPLETED';
+  const canManageItems = event.status === 'PLANNING';
 
   return (
     <div className="space-y-6">
@@ -580,7 +578,7 @@ export default function EventDetailsPage() {
               onClick={() =>
                 navigate(`/dashboard/events/${event.id}/items`)
               }
-              disabled={isLocked}
+              disabled={!canManageItems}
               className="bg-gradient-to-r from-primary to-secondary font-medium text-white shadow-md transition-all hover:shadow-lg disabled:opacity-60"
             >
               <PackagePlus className="mr-2 h-4 w-4" />
@@ -605,7 +603,7 @@ export default function EventDetailsPage() {
               <p className="mt-2 max-w-md text-sm text-muted-foreground">
                 Abra o catálogo para adicionar itens do estoque a este evento.
               </p>
-              {!isLocked && (
+              {canManageItems && (
                 <Button
                   onClick={() =>
                     navigate(`/dashboard/events/${event.id}/items`)
@@ -667,7 +665,7 @@ export default function EventDetailsPage() {
                               size="icon-sm"
                               className="h-8 w-8 text-muted-foreground hover:bg-primary/10 hover:text-primary"
                               onClick={() => setEditingItem(entry)}
-                              disabled={isLocked || isRemoving}
+                              disabled={!canManageItems || isRemoving}
                               aria-label={`Editar quantidade de ${entry.item.name}`}
                             >
                               <Edit3 className="h-3.5 w-3.5" />
@@ -678,7 +676,7 @@ export default function EventDetailsPage() {
                               size="icon-sm"
                               className="h-8 w-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                               onClick={() => setDeletingItemTarget(entry)}
-                              disabled={isLocked || isRemoving}
+                              disabled={!canManageItems || isRemoving}
                               aria-label={`Excluir ${entry.item.name}`}
                             >
                               {isRemoving ? (
@@ -766,7 +764,11 @@ export default function EventDetailsPage() {
         open={pendingAction?.type === 'complete'}
         event={pendingAction?.type === 'complete' ? pendingAction.event : null}
         isLoading={Boolean(completingId)}
-        onConfirm={handleConfirmPendingAction}
+        onConfirm={async (completionItems) => {
+          if (pendingAction?.type !== 'complete') return;
+          await handleComplete(pendingAction.event.id, completionItems);
+          setPendingAction(null);
+        }}
         onCancel={() => setPendingAction(null)}
       />
 

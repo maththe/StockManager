@@ -48,6 +48,13 @@ export class UsersController {
     return users.map((user) => this.sanitize(user));
   }
 
+  @Get('me')
+  async me(@Req() req: Request) {
+    const user = (req as any).user;
+    const found = await this.usersService.findMe(user.sub, user.tenantUuid);
+    return this.sanitize(found);
+  }
+
   @Get(':id')
   async findOne(@Param('id') id: string, @Req() req: Request) {
     const user = (req as any).user;

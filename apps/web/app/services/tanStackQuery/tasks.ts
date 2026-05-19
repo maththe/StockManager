@@ -96,8 +96,9 @@ export const useCancelarTask = () => {
       const response = await api.patch<Task>(`/tasks/${id}/cancelar`);
       return response.data;
     },
-    onSuccess: () => {
+    onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['tasks', id] });
       mutationSuccess('Tarefa cancelada.');
     },
     onError: (error) => mutationError('Erro ao cancelar tarefa.', error),

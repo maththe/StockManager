@@ -67,7 +67,7 @@ model User {
   id                   String        @id @default(uuid())
   name                 String
   email                String        @unique
-  password             String        @unique
+  password             String
   tenantUuid           String        @default(uuid())
   role                 UserRole      @default(FUNCIONARIO)
   responsibleEvents    Event[]       @relation("EventResponsible")
@@ -101,14 +101,17 @@ model Category {
 model Client {
   id          String   @id @default(uuid())
   companyName String
-  taxId       String   @unique
+  taxId       String
   contactName String?
+  tenantUuid  String
   events      Event[]
   rentals     Rental[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@unique([tenantUuid, taxId])
+  @@index([tenantUuid])
   @@map("clients")
 }
 
@@ -181,6 +184,7 @@ model EventItem {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@unique([eventId, itemId])
   @@index([eventId])
   @@index([itemId])
   @@map("event_items")

@@ -37,8 +37,9 @@ export const useCreateMaintenance = () => {
       const response = await api.post<Maintenance>('/maintenance', data);
       return response.data;
     },
-    onSuccess: () => {
+    onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: ['maintenances'] });
+      queryClient.invalidateQueries({ queryKey: ['maintenances', id] });
       queryClient.invalidateQueries({ queryKey: ['items'] });
       mutationSuccess('Manutenção criada com sucesso.');
     },
@@ -69,8 +70,9 @@ export const useConcluirMaintenance = () => {
       const response = await api.patch<Maintenance>(`/maintenance/${id}/concluir`);
       return response.data;
     },
-    onSuccess: () => {
+    onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: ['maintenances'] });
+      queryClient.invalidateQueries({ queryKey: ['maintenances', id] });
       queryClient.invalidateQueries({ queryKey: ['items'] });
       mutationSuccess('Manutenção concluída. Item devolvido ao estoque.');
     },
@@ -85,8 +87,9 @@ export const useCancelarMaintenance = () => {
       const response = await api.patch<Maintenance>(`/maintenance/${id}/cancelar`);
       return response.data;
     },
-    onSuccess: () => {
+    onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: ['maintenances'] });
+      queryClient.invalidateQueries({ queryKey: ['maintenances', id] });
       queryClient.invalidateQueries({ queryKey: ['items'] });
       mutationSuccess('Manutenção cancelada.');
     },

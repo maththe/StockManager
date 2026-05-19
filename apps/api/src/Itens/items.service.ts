@@ -8,7 +8,34 @@ import { Item } from '@prisma/client';
 export class ItemsService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private validateStockQuantities(totalQuantity: number | undefined, availableQuantity: number | undefined) {
+    if (totalQuantity !== undefined && (!Number.isInteger(totalQuantity) || totalQuantity < 0)) {
+      throw new BadRequestException('Quantidade total deve ser um inteiro maior ou igual a zero.');
+    }
+
+    if (availableQuantity !== undefined && (!Number.isInteger(availableQuantity) || availableQuantity < 0)) {
+      throw new BadRequestException('Quantidade disponível deve ser um inteiro maior ou igual a zero.');
+    }
+
+    if (
+      totalQuantity !== undefined &&
+      availableQuantity !== undefined &&
+      availableQuantity > totalQuantity
+    ) {
+      throw new BadRequestException('Quantidade disponível não pode ser maior que a quantidade total.');
+    }
+  }
+
+  private validateUnitCost(unitCost: number | undefined) {
+    if (unitCost !== undefined && unitCost < 0) {
+      throw new BadRequestException('Custo unitário deve ser maior ou igual a zero.');
+    }
+  }
+
   async create(createItemInput: CreateItemInput, tenantUuid: string): Promise<Item> {
+    this.validateStockQuantities(createItemInput.totalQuantity, createItemInput.availableQuantity);
+    this.validateUnitCost(createItemInput.unitCost);
+
     // Verificar se a categoria existe e pertence ao tenant
     const category = await this.prisma.category.findFirst({
       where: {
@@ -70,6 +97,12 @@ export class ItemsService {
     if (!existing) {
       throw new NotFoundException('Item não encontrado.');
     }
+
+    this.validateStockQuantities(
+      updateItemInput.totalQuantity ?? existing.totalQuantity,
+      updateItemInput.availableQuantity ?? existing.availableQuantity,
+    );
+    this.validateUnitCost(updateItemInput.unitCost);
 
     // Se está tentando mudar de categoria, verificar se a nova existe
     if (updateItemInput.categoryId && updateItemInput.categoryId !== existing.categoryId) {

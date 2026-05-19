@@ -115,16 +115,26 @@ export const useCancelEvent = () => {
 export const useCompleteEvent = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (id: string) => {
-      const response = await api.patch<Event>(`/events/${id}/complete`);
+    mutationFn: async ({
+      id,
+      completionItems,
+    }: {
+      id: string;
+      completionItems: UpdateEventInput['completionItems'];
+    }) => {
+      const response = await api.patch<Event>(`/events/${id}`, {
+        status: 'COMPLETED',
+        inventoryCountConfirmed: true,
+        completionItems,
+      });
       return response.data;
     },
-    onSuccess: (_, eventId) => {
+    onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: ['events'] });
-      queryClient.invalidateQueries({ queryKey: ['events', eventId] });
-      queryClient.invalidateQueries({ queryKey: ['event-items', eventId] });
+      queryClient.invalidateQueries({ queryKey: ['events', id] });
+      queryClient.invalidateQueries({ queryKey: ['event-items', id] });
       queryClient.invalidateQueries({ queryKey: ['items'] });
-      mutationSuccess('Evento concluído e itens devolvidos ao estoque.');
+      mutationSuccess('Evento concluído e contagem registrada.');
     },
     onError: (error) => mutationError('Erro ao concluir evento.', error),
   });

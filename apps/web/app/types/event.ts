@@ -28,6 +28,7 @@ export interface EventItemDivergence {
   notes?: string | null;
   tenantUuid: string;
   eventItemId: string;
+  sourceItemId?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -77,7 +78,7 @@ export interface CreateEventInput {
   startDate: string;
   endDate?: string | null;
   eventLocation: string;
-  status: EventStatus;
+  status?: EventStatus;
   clientId: string;
   responsibleId?: string | null;
   inventoryCountConfirmed?: boolean;

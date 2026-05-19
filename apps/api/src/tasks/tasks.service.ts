@@ -241,6 +241,8 @@ export class TasksService {
       throw new BadRequestException('Apenas tarefas pendentes podem ser editadas.');
     }
 
+    await this.ensureAssignedUserBelongsToTenant(input.assignedToId, tenantUuid);
+
     return this.prisma.task.update({
       where: { id },
       data: {
@@ -258,7 +260,7 @@ export class TasksService {
   async concluir(id: string, input: ConfirmTaskInput, tenantUuid: string) {
     const task = await this.prisma.task.findFirst({
       where: { id, tenantUuid },
-      include: { taskItems: true },
+      include: { taskItems: { include: { eventItem: true } } },
     });
 
     if (!task) throw new NotFoundException('Tarefa não encontrada.');
@@ -269,11 +271,30 @@ export class TasksService {
       throw new BadRequestException('Não é possível concluir uma tarefa cancelada.');
     }
 
+    if (!Array.isArray(input.items) || input.items.length !== task.taskItems.length) {
+      throw new BadRequestException('Informe a confirmação de todos os itens da tarefa.');
+    }
+
     const itemsById = new Map(input.items.map((i) => [i.taskItemId, i]));
+
+    if (itemsById.size !== input.items.length) {
+      throw new BadRequestException('Há itens duplicados na confirmação da tarefa.');
+    }
 
     for (const ti of input.items) {
       if (!Number.isInteger(ti.confirmedQuantity) || ti.confirmedQuantity < 0) {
         throw new BadRequestException('Quantidade confirmada deve ser um inteiro maior ou igual a zero.');
+      }
+    }
+
+    for (const taskItem of task.taskItems) {
+      const update = itemsById.get(taskItem.id);
+      if (!update) {
+        throw new BadRequestException('Informe a confirmação de todos os itens da tarefa.');
+      }
+
+      if (update.confirmedQuantity > taskItem.eventItem.plannedQuantity) {
+        throw new BadRequestException('Quantidade confirmada não pode ser maior que a quantidade planejada.');
       }
     }
 
@@ -323,5 +344,19 @@ export class TasksService {
         assignedTo: { select: { id: true, name: true } },
       },
     });
+  }
+
+  private async ensureAssignedUserBelongsToTenant(
+    assignedToId: string | null | undefined,
+    tenantUuid: string,
+  ) {
+    if (!assignedToId) return;
+    const assignee = await this.prisma.user.findFirst({
+      where: { id: assignedToId, tenantUuid },
+      select: { id: true },
+    });
+    if (!assignee) {
+      throw new BadRequestException('Usuário responsável inválido.');
+    }
   }
 }
