@@ -118,6 +118,7 @@ export class EventsService {
     tenantUuid: string,
     completionItems: CompleteEventItemInput[] | undefined,
     tx: Prisma.TransactionClient,
+    userId?: string,
   ) {
     const eventItems = await tx.eventItem.findMany({
       where: { eventId, tenantUuid },
@@ -192,6 +193,7 @@ export class EventsService {
     });
 
     const divergenceItemsToCreate: Omit<Prisma.DivergenceItemCreateManyInput, 'divergenceId'>[] = [];
+    const entradaTaskItems: { eventItemId: string; requestedQuantity: number; notes?: string }[] = [];
 
     for (const eventItem of eventItems) {
       const completionItem = completionByEventItemId.get(eventItem.id)!;
@@ -250,6 +252,14 @@ export class EventsService {
           returnedQuantity,
         },
       });
+
+      if (returnedQuantity > 0) {
+        entradaTaskItems.push({
+          eventItemId: eventItem.id,
+          requestedQuantity: returnedQuantity,
+          notes: completionItem.notes ?? undefined,
+        });
+      }
     }
 
     if (divergenceItemsToCreate.length > 0) {
@@ -266,6 +276,16 @@ export class EventsService {
           divergenceId: divergenceHeader.id,
         })),
       });
+    }
+
+    if (entradaTaskItems.length > 0) {
+      await this.tasksService.createEntradaGalpaoTask(
+        eventId,
+        entradaTaskItems,
+        tenantUuid,
+        userId,
+        tx,
+      );
     }
   }
 
@@ -468,7 +488,7 @@ export class EventsService {
 
     const updateEvent = async (tx: Prisma.TransactionClient) => {
       if (isFinishingEvent) {
-        await this.applyCompletionReport(id, tenantUuid, updateEventInput.completionItems, tx);
+        await this.applyCompletionReport(id, tenantUuid, updateEventInput.completionItems, tx, userId);
       }
 
       return tx.event.update({

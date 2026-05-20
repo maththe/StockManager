@@ -4,16 +4,26 @@ import { mutationError, mutationSuccess } from './mutationToast';
 import type {
   Task,
   TaskStatus,
+  TaskType,
   UpdateTaskInput,
   ConfirmTaskInput,
   CreatePartialTaskInput,
 } from '~/types/task';
 
-export const useTasks = (status?: TaskStatus) => {
+export interface UseTasksFilters {
+  status?: TaskStatus;
+  type?: TaskType;
+}
+
+export const useTasks = (filters?: UseTasksFilters) => {
+  const status = filters?.status;
+  const type = filters?.type;
   return useQuery({
-    queryKey: ['tasks', status || ''],
+    queryKey: ['tasks', status || '', type || ''],
     queryFn: async () => {
-      const params = status ? { status } : {};
+      const params: Record<string, string> = {};
+      if (status) params.status = status;
+      if (type) params.type = type;
       const response = await api.get<Task[]>('/tasks', { params });
       return response.data;
     },
@@ -54,12 +64,17 @@ export const useConcluirTask = () => {
       const response = await api.patch<Task>(`/tasks/${id}/concluir`, data);
       return response.data;
     },
-    onSuccess: (_, { id }) => {
+    onSuccess: (task, { id }) => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       queryClient.invalidateQueries({ queryKey: ['tasks', id] });
-      mutationSuccess('Saída do galpão confirmada com sucesso.');
+      queryClient.invalidateQueries({ queryKey: ['events'] });
+      const message =
+        task?.type === 'ENTRADA_GALPAO'
+          ? 'Entrada no galpão confirmada com sucesso.'
+          : 'Saída do galpão confirmada com sucesso.';
+      mutationSuccess(message);
     },
-    onError: (error) => mutationError('Erro ao confirmar saída.', error),
+    onError: (error) => mutationError('Erro ao confirmar tarefa.', error),
   });
 };
 
@@ -99,6 +114,7 @@ export const useCancelarTask = () => {
     onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       queryClient.invalidateQueries({ queryKey: ['tasks', id] });
+      queryClient.invalidateQueries({ queryKey: ['events'] });
       mutationSuccess('Tarefa cancelada.');
     },
     onError: (error) => mutationError('Erro ao cancelar tarefa.', error),

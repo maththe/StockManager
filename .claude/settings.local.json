@@ -17,7 +17,15 @@
       "Bash(New-Item -ItemType Directory -Force \"C:\\\\Users\\\\mathe\\\\StockManager\\\\apps\\\\api\\\\src\\\\maintenance\\\\dto\")",
       "Bash(New-Item -ItemType Directory -Force \"C:\\\\Users\\\\mathe\\\\StockManager\\\\apps\\\\api\\\\src\\\\divergences\")",
       "Bash(pnpm typecheck *)",
-      "Bash(pnpm exec *)"
+      "Bash(pnpm exec *)",
+      "Bash(git log *)",
+      "Bash(git -C C:/Users/mathe/StockManager diff apps/api/src/tasks/tasks.service.ts)",
+      "Bash(git -C C:/Users/mathe/StockManager grep -n \"model Client\\\\|tenantUuid\" apps/api/prisma/schema.prisma)",
+      "Bash(git -C C:/Users/mathe/StockManager grep -n \"tenantUuid\\\\|client.*tenant\\\\|client:.*tenant\" apps/api/src/events/events.service.ts)",
+      "Bash(PRISMA_USER_CONSENT_FOR_DANGEROUS_AI_ACTION='sim!' pnpm exec prisma migrate reset --force)",
+      "Bash(git *)",
+      "Bash(Find \"C:\\\\Users\\\\mathe\\\\StockManager\\\\apps\\\\api\\\\src\\\\events\" -type f -name \"*.ts\")",
+      "Bash(Get-ChildItem \"C:\\\\Users\\\\mathe\\\\StockManager\\\\apps\\\\web\\\\app\\\\services\\\\tanStackQuery\" -Filter \"*ask*\")"
     ]
   }
 }

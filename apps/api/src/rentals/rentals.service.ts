@@ -161,10 +161,6 @@ export class RentalsService {
       throw new BadRequestException('Não é possível editar uma locação encerrada.');
     }
 
-    if (input.returnedAt !== undefined) {
-      throw new BadRequestException('A data de devolução efetiva é controlada pela ação de devolver.');
-    }
-
     if (input.clientId && input.clientId !== existing.clientId) {
       await this.ensureClientExists(input.clientId, tenantUuid);
     }
@@ -178,13 +174,6 @@ export class RentalsService {
       throw new BadRequestException(
         'Use as ações de cancelar ou devolver para encerrar a locação.',
       );
-    }
-
-    if (
-      statusChanged &&
-      (existing.status === RentalStatus.CANCELLED || existing.status === RentalStatus.RETURNED)
-    ) {
-      throw new BadRequestException('Não é possível reabrir uma locação encerrada.');
     }
 
     const nextStartDate = input.startDate ?? existing.startDate.toISOString();

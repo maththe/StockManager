@@ -21,8 +21,7 @@ export interface RentalItem {
     name: string;
     availableQuantity: number;
     totalQuantity: number;
-    thumbnailImageUrl?: string | null;
-    modalImageUrl?: string | null;
+    imageUrl?: string | null;
   };
 }
 

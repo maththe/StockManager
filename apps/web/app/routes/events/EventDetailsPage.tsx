@@ -357,26 +357,30 @@ export default function EventDetailsPage() {
               >
                 {eventStatusLabel[event.status]}
               </span>
-              {eventTasks.map((task) => (
-                <Link
-                  key={task.id}
-                  to={`/dashboard/tasks/${task.id}`}
-                  className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold transition-opacity hover:opacity-80 ${
-                    task.status === 'PENDENTE'
-                      ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
-                      : task.status === 'CONCLUIDA'
-                        ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                        : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
-                  }`}
-                >
-                  {task.code}:{' '}
-                  {task.status === 'PENDENTE'
-                    ? 'Saída pendente'
+              {eventTasks.map((task) => {
+                const movimento = task.type === 'ENTRADA_GALPAO' ? 'Entrada' : 'Saída';
+                const chipLabel =
+                  task.status === 'PENDENTE'
+                    ? `${movimento} pendente`
                     : task.status === 'CONCLUIDA'
-                      ? 'Saída confirmada'
-                      : 'Cancelada'}
-                </Link>
-              ))}
+                      ? `${movimento} confirmada`
+                      : 'Cancelada';
+                return (
+                  <Link
+                    key={task.id}
+                    to={`/dashboard/tasks/${task.id}`}
+                    className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold transition-opacity hover:opacity-80 ${
+                      task.status === 'PENDENTE'
+                        ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
+                        : task.status === 'CONCLUIDA'
+                          ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                          : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
+                    }`}
+                  >
+                    {task.code}: {chipLabel}
+                  </Link>
+                );
+              })}
             </div>
           </div>
 

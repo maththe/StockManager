@@ -136,7 +136,7 @@ export function EventCompleteDialog({
             Finalizar evento
           </DialogTitle>
           <DialogDescription className="relative mt-2 text-sm font-medium text-white/85">
-            Informe a contagem de retorno para devolver estoque e registrar divergências.
+            Informe a contagem de retorno para devolver estoque, registrar divergências e gerar a tarefa de entrada no galpão.
           </DialogDescription>
         </div>
 

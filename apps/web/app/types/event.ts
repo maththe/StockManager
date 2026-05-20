@@ -48,9 +48,6 @@ export interface EventItem {
     id: string;
     name: string;
     imageUrl?: string | null;
-    image?: string | null;
-    thumbnailImageUrl?: string | null;
-    modalImageUrl?: string | null;
     availableQuantity: number;
     totalQuantity: number;
   };

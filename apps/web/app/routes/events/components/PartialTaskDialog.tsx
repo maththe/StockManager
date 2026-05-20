@@ -44,6 +44,7 @@ export function PartialTaskDialog({
     const map = new Map<string, number>();
     for (const task of eventTasks) {
       if (task.status === 'CANCELADA') continue;
+      if (task.type !== 'SAIDA_GALPAO') continue;
       for (const taskItem of task.taskItems ?? []) {
         const current = map.get(taskItem.eventItemId) ?? 0;
         map.set(taskItem.eventItemId, current + taskItem.requestedQuantity);

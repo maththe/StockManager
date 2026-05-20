@@ -10,7 +10,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import type { Request } from 'express';
-import { TaskStatus, UserRole } from '@prisma/client';
+import { TaskStatus, TaskType, UserRole } from '@prisma/client';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
 import { TasksService } from './tasks.service';
@@ -23,9 +23,13 @@ export class TasksController {
   constructor(private readonly tasksService: TasksService) {}
 
   @Get()
-  findAll(@Req() req: Request, @Query('status') status?: TaskStatus) {
+  findAll(
+    @Req() req: Request,
+    @Query('status') status?: TaskStatus,
+    @Query('type') type?: TaskType,
+  ) {
     const { tenantUuid } = (req as any).user;
-    return this.tasksService.findAll(tenantUuid, status);
+    return this.tasksService.findAll(tenantUuid, status, type);
   }
 
   @Get(':id')

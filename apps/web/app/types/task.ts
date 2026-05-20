@@ -1,4 +1,5 @@
 export type TaskStatus = 'PENDENTE' | 'CONCLUIDA' | 'CANCELADA';
+export type TaskType = 'SAIDA_GALPAO' | 'ENTRADA_GALPAO';
 
 export interface TaskItemEventItem {
   id: string;
@@ -30,6 +31,7 @@ export interface TaskUser {
 export interface Task {
   id: string;
   code: string;
+  type: TaskType;
   status: TaskStatus;
   notes?: string;
   tenantUuid: string;

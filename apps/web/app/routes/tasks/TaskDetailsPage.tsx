@@ -42,11 +42,13 @@ function ItemRow({
   confirmedQuantity,
   onChange,
   locked,
+  isEntrada,
 }: {
   taskItem: TaskItem;
   confirmedQuantity: number;
   onChange: (qty: number) => void;
   locked: boolean;
+  isEntrada: boolean;
 }) {
   return (
     <div className="flex items-center gap-4 rounded-lg border border-border/50 p-4">
@@ -56,7 +58,7 @@ function ItemRow({
           {taskItem.eventItem.item.name}
         </p>
         <p className="text-xs text-muted-foreground">
-          Solicitado nesta tarefa:{' '}
+          {isEntrada ? 'Retorno declarado pelo decorador' : 'Solicitado nesta tarefa'}:{' '}
           <span className="font-semibold text-foreground">
             {taskItem.requestedQuantity}
           </span>{' '}
@@ -121,6 +123,18 @@ export default function TaskDetailsPage() {
 
   const locked = task.status !== 'PENDENTE';
   const taskItems = task.taskItems ?? [];
+  const isEntrada = task.type === 'ENTRADA_GALPAO';
+  const typeTitle = isEntrada ? 'Entrada no Galpão' : 'Saída do Galpão';
+  const confirmActionLabel = isEntrada ? 'Confirmar entrada' : 'Confirmar saída';
+  const confirmDialogTitle = isEntrada
+    ? 'Confirmar entrada no galpão?'
+    : 'Confirmar saída do galpão?';
+  const confirmDialogDescription = isEntrada
+    ? 'Isso registrará que os itens retornaram fisicamente ao galpão. A tarefa ficará concluída e não poderá ser editada.'
+    : 'Isso registrará que os itens saíram fisicamente do galpão. A tarefa ficará concluída e não poderá ser editada.';
+  const itemsCardDescription = isEntrada
+    ? 'Informe a quantidade de cada item que retornou fisicamente ao galpão.'
+    : 'Informe a quantidade de cada item que saiu fisicamente do galpão.';
 
   const getQty = (ti: TaskItem) => {
     if (quantities[ti.id] !== undefined) return quantities[ti.id];
@@ -164,7 +178,7 @@ export default function TaskDetailsPage() {
               </span>
             </div>
             <h1 className="mt-1 text-2xl font-bold tracking-tight">
-              Saída do Galpão — {task.event?.eventName}
+              {typeTitle} — {task.event?.eventName}
             </h1>
             {task.assignedTo && (
               <p className="mt-1 text-sm text-muted-foreground">
@@ -192,7 +206,7 @@ export default function TaskDetailsPage() {
                 disabled={concluir.isPending}
               >
                 <CheckCircle2 className="mr-2 h-4 w-4" />
-                Confirmar saída
+                {confirmActionLabel}
               </Button>
             </div>
           )}
@@ -206,9 +220,7 @@ export default function TaskDetailsPage() {
             <Package className="h-5 w-5" />
             Itens a confirmar
           </CardTitle>
-          <CardDescription>
-            Informe a quantidade de cada item que saiu fisicamente do galpão.
-          </CardDescription>
+          <CardDescription>{itemsCardDescription}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           {taskItems.length === 0 ? (
@@ -221,6 +233,7 @@ export default function TaskDetailsPage() {
                 confirmedQuantity={getQty(ti)}
                 onChange={(qty) => setQuantities((prev) => ({ ...prev, [ti.id]: qty }))}
                 locked={locked}
+                isEntrada={isEntrada}
               />
             ))
           )}
@@ -231,10 +244,8 @@ export default function TaskDetailsPage() {
       <AlertDialog open={confirmDialog} onOpenChange={setConfirmDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Confirmar saída do galpão?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Isso registrará que os itens saíram fisicamente do galpão. A tarefa ficará concluída e não poderá ser editada.
-            </AlertDialogDescription>
+            <AlertDialogTitle>{confirmDialogTitle}</AlertDialogTitle>
+            <AlertDialogDescription>{confirmDialogDescription}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Voltar</AlertDialogCancel>

@@ -25,12 +25,7 @@ export const formatEventDate = (value: string) =>
     timeStyle: 'short',
   }).format(new Date(value));
 
-export type EventCatalogItem = Item & {
-  imageUrl?: string | null;
-  image?: string | null;
-  thumbnailImageUrl?: string | null;
-  modalImageUrl?: string | null;
-};
+export type EventCatalogItem = Item;
 
 export type SelectedEventItem = EventItem & {
   inventoryItem?: EventCatalogItem;
@@ -43,31 +38,10 @@ export function normalizeText(value: string) {
 export type ItemImageVariant = 'thumbnail' | 'modal';
 
 export function getItemImage(
-  item: {
-    imageUrl?: string | null;
-    image?: string | null;
-    thumbnailImageUrl?: string | null;
-    modalImageUrl?: string | null;
-  },
-  variant: ItemImageVariant = 'thumbnail',
+  item: { imageUrl?: string | null },
+  _variant: ItemImageVariant = 'thumbnail',
 ) {
-  if (variant === 'modal') {
-    return (
-      item.modalImageUrl ??
-      item.imageUrl ??
-      item.image ??
-      item.thumbnailImageUrl ??
-      null
-    );
-  }
-
-  return (
-    item.thumbnailImageUrl ??
-    item.imageUrl ??
-    item.image ??
-    item.modalImageUrl ??
-    null
-  );
+  return item.imageUrl ?? null;
 }
 
 export function getItemInitials(name: string) {

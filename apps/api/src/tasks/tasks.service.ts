@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { EventStatus, Prisma, TaskStatus } from '@prisma/client';
+import { EventStatus, Prisma, TaskStatus, TaskType } from '@prisma/client';
 import { PrismaService } from 'src/services/prisma.service';
 import { UpdateTaskInput } from './dto/update-task.input';
 import { ConfirmTaskInput } from './dto/confirm-task.input';
@@ -7,7 +7,7 @@ import { CreatePartialTaskInput } from './dto/create-partial-task.input';
 
 type PrismaTx = Prisma.TransactionClient;
 
-interface CreateSaidaGalpaoTaskItem {
+interface CreateGalpaoTaskItem {
   eventItemId: string;
   requestedQuantity: number;
   notes?: string;
@@ -41,9 +41,10 @@ export class TasksService {
     return `${prefix}${String(nextNumber).padStart(4, '0')}`;
   }
 
-  async createSaidaGalpaoTask(
+  private async createGalpaoTask(
+    type: TaskType,
     eventId: string,
-    items: CreateSaidaGalpaoTaskItem[],
+    items: CreateGalpaoTaskItem[],
     tenantUuid: string,
     createdById?: string,
     tx?: PrismaTx,
@@ -57,6 +58,7 @@ export class TasksService {
     return client.task.create({
       data: {
         code,
+        type,
         tenantUuid,
         eventId,
         createdById: createdById ?? null,
@@ -79,6 +81,44 @@ export class TasksService {
         event: { select: { id: true, eventName: true } },
       },
     });
+  }
+
+  async createSaidaGalpaoTask(
+    eventId: string,
+    items: CreateGalpaoTaskItem[],
+    tenantUuid: string,
+    createdById?: string,
+    tx?: PrismaTx,
+    options?: { assignedToId?: string | null; notes?: string },
+  ) {
+    return this.createGalpaoTask(
+      TaskType.SAIDA_GALPAO,
+      eventId,
+      items,
+      tenantUuid,
+      createdById,
+      tx,
+      options,
+    );
+  }
+
+  async createEntradaGalpaoTask(
+    eventId: string,
+    items: CreateGalpaoTaskItem[],
+    tenantUuid: string,
+    createdById?: string,
+    tx?: PrismaTx,
+    options?: { assignedToId?: string | null; notes?: string },
+  ) {
+    return this.createGalpaoTask(
+      TaskType.ENTRADA_GALPAO,
+      eventId,
+      items,
+      tenantUuid,
+      createdById,
+      tx,
+      options,
+    );
   }
 
   async criarTaskParcial(
@@ -198,11 +238,12 @@ export class TasksService {
     });
   }
 
-  async findAll(tenantUuid: string, status?: TaskStatus) {
+  async findAll(tenantUuid: string, status?: TaskStatus, type?: TaskType) {
     return this.prisma.task.findMany({
       where: {
         tenantUuid,
         ...(status ? { status } : {}),
+        ...(type ? { type } : {}),
       },
       include: {
         assignedTo: { select: { id: true, name: true } },

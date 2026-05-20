@@ -1,5 +1,13 @@
 import { useMemo, useState } from 'react';
-import { ClipboardList, Loader2, CheckCircle2, XCircle, Clock } from 'lucide-react';
+import {
+  ClipboardList,
+  Loader2,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  PackageMinus,
+  PackagePlus,
+} from 'lucide-react';
 import { Link } from 'react-router';
 
 import {
@@ -17,7 +25,7 @@ import {
   SelectValue,
 } from '~/components/ui/select';
 import { useTasks } from '~/services/tanStackQuery/tasks';
-import type { Task, TaskStatus } from '~/types/task';
+import type { Task, TaskStatus, TaskType } from '~/types/task';
 
 const statusLabel: Record<TaskStatus, string> = {
   PENDENTE: 'Pendente',
@@ -31,9 +39,20 @@ const statusClassName: Record<TaskStatus, string> = {
   CANCELADA: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
 };
 
+const typeLabel: Record<TaskType, string> = {
+  SAIDA_GALPAO: 'Saída do galpão',
+  ENTRADA_GALPAO: 'Entrada no galpão',
+};
+
+const typeClassName: Record<TaskType, string> = {
+  SAIDA_GALPAO: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
+  ENTRADA_GALPAO: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300',
+};
+
 function TaskCard({ task }: { task: Task }) {
   const totalItems = task.taskItems?.length ?? 0;
   const confirmedItems = task.taskItems?.filter((ti) => ti.confirmed).length ?? 0;
+  const TypeIcon = task.type === 'ENTRADA_GALPAO' ? PackagePlus : PackageMinus;
 
   return (
     <Link to={`/dashboard/tasks/${task.id}`}>
@@ -41,9 +60,12 @@ function TaskCard({ task }: { task: Task }) {
         <CardHeader className="pb-3">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <span className="font-mono text-xs font-semibold text-muted-foreground">
                   {task.code}
+                </span>
+                <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${typeClassName[task.type]}`}>
+                  {typeLabel[task.type]}
                 </span>
                 <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${statusClassName[task.status]}`}>
                   {statusLabel[task.status]}
@@ -53,7 +75,7 @@ function TaskCard({ task }: { task: Task }) {
                 {task.event?.eventName ?? '—'}
               </CardTitle>
             </div>
-            <ClipboardList className="mt-1 h-5 w-5 shrink-0 text-muted-foreground" />
+            <TypeIcon className="mt-1 h-5 w-5 shrink-0 text-muted-foreground" />
           </div>
         </CardHeader>
         <CardContent className="pt-0">
@@ -78,6 +100,7 @@ function TaskCard({ task }: { task: Task }) {
 
 export default function TasksPage() {
   const [statusFilter, setStatusFilter] = useState<TaskStatus | 'ALL'>('ALL');
+  const [typeFilter, setTypeFilter] = useState<TaskType | 'ALL'>('ALL');
 
   const { data: tasks = [], isLoading } = useTasks();
 
@@ -92,17 +115,20 @@ export default function TasksPage() {
   );
 
   const filtered = useMemo(() => {
-    if (statusFilter === 'ALL') return tasks;
-    return tasks.filter((t) => t.status === statusFilter);
-  }, [tasks, statusFilter]);
+    return tasks.filter((t) => {
+      if (statusFilter !== 'ALL' && t.status !== statusFilter) return false;
+      if (typeFilter !== 'ALL' && t.type !== typeFilter) return false;
+      return true;
+    });
+  }, [tasks, statusFilter, typeFilter]);
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Tarefas de Saída</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Tarefas do Galpão</h1>
           <p className="text-sm text-muted-foreground">
-            Confirmações de saída de itens do galpão para eventos.
+            Confirmações de saída e entrada de itens do galpão para eventos.
           </p>
         </div>
       </div>
@@ -148,7 +174,20 @@ export default function TasksPage() {
       </div>
 
       {/* Filter */}
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
+        <Select
+          value={typeFilter}
+          onValueChange={(v) => setTypeFilter(v as TaskType | 'ALL')}
+        >
+          <SelectTrigger className="w-56 border-border/60">
+            <SelectValue placeholder="Filtrar por tipo" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">Todos os tipos</SelectItem>
+            <SelectItem value="SAIDA_GALPAO">Saída do galpão</SelectItem>
+            <SelectItem value="ENTRADA_GALPAO">Entrada no galpão</SelectItem>
+          </SelectContent>
+        </Select>
         <Select
           value={statusFilter}
           onValueChange={(v) => setStatusFilter(v as TaskStatus | 'ALL')}

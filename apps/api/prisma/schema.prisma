@@ -54,6 +54,11 @@ enum TaskStatus {
   CANCELADA
 }
 
+enum TaskType {
+  SAIDA_GALPAO
+  ENTRADA_GALPAO
+}
+
 enum MaintenanceStatus {
   PENDENTE
   EM_ANDAMENTO
@@ -291,10 +296,13 @@ model DivergenceItem {
   @@map("divergence_items")
 }
 
-// Tarefa de confirmação de saída do galpão (criada automaticamente ao evento → IN_PROGRESS).
+// Tarefa de confirmação de movimentação no galpão.
+// SAIDA_GALPAO: criada automaticamente ao evento → IN_PROGRESS (decorador).
+// ENTRADA_GALPAO: criada automaticamente ao evento → COMPLETED (decorador) para os itens com retorno > 0.
 model Task {
   id           String     @id @default(uuid())
   code         String
+  type         TaskType   @default(SAIDA_GALPAO)
   status       TaskStatus @default(PENDENTE)
   notes        String?
   tenantUuid   String

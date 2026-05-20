@@ -134,7 +134,8 @@ export const useCompleteEvent = () => {
       queryClient.invalidateQueries({ queryKey: ['events', id] });
       queryClient.invalidateQueries({ queryKey: ['event-items', id] });
       queryClient.invalidateQueries({ queryKey: ['items'] });
-      mutationSuccess('Evento concluído e contagem registrada.');
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      mutationSuccess('Evento concluído. Tarefa de entrada no galpão gerada.');
     },
     onError: (error) => mutationError('Erro ao concluir evento.', error),
   });
