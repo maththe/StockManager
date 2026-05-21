@@ -1,5 +1,12 @@
-import { useState } from 'react';
-import { ArrowLeft, CheckCircle2, Loader2, Package, XCircle } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import {
+  AlertTriangle,
+  ArrowLeft,
+  CheckCircle2,
+  Loader2,
+  Package,
+  XCircle,
+} from 'lucide-react';
 import { Link, useParams } from 'react-router';
 
 import {
@@ -22,18 +29,33 @@ import {
 } from '~/components/ui/card';
 import { Input } from '~/components/ui/input';
 import { Label } from '~/components/ui/label';
-import { useTask, useConcluirTask, useCancelarTask } from '~/services/tanStackQuery/tasks';
-import type { ConfirmTaskItemInput, TaskItem } from '~/types/task';
+import { useCreateTaskDivergence } from '~/services/tanStackQuery/divergences';
+import {
+  useCancelarTask,
+  useConcluirTask,
+  useTask,
+} from '~/services/tanStackQuery/tasks';
+import type {
+  ConfirmTaskItemInput,
+  CreateTaskDivergenceInput,
+  TaskItem,
+} from '~/types/task';
+import {
+  TaskDivergenceDialog,
+  type TaskDivergenceCandidate,
+} from './TaskDivergenceDialog';
 
 const statusLabel = {
   PENDENTE: 'Pendente',
-  CONCLUIDA: 'Concluída',
+  CONCLUIDA: 'Concluida',
   CANCELADA: 'Cancelada',
 } as const;
 
 const statusClassName = {
-  PENDENTE: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
-  CONCLUIDA: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+  PENDENTE:
+    'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
+  CONCLUIDA:
+    'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
   CANCELADA: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
 } as const;
 
@@ -70,13 +92,17 @@ function ItemRow({
           <CheckCircle2 className="h-4 w-4 text-green-500" />
         )}
         <div className="flex flex-col gap-1">
-          <Label className="text-xs text-muted-foreground">Confirmado</Label>
+          <Label className="text-xs text-muted-foreground">
+            {locked ? 'Confirmado' : 'Contado'}
+          </Label>
           <Input
             type="number"
             min={0}
             max={taskItem.requestedQuantity}
             value={confirmedQuantity}
-            onChange={(e) => onChange(Number(e.target.value))}
+            onChange={(event) =>
+              onChange(Math.max(0, Number.parseInt(event.target.value, 10) || 0))
+            }
             disabled={locked}
             className="h-8 w-20 text-center"
           />
@@ -91,10 +117,105 @@ export default function TaskDetailsPage() {
   const { data: task, isLoading } = useTask(taskId ?? '');
   const concluir = useConcluirTask();
   const cancelar = useCancelarTask();
+  const createDivergence = useCreateTaskDivergence();
 
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [cancelDialog, setCancelDialog] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState(false);
+  const [divergenceDialog, setDivergenceDialog] = useState(false);
+
+  const locked = task?.status !== 'PENDENTE';
+  const taskItems = task?.taskItems ?? [];
+  const isEntrada = task?.type === 'ENTRADA_GALPAO';
+  const typeTitle = isEntrada ? 'Entrada no Galpao' : 'Saida do Galpao';
+  const confirmActionLabel = isEntrada ? 'Confirmar entrada' : 'Confirmar saida';
+  const confirmDialogTitle = isEntrada
+    ? 'Confirmar entrada no galpao?'
+    : 'Confirmar saida do galpao?';
+  const confirmDialogDescription = isEntrada
+    ? 'Isso registrara que os itens retornaram fisicamente ao galpao. A tarefa ficara concluida e nao podera ser editada.'
+    : 'Isso registrara que os itens sairam fisicamente do galpao. A tarefa ficara concluida e nao podera ser editada.';
+  const itemsCardDescription = isEntrada
+    ? 'Informe a quantidade de cada item que retornou fisicamente ao galpao.'
+    : 'Informe a quantidade de cada item que saiu fisicamente do galpao.';
+
+  const getQty = (taskItem: TaskItem) => {
+    if (quantities[taskItem.id] !== undefined) return quantities[taskItem.id];
+    if (taskItem.confirmed) return taskItem.confirmedQuantity;
+    return taskItem.requestedQuantity;
+  };
+
+  const quantityErrors = useMemo(
+    () =>
+      taskItems
+        .map((taskItem) => {
+          const quantity = getQty(taskItem);
+
+          if (!Number.isInteger(quantity) || quantity < 0) {
+            return `${taskItem.eventItem.item.name}: a quantidade deve ser um inteiro maior ou igual a zero.`;
+          }
+
+          if (quantity > taskItem.requestedQuantity) {
+            return `${taskItem.eventItem.item.name}: a quantidade nao pode ser maior que ${taskItem.requestedQuantity}.`;
+          }
+
+          return null;
+        })
+        .filter(Boolean) as string[],
+    [taskItems, quantities],
+  );
+
+  const divergenceCandidates = useMemo<TaskDivergenceCandidate[]>(
+    () =>
+      taskItems
+        .map((taskItem) => {
+          const confirmedQuantity = getQty(taskItem);
+          const difference = taskItem.requestedQuantity - confirmedQuantity;
+
+          if (difference <= 0) return null;
+
+          return {
+            taskItem,
+            confirmedQuantity,
+            difference,
+          };
+        })
+        .filter(Boolean) as TaskDivergenceCandidate[],
+    [taskItems, quantities],
+  );
+
+  const canConfirm =
+    !locked &&
+    !concluir.isPending &&
+    quantityErrors.length === 0 &&
+    divergenceCandidates.length === 0;
+  const canCreateDivergence =
+    !locked &&
+    !createDivergence.isPending &&
+    quantityErrors.length === 0 &&
+    divergenceCandidates.length > 0;
+
+  const handleConfirm = async () => {
+    if (!task) return;
+    const items: ConfirmTaskItemInput[] = taskItems.map((taskItem) => ({
+      taskItemId: taskItem.id,
+      confirmedQuantity: getQty(taskItem),
+    }));
+    await concluir.mutateAsync({ id: task.id, data: { items } });
+    setConfirmDialog(false);
+  };
+
+  const handleCreateDivergence = async (data: CreateTaskDivergenceInput) => {
+    if (!task) return;
+    await createDivergence.mutateAsync({ taskId: task.id, data });
+    setDivergenceDialog(false);
+  };
+
+  const handleCancel = async () => {
+    if (!task) return;
+    await cancelar.mutateAsync(task.id);
+    setCancelDialog(false);
+  };
 
   if (isLoading) {
     return (
@@ -114,54 +235,23 @@ export default function TaskDetailsPage() {
         </Link>
         <Card className="border-destructive/30 bg-destructive/10">
           <CardHeader>
-            <CardTitle className="text-destructive">Tarefa não encontrada</CardTitle>
+            <CardTitle className="text-destructive">
+              Tarefa nao encontrada
+            </CardTitle>
           </CardHeader>
         </Card>
       </div>
     );
   }
 
-  const locked = task.status !== 'PENDENTE';
-  const taskItems = task.taskItems ?? [];
-  const isEntrada = task.type === 'ENTRADA_GALPAO';
-  const typeTitle = isEntrada ? 'Entrada no Galpão' : 'Saída do Galpão';
-  const confirmActionLabel = isEntrada ? 'Confirmar entrada' : 'Confirmar saída';
-  const confirmDialogTitle = isEntrada
-    ? 'Confirmar entrada no galpão?'
-    : 'Confirmar saída do galpão?';
-  const confirmDialogDescription = isEntrada
-    ? 'Isso registrará que os itens retornaram fisicamente ao galpão. A tarefa ficará concluída e não poderá ser editada.'
-    : 'Isso registrará que os itens saíram fisicamente do galpão. A tarefa ficará concluída e não poderá ser editada.';
-  const itemsCardDescription = isEntrada
-    ? 'Informe a quantidade de cada item que retornou fisicamente ao galpão.'
-    : 'Informe a quantidade de cada item que saiu fisicamente do galpão.';
-
-  const getQty = (ti: TaskItem) => {
-    if (quantities[ti.id] !== undefined) return quantities[ti.id];
-    if (ti.confirmed) return ti.confirmedQuantity;
-    return ti.requestedQuantity;
-  };
-
-  const handleConfirm = async () => {
-    const items: ConfirmTaskItemInput[] = taskItems.map((ti) => ({
-      taskItemId: ti.id,
-      confirmedQuantity: getQty(ti),
-    }));
-    await concluir.mutateAsync({ id: task.id, data: { items } });
-    setConfirmDialog(false);
-  };
-
-  const handleCancel = async () => {
-    await cancelar.mutateAsync(task.id);
-    setCancelDialog(false);
-  };
-
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="rounded-2xl border border-border/60 bg-gradient-to-br from-background via-background to-muted/40 px-5 py-6 shadow-sm">
         <nav className="mb-4 flex items-center gap-1.5 text-sm text-muted-foreground">
-          <Link to="/dashboard/tasks" className="flex items-center gap-1 hover:text-foreground">
+          <Link
+            to="/dashboard/tasks"
+            className="flex items-center gap-1 hover:text-foreground"
+          >
             <ArrowLeft className="h-3.5 w-3.5" />
             Tarefas
           </Link>
@@ -172,8 +262,12 @@ export default function TaskDetailsPage() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <div className="flex items-center gap-3">
-              <span className="font-mono text-sm font-semibold text-muted-foreground">{task.code}</span>
-              <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${statusClassName[task.status]}`}>
+              <span className="font-mono text-sm font-semibold text-muted-foreground">
+                {task.code}
+              </span>
+              <span
+                className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${statusClassName[task.status]}`}
+              >
                 {statusLabel[task.status]}
               </span>
             </div>
@@ -182,13 +276,13 @@ export default function TaskDetailsPage() {
             </h1>
             {task.assignedTo && (
               <p className="mt-1 text-sm text-muted-foreground">
-                Responsável: {task.assignedTo.name}
+                Responsavel: {task.assignedTo.name}
               </p>
             )}
           </div>
 
           {!locked && (
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button
                 variant="outline"
                 size="sm"
@@ -200,10 +294,20 @@ export default function TaskDetailsPage() {
                 Cancelar tarefa
               </Button>
               <Button
+                variant="outline"
                 size="sm"
-                className="bg-green-600 hover:bg-green-700 text-white"
+                className="border-amber-300 text-amber-700 hover:bg-amber-50"
+                onClick={() => setDivergenceDialog(true)}
+                disabled={!canCreateDivergence}
+              >
+                <AlertTriangle className="mr-2 h-4 w-4" />
+                Criar uma divergencia
+              </Button>
+              <Button
+                size="sm"
+                className="bg-green-600 text-white hover:bg-green-700"
                 onClick={() => setConfirmDialog(true)}
-                disabled={concluir.isPending}
+                disabled={!canConfirm}
               >
                 <CheckCircle2 className="mr-2 h-4 w-4" />
                 {confirmActionLabel}
@@ -213,7 +317,38 @@ export default function TaskDetailsPage() {
         </div>
       </div>
 
-      {/* Items */}
+      {!locked && quantityErrors.length > 0 && (
+        <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-4">
+          <div className="flex items-center gap-2 text-sm font-semibold text-destructive">
+            <AlertTriangle className="h-4 w-4" />
+            Revise as quantidades informadas
+          </div>
+          <div className="mt-2 space-y-1">
+            {quantityErrors.map((error) => (
+              <p key={error} className="text-sm text-destructive">
+                {error}
+              </p>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {!locked &&
+        quantityErrors.length === 0 &&
+        divergenceCandidates.length > 0 && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-900">
+            <div className="flex items-center gap-2 text-sm font-semibold">
+              <AlertTriangle className="h-4 w-4" />
+              A tarefa nao pode ser concluida com quantidade diferente da solicitada
+            </div>
+            <p className="mt-2 text-sm">
+              Ajuste a contagem para bater com o solicitado ou use{' '}
+              <span className="font-semibold">Criar uma divergencia</span> para
+              relatar o problema encontrado.
+            </p>
+          </div>
+        )}
+
       <Card className="border-border/60">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -224,14 +359,21 @@ export default function TaskDetailsPage() {
         </CardHeader>
         <CardContent className="space-y-3">
           {taskItems.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Nenhum item registrado.</p>
+            <p className="text-sm text-muted-foreground">
+              Nenhum item registrado.
+            </p>
           ) : (
-            taskItems.map((ti) => (
+            taskItems.map((taskItem) => (
               <ItemRow
-                key={ti.id}
-                taskItem={ti}
-                confirmedQuantity={getQty(ti)}
-                onChange={(qty) => setQuantities((prev) => ({ ...prev, [ti.id]: qty }))}
+                key={taskItem.id}
+                taskItem={taskItem}
+                confirmedQuantity={getQty(taskItem)}
+                onChange={(quantity) =>
+                  setQuantities((current) => ({
+                    ...current,
+                    [taskItem.id]: quantity,
+                  }))
+                }
                 locked={locked}
                 isEntrada={isEntrada}
               />
@@ -240,12 +382,13 @@ export default function TaskDetailsPage() {
         </CardContent>
       </Card>
 
-      {/* Confirm dialog */}
       <AlertDialog open={confirmDialog} onOpenChange={setConfirmDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{confirmDialogTitle}</AlertDialogTitle>
-            <AlertDialogDescription>{confirmDialogDescription}</AlertDialogDescription>
+            <AlertDialogDescription>
+              {confirmDialogDescription}
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Voltar</AlertDialogCancel>
@@ -259,13 +402,13 @@ export default function TaskDetailsPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Cancel dialog */}
       <AlertDialog open={cancelDialog} onOpenChange={setCancelDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Cancelar tarefa?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta ação não pode ser desfeita. A tarefa será marcada como cancelada.
+              Esta acao nao pode ser desfeita. A tarefa sera marcada como
+              cancelada.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -279,6 +422,14 @@ export default function TaskDetailsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <TaskDivergenceDialog
+        open={divergenceDialog}
+        onOpenChange={setDivergenceDialog}
+        candidates={divergenceCandidates}
+        isLoading={createDivergence.isPending}
+        onSubmit={handleCreateDivergence}
+      />
     </div>
   );
 }

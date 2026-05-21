@@ -59,6 +59,19 @@ export interface ConfirmTaskInput {
   items: ConfirmTaskItemInput[];
 }
 
+export interface CreateTaskDivergenceItemInput {
+  taskItemId: string;
+  confirmedQuantity: number;
+  missingQuantity?: number;
+  damagedQuantity?: number;
+  notes?: string;
+}
+
+export interface CreateTaskDivergenceInput {
+  notes?: string;
+  items: CreateTaskDivergenceItemInput[];
+}
+
 export interface CreatePartialTaskItemInput {
   eventItemId: string;
   requestedQuantity: number;

@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '~/services/axios/api';
+import type { CreateTaskDivergenceInput } from '~/types/task';
 import { mutationError, mutationSuccess } from './mutationToast';
 
 export interface Divergence {
@@ -46,6 +47,7 @@ export const useDivergence = (id: string) => {
 
 export const useResolverDivergencia = () => {
   const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: async (id: string) => {
       const response = await api.patch<Divergence>(`/divergences/${id}/resolver`);
@@ -54,8 +56,38 @@ export const useResolverDivergencia = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['divergences'] });
       queryClient.invalidateQueries({ queryKey: ['maintenances'] });
-      mutationSuccess('Divergência resolvida. Manutenções criadas para itens avariados.');
+      mutationSuccess(
+        'Divergencia resolvida. Manutencoes criadas para itens avariados.',
+      );
     },
-    onError: (error) => mutationError('Erro ao resolver divergência.', error),
+    onError: (error) => mutationError('Erro ao resolver divergencia.', error),
+  });
+};
+
+export const useCreateTaskDivergence = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      taskId,
+      data,
+    }: {
+      taskId: string;
+      data: CreateTaskDivergenceInput;
+    }) => {
+      const response = await api.post<Divergence>(
+        `/divergences/tasks/${taskId}`,
+        data,
+      );
+      return response.data;
+    },
+    onSuccess: (_, { taskId }) => {
+      queryClient.invalidateQueries({ queryKey: ['divergences'] });
+      queryClient.invalidateQueries({ queryKey: ['events'] });
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['tasks', taskId] });
+      mutationSuccess('Divergencia criada com sucesso.');
+    },
+    onError: (error) => mutationError('Erro ao criar divergencia.', error),
   });
 };

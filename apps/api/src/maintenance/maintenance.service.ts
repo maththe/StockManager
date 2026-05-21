@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { MaintenanceStatus, Prisma } from '@prisma/client';
+import { MaintenanceStatus, MaintenanceType, Prisma } from '@prisma/client';
 import { PrismaService } from 'src/services/prisma.service';
 import { CreateMaintenanceInput } from './dto/create-maintenance.input';
 import { UpdateMaintenanceInput } from './dto/update-maintenance.input';
@@ -35,6 +35,13 @@ export class MaintenanceService {
     }
   }
 
+  private validateType(type: MaintenanceType | undefined | null) {
+    if (type == null) return;
+    if (!Object.values(MaintenanceType).includes(type)) {
+      throw new BadRequestException('Tipo de manutenção inválido.');
+    }
+  }
+
   private async ensureAssignedUserBelongsToTenant(assignedToId: string | null | undefined, tenantUuid: string) {
     if (!assignedToId) return;
 
@@ -63,6 +70,7 @@ export class MaintenanceService {
           tenantUuid,
           itemId: di.itemId,
           quantity: di.quantity,
+          type: MaintenanceType.REPARO,
           divergenceId,
           createdById: createdById ?? null,
         },
@@ -75,6 +83,7 @@ export class MaintenanceService {
 
   async create(input: CreateMaintenanceInput, tenantUuid: string, createdById?: string) {
     this.validateQuantity(input.quantity);
+    this.validateType(input.type);
     await this.ensureAssignedUserBelongsToTenant(input.assignedToId, tenantUuid);
 
     const item = await this.prisma.item.findFirst({ where: { id: input.itemId, tenantUuid } });
@@ -102,6 +111,7 @@ export class MaintenanceService {
           tenantUuid,
           itemId: input.itemId,
           quantity: input.quantity,
+          type: input.type ?? MaintenanceType.OUTRA,
           notes: input.notes,
           assignedToId: input.assignedToId ?? null,
           createdById: createdById ?? null,
@@ -152,6 +162,7 @@ export class MaintenanceService {
       throw new BadRequestException('Não é possível editar uma manutenção encerrada.');
     }
 
+    this.validateType(input.type);
     await this.ensureAssignedUserBelongsToTenant(input.assignedToId, tenantUuid);
 
     const advanceToInProgress =
@@ -163,6 +174,7 @@ export class MaintenanceService {
       where: { id },
       data: {
         notes: input.notes,
+        ...(input.type !== undefined ? { type: input.type } : {}),
         assignedToId: input.assignedToId,
         ...(advanceToInProgress ? { status: MaintenanceStatus.EM_ANDAMENTO } : {}),
       },

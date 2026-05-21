@@ -5,22 +5,17 @@ export function EndTimeInput({ control }: { control: Control<any> }) {
     const { field } = useController({ control, name: 'endTime' });
 
     return (
-        <div className="grid gap-2">
-            <label htmlFor="endTime" className="text-sm font-medium">
-                Horário de término
-                <span className="ml-1.5 text-xs font-normal text-muted-foreground">(opcional)</span>
-            </label>
-            <div className="relative">
-                <Clock3 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-secondary" />
-                <input
-                    id="endTime"
-                    type="time"
-                    className="h-11 w-full rounded-xl border border-input bg-background/80 pl-10 pr-3 text-sm text-foreground shadow-sm outline-none transition hover:border-ring/50 focus:border-ring focus:ring-2 focus:ring-ring/30"
-                    value={field.value ?? ''}
-                    onChange={field.onChange}
-                    onBlur={field.onBlur}
-                />
-            </div>
+
+        <div className="relative gap-2">
+            <Clock3 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-secondary" />
+            <input
+                id="endTime"
+                type="time"
+                className="h-11 w-full rounded-xl border border-input bg-background/80 pl-10 pr-3 text-sm text-foreground shadow-sm outline-none transition hover:border-ring/50 focus:border-ring focus:ring-2 focus:ring-ring/30"
+                value={field.value ?? ''}
+                onChange={field.onChange}
+                onBlur={field.onBlur}
+            />
         </div>
     );
 }

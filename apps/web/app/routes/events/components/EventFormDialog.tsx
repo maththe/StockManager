@@ -50,10 +50,10 @@ const editStatusOptions: Array<{
   label: string;
   disabled?: boolean;
 }> = [
-  { value: 'PLANNING', label: 'Planejamento' },
-  { value: 'IN_PROGRESS', label: 'Em andamento (use Iniciar evento)', disabled: true },
-  { value: 'COMPLETED', label: 'Concluído' },
-];
+    { value: 'PLANNING', label: 'Planejamento' },
+    { value: 'IN_PROGRESS', label: 'Em andamento (use Iniciar evento)', disabled: true },
+    { value: 'COMPLETED', label: 'Concluído' },
+  ];
 
 const toDateTimeLocal = (value?: string | null) => {
   if (!value) return '';
@@ -89,8 +89,8 @@ const buildCompletionDrafts = (event?: Event | null) =>
           Math.max(
             0,
             eventItem.plannedQuantity -
-              getDivergenceQuantity(eventItem, 'MISSING') -
-              getDivergenceQuantity(eventItem, 'DAMAGED'),
+            getDivergenceQuantity(eventItem, 'MISSING') -
+            getDivergenceQuantity(eventItem, 'DAMAGED'),
           ),
         missingQuantity: getDivergenceQuantity(eventItem, 'MISSING'),
         damagedQuantity: getDivergenceQuantity(eventItem, 'DAMAGED'),
@@ -119,25 +119,25 @@ export function EventFormDialog({
   const form = useForm<FormValues>({
     values: event
       ? {
-          eventName: event.eventName,
-          startDate: toDateTimeLocal(event.startDate),
-          endTime: toTimeLocal(event.endDate),
-          eventLocation: event.eventLocation,
-          status: event.status,
-          clientId: event.clientId,
-          responsibleId: event.responsibleId ?? '',
-          inventoryCountConfirmed: false,
-        }
+        eventName: event.eventName,
+        startDate: toDateTimeLocal(event.startDate),
+        endTime: toTimeLocal(event.endDate),
+        eventLocation: event.eventLocation,
+        status: event.status,
+        clientId: event.clientId,
+        responsibleId: event.responsibleId ?? '',
+        inventoryCountConfirmed: false,
+      }
       : {
-          eventName: '',
-          startDate: '',
-          endTime: '',
-          eventLocation: '',
-          status: 'PLANNING',
-          clientId: '',
-          responsibleId: '',
-          inventoryCountConfirmed: false,
-        },
+        eventName: '',
+        startDate: '',
+        endTime: '',
+        eventLocation: '',
+        status: 'PLANNING',
+        clientId: '',
+        responsibleId: '',
+        inventoryCountConfirmed: false,
+      },
   });
 
   useEffect(() => {
@@ -242,14 +242,17 @@ export function EventFormDialog({
               required
             />
 
+
             <div className="flex justify-between gap-4 md:grid-cols-2 mt-10">
               <InputDate
                 name="startDate"
+                endTimeName="endTime"
                 label="Data e hora de início"
                 required
               />
-              <EndTimeInput control={form.control} />
             </div>
+
+
 
             {needsInventoryConfirmation && (
               <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-4">
@@ -325,11 +328,10 @@ export function EventFormDialog({
                                 </p>
                               </div>
                               <span
-                                className={`rounded-full px-2.5 py-1 text-xs font-medium ${
-                                  hasError
-                                    ? 'bg-destructive/10 text-destructive'
-                                    : 'bg-accent/15 text-accent'
-                                }`}
+                                className={`rounded-full px-2.5 py-1 text-xs font-medium ${hasError
+                                  ? 'bg-destructive/10 text-destructive'
+                                  : 'bg-accent/15 text-accent'
+                                  }`}
                               >
                                 Total contado: {totalCounted}
                               </span>

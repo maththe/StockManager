@@ -334,8 +334,16 @@ export class TasksService {
         throw new BadRequestException('Informe a confirmação de todos os itens da tarefa.');
       }
 
-      if (update.confirmedQuantity > taskItem.eventItem.plannedQuantity) {
-        throw new BadRequestException('Quantidade confirmada não pode ser maior que a quantidade planejada.');
+      if (update.confirmedQuantity > taskItem.requestedQuantity) {
+        throw new BadRequestException(
+          'Quantidade confirmada nao pode ser maior que a quantidade solicitada.',
+        );
+      }
+
+      if (update.confirmedQuantity !== taskItem.requestedQuantity) {
+        throw new BadRequestException(
+          'A tarefa so pode ser concluida com a quantidade exata solicitada. Se houver problema, crie uma divergencia.',
+        );
       }
     }
 

@@ -66,6 +66,15 @@ enum MaintenanceStatus {
   CANCELADA
 }
 
+enum MaintenanceType {
+  REPARO
+  LIMPEZA
+  PINTURA
+  COSTURA
+  ELETRICA
+  OUTRA
+}
+
 // ================= MODELS =================
 
 model User {
@@ -357,6 +366,7 @@ model Maintenance {
   id           String            @id @default(uuid())
   code         String
   status       MaintenanceStatus @default(PENDENTE)
+  type         MaintenanceType   @default(OUTRA)
   quantity     Int
   notes        String?
   tenantUuid   String

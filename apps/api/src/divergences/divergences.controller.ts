@@ -1,7 +1,8 @@
-import { Controller, Get, Param, Patch, Query, Req } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query, Req } from '@nestjs/common';
 import type { Request } from 'express';
 import { DivergenceStatus } from '@prisma/client';
 import { DivergencesService } from './divergences.service';
+import { CreateTaskDivergenceInput } from './dto/create-task-divergence.input';
 
 @Controller('divergences')
 export class DivergencesController {
@@ -17,6 +18,21 @@ export class DivergencesController {
   findOne(@Param('id') id: string, @Req() req: Request) {
     const { tenantUuid } = (req as any).user;
     return this.divergencesService.findOne(id, tenantUuid);
+  }
+
+  @Post('tasks/:taskId')
+  createFromTask(
+    @Param('taskId') taskId: string,
+    @Body() body: CreateTaskDivergenceInput,
+    @Req() req: Request,
+  ) {
+    const user = (req as any).user;
+    return this.divergencesService.createFromTask(
+      taskId,
+      body,
+      user.tenantUuid,
+      user.sub,
+    );
   }
 
   @Patch(':id/resolver')

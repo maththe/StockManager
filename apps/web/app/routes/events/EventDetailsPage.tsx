@@ -326,7 +326,14 @@ export default function EventDetailsPage() {
     );
   }
 
-  const canManageItems = event.status === 'PLANNING';
+  const canManageItems =
+    event.status === 'PLANNING' || event.status === 'IN_PROGRESS';
+  const canAddItems = canManageItems;
+  const lockedEventItemIds = new Set(
+    eventTasks
+      .filter((task) => task.status !== 'CANCELADA')
+      .flatMap((task) => (task.taskItems ?? []).map((ti) => ti.eventItemId)),
+  );
 
   return (
     <div className="space-y-6">
@@ -357,30 +364,6 @@ export default function EventDetailsPage() {
               >
                 {eventStatusLabel[event.status]}
               </span>
-              {eventTasks.map((task) => {
-                const movimento = task.type === 'ENTRADA_GALPAO' ? 'Entrada' : 'Saída';
-                const chipLabel =
-                  task.status === 'PENDENTE'
-                    ? `${movimento} pendente`
-                    : task.status === 'CONCLUIDA'
-                      ? `${movimento} confirmada`
-                      : 'Cancelada';
-                return (
-                  <Link
-                    key={task.id}
-                    to={`/dashboard/tasks/${task.id}`}
-                    className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold transition-opacity hover:opacity-80 ${
-                      task.status === 'PENDENTE'
-                        ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
-                        : task.status === 'CONCLUIDA'
-                          ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                          : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
-                    }`}
-                  >
-                    {task.code}: {chipLabel}
-                  </Link>
-                );
-              })}
             </div>
           </div>
 
@@ -582,7 +565,7 @@ export default function EventDetailsPage() {
               onClick={() =>
                 navigate(`/dashboard/events/${event.id}/items`)
               }
-              disabled={!canManageItems}
+              disabled={!canAddItems}
               className="bg-gradient-to-r from-primary to-secondary font-medium text-white shadow-md transition-all hover:shadow-lg disabled:opacity-60"
             >
               <PackagePlus className="mr-2 h-4 w-4" />
@@ -607,7 +590,7 @@ export default function EventDetailsPage() {
               <p className="mt-2 max-w-md text-sm text-muted-foreground">
                 Abra o catálogo para adicionar itens do estoque a este evento.
               </p>
-              {canManageItems && (
+              {canAddItems && (
                 <Button
                   onClick={() =>
                     navigate(`/dashboard/events/${event.id}/items`)
@@ -635,41 +618,53 @@ export default function EventDetailsPage() {
                   <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                     {group.items.map((entry) => {
                       const isRemoving = removingItemId === entry.id;
+                      const isLockedByTask = lockedEventItemIds.has(entry.id);
                       return (
                         <div
                           key={entry.id}
-                          className="flex items-center gap-3 rounded-xl border border-border/50 bg-background/60 p-3 shadow-sm transition hover:border-primary/40 hover:shadow-md"
+                          className="group flex items-center gap-3 rounded-xl border border-border/50 bg-background/60 p-3 shadow-sm transition-all duration-200 hover:border-primary/40 hover:bg-background hover:shadow-md"
                         >
-                          <div className="h-14 w-14 flex-shrink-0 overflow-hidden rounded-lg border border-border/40 bg-muted/40">
+                          <div className="relative h-14 w-14 flex-shrink-0 overflow-hidden rounded-lg border border-border/40 bg-muted/40">
                             <ItemThumbnail
                               item={entry.inventoryItem ?? entry.item}
                               categoryName={group.categoryName}
                             />
                           </div>
+
                           <div className="min-w-0 flex-1">
-                            <div className="truncate text-sm font-semibold text-foreground">
+                            <div className="truncate text-sm font-semibold text-foreground transition-colors group-hover:text-primary">
                               {entry.item.name}
                             </div>
-                            <div className="mt-0.5 text-xs text-muted-foreground">
+                            <div className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+                              <span className="inline-block h-1.5 w-1.5 rounded-full bg-muted-foreground/40" />
                               {group.categoryName}
                             </div>
                           </div>
-                          <div className="flex-shrink-0 rounded-lg bg-primary/10 px-3 py-1.5 text-center ring-1 ring-primary/20">
-                            <div className="text-lg font-bold leading-none text-primary">
+
+                          <div className="flex flex-shrink-0 items-baseline gap-1 rounded-lg bg-primary/10 px-3 py-1.5 ring-1 ring-primary/20">
+                            <span className="text-lg font-bold leading-none tabular-nums text-primary">
                               {entry.plannedQuantity}
-                            </div>
-                            <div className="mt-0.5 text-[0.6rem] font-semibold uppercase tracking-wider text-muted-foreground">
+                            </span>
+                            <span className="text-[0.6rem] font-semibold uppercase tracking-wider text-muted-foreground">
                               un.
-                            </div>
+                            </span>
                           </div>
-                          <div className="flex flex-shrink-0 flex-col gap-1">
+
+                          <div className="flex flex-shrink-0 flex-col gap-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
                             <Button
                               type="button"
                               variant="ghost"
                               size="icon-sm"
                               className="h-8 w-8 text-muted-foreground hover:bg-primary/10 hover:text-primary"
                               onClick={() => setEditingItem(entry)}
-                              disabled={!canManageItems || isRemoving}
+                              disabled={
+                                !canManageItems || isLockedByTask || isRemoving
+                              }
+                              title={
+                                isLockedByTask
+                                  ? 'Item vinculado a uma tarefa ativa. Cancele a tarefa para editar.'
+                                  : undefined
+                              }
                               aria-label={`Editar quantidade de ${entry.item.name}`}
                             >
                               <Edit3 className="h-3.5 w-3.5" />
@@ -680,7 +675,14 @@ export default function EventDetailsPage() {
                               size="icon-sm"
                               className="h-8 w-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                               onClick={() => setDeletingItemTarget(entry)}
-                              disabled={!canManageItems || isRemoving}
+                              disabled={
+                                !canManageItems || isLockedByTask || isRemoving
+                              }
+                              title={
+                                isLockedByTask
+                                  ? 'Item vinculado a uma tarefa ativa. Cancele a tarefa para remover.'
+                                  : undefined
+                              }
                               aria-label={`Excluir ${entry.item.name}`}
                             >
                               {isRemoving ? (

@@ -1,5 +1,12 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { DivergenceSource, DivergenceType, Event, EventStatus, Prisma } from '@prisma/client';
+import {
+  DivergenceSource,
+  DivergenceType,
+  Event,
+  EventStatus,
+  Prisma,
+  TaskStatus,
+} from '@prisma/client';
 import { PrismaService } from 'src/services/prisma.service';
 import { TasksService } from 'src/tasks/tasks.service';
 import { CreateEventInput } from './dto/create-event.input';
@@ -678,8 +685,13 @@ export class EventsService {
       throw new NotFoundException('Evento não encontrado.');
     }
 
-    if (event.status !== EventStatus.PLANNING) {
-      throw new BadRequestException('Itens só podem ser adicionados enquanto o evento está em planejamento.');
+    if (
+      event.status !== EventStatus.PLANNING &&
+      event.status !== EventStatus.IN_PROGRESS
+    ) {
+      throw new BadRequestException(
+        'Itens só podem ser adicionados em eventos em planejamento ou em andamento.',
+      );
     }
 
     const item = await this.prisma.item.findFirst({
@@ -755,8 +767,27 @@ export class EventsService {
       throw new NotFoundException('Item do evento não encontrado.');
     }
 
-    if (eventItem.event.status !== EventStatus.PLANNING) {
-      throw new BadRequestException('Itens só podem ser editados enquanto o evento está em planejamento.');
+    if (
+      eventItem.event.status !== EventStatus.PLANNING &&
+      eventItem.event.status !== EventStatus.IN_PROGRESS
+    ) {
+      throw new BadRequestException(
+        'Itens só podem ser editados em eventos em planejamento ou em andamento.',
+      );
+    }
+
+    const activeTaskItem = await this.prisma.taskItem.findFirst({
+      where: {
+        eventItemId,
+        tenantUuid,
+        task: { status: { in: [TaskStatus.PENDENTE, TaskStatus.CONCLUIDA] } },
+      },
+    });
+
+    if (activeTaskItem) {
+      throw new BadRequestException(
+        'Este item está vinculado a uma tarefa ativa. Cancele a tarefa antes de editá-lo.',
+      );
     }
 
     const nextPlannedQuantity =
@@ -829,8 +860,27 @@ export class EventsService {
       throw new NotFoundException('Item do evento não encontrado.');
     }
 
-    if (eventItem.event.status !== EventStatus.PLANNING) {
-      throw new BadRequestException('Itens só podem ser removidos enquanto o evento está em planejamento.');
+    if (
+      eventItem.event.status !== EventStatus.PLANNING &&
+      eventItem.event.status !== EventStatus.IN_PROGRESS
+    ) {
+      throw new BadRequestException(
+        'Itens só podem ser removidos em eventos em planejamento ou em andamento.',
+      );
+    }
+
+    const activeTaskItem = await this.prisma.taskItem.findFirst({
+      where: {
+        eventItemId,
+        tenantUuid,
+        task: { status: { in: [TaskStatus.PENDENTE, TaskStatus.CONCLUIDA] } },
+      },
+    });
+
+    if (activeTaskItem) {
+      throw new BadRequestException(
+        'Este item está vinculado a uma tarefa ativa. Cancele a tarefa antes de removê-lo.',
+      );
     }
 
     return this.prisma.$transaction(async (tx) => {

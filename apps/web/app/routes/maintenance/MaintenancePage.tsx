@@ -26,7 +26,7 @@ import {
 } from '~/components/ui/select';
 import { useMaintenances, useCreateMaintenance } from '~/services/tanStackQuery/maintenance';
 import { useItems } from '~/services/tanStackQuery/Itens/items';
-import type { Maintenance, MaintenanceStatus } from '~/types/maintenance';
+import { MAINTENANCE_TYPE_LABEL, type Maintenance, type MaintenanceStatus } from '~/types/maintenance';
 import { MaintenanceFormDialog } from './components/MaintenanceFormDialog';
 
 const statusLabel: Record<MaintenanceStatus, string> = {
@@ -56,6 +56,9 @@ function MaintenanceCard({ maintenance }: { maintenance: Maintenance }) {
                 </span>
                 <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${statusClassName[maintenance.status]}`}>
                   {statusLabel[maintenance.status]}
+                </span>
+                <span className="inline-flex rounded-full border border-border bg-muted/40 px-2 py-0.5 text-xs text-muted-foreground">
+                  {MAINTENANCE_TYPE_LABEL[maintenance.type]}
                 </span>
                 {maintenance.divergenceId && (
                   <span className="inline-flex rounded-full border border-orange-300 bg-orange-50 px-2 py-0.5 text-xs text-orange-700 dark:border-orange-700 dark:bg-orange-900/20 dark:text-orange-400">

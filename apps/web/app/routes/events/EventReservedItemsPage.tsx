@@ -64,7 +64,7 @@ export default function EventReservedItemsPage() {
     );
   }
 
-  if (event.status !== 'PLANNING') {
+  if (event.status !== 'PLANNING' && event.status !== 'IN_PROGRESS') {
     return (
       <div className="space-y-4">
         <div className="flex items-center gap-3">
@@ -77,9 +77,9 @@ export default function EventReservedItemsPage() {
         </div>
         <Card className="border-amber-300/40 bg-amber-50/70 dark:bg-amber-950/20">
           <CardHeader>
-            <CardTitle>Evento fora do planejamento</CardTitle>
+            <CardTitle>Evento encerrado</CardTitle>
             <CardDescription>
-              Itens só podem ser adicionados, editados ou removidos enquanto o evento está em planejamento.
+              Itens só podem ser adicionados em eventos em planejamento ou em andamento.
             </CardDescription>
           </CardHeader>
           <CardContent>

@@ -17,8 +17,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '~/components/ui/select';
+import { useUsers } from '~/services/tanStackQuery/users';
 import type { Item } from '~/types/item';
-import type { CreateMaintenanceInput } from '~/types/maintenance';
+import {
+  MAINTENANCE_TYPES,
+  MAINTENANCE_TYPE_LABEL,
+  type CreateMaintenanceInput,
+  type MaintenanceType,
+} from '~/types/maintenance';
 
 interface Props {
   open: boolean;
@@ -28,19 +34,32 @@ interface Props {
   isSubmitting: boolean;
 }
 
+const UNASSIGNED = '__unassigned__';
+
 export function MaintenanceFormDialog({ open, onOpenChange, items, onSubmit, isSubmitting }: Props) {
   const [itemId, setItemId] = useState('');
   const [quantity, setQuantity] = useState(1);
+  const [type, setType] = useState<MaintenanceType>('REPARO');
+  const [assignedToId, setAssignedToId] = useState<string>(UNASSIGNED);
   const [notes, setNotes] = useState('');
 
+  const { data: users = [] } = useUsers();
   const selectedItem = items.find((i) => i.id === itemId);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!itemId || quantity <= 0) return;
-    await onSubmit({ itemId, quantity, notes: notes || undefined });
+    await onSubmit({
+      itemId,
+      quantity,
+      type,
+      notes: notes || undefined,
+      assignedToId: assignedToId === UNASSIGNED ? undefined : assignedToId,
+    });
     setItemId('');
     setQuantity(1);
+    setType('REPARO');
+    setAssignedToId(UNASSIGNED);
     setNotes('');
   };
 
@@ -73,22 +92,57 @@ export function MaintenanceFormDialog({ open, onOpenChange, items, onSubmit, isS
             </Select>
           </div>
 
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>Quantidade</Label>
+              <Input
+                type="number"
+                min={1}
+                max={selectedItem?.availableQuantity ?? 9999}
+                value={quantity}
+                onChange={(e) => setQuantity(Number(e.target.value))}
+                className="border-border/60"
+                required
+              />
+              {selectedItem && (
+                <p className="text-xs text-muted-foreground">
+                  Disponível: {selectedItem.availableQuantity}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Tipo</Label>
+              <Select value={type} onValueChange={(v) => setType(v as MaintenanceType)}>
+                <SelectTrigger className="border-border/60">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {MAINTENANCE_TYPES.map((t) => (
+                    <SelectItem key={t} value={t}>
+                      {MAINTENANCE_TYPE_LABEL[t]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
           <div className="space-y-1.5">
-            <Label>Quantidade</Label>
-            <Input
-              type="number"
-              min={1}
-              max={selectedItem?.availableQuantity ?? 9999}
-              value={quantity}
-              onChange={(e) => setQuantity(Number(e.target.value))}
-              className="border-border/60"
-              required
-            />
-            {selectedItem && (
-              <p className="text-xs text-muted-foreground">
-                Disponível: {selectedItem.availableQuantity}
-              </p>
-            )}
+            <Label>Responsável (opcional)</Label>
+            <Select value={assignedToId} onValueChange={setAssignedToId}>
+              <SelectTrigger className="border-border/60">
+                <SelectValue placeholder="Sem responsável" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={UNASSIGNED}>Sem responsável</SelectItem>
+                {users.map((u) => (
+                  <SelectItem key={u.id} value={u.id}>
+                    {u.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-1.5">
