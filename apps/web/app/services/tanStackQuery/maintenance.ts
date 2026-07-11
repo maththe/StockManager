@@ -37,9 +37,8 @@ export const useCreateMaintenance = () => {
       const response = await api.post<Maintenance>('/maintenance', data);
       return response.data;
     },
-    onSuccess: (_, id) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['maintenances'] });
-      queryClient.invalidateQueries({ queryKey: ['maintenances', id] });
       queryClient.invalidateQueries({ queryKey: ['items'] });
       mutationSuccess('Manutenção criada com sucesso.');
     },

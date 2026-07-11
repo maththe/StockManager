@@ -34,7 +34,7 @@ cd apps/api && pnpm install && pnpm start:dev
 
 # Web
 cd apps/web && pnpm install && pnpm dev
-# A web assume API em http://localhost:3000
+# API configurável via VITE_API_URL (padrão: http://localhost:3000)
 # Outros: pnpm build | pnpm typecheck | pnpm format
 ```
 
@@ -57,9 +57,11 @@ cd apps/web && pnpm install && pnpm dev
 
 - Rotas declaradas em `apps/web/app/routes.ts`.
 - Entry point real: `routes/home.tsx` → renderiza `routes/users/components/login.tsx`.
-- `routes/users/LoginPage.tsx` existe mas está **vazio** (não use).
+- Cadastro público em `/register` (`routes/users/RegisterPage.tsx`) usa `POST /users`.
 - Acesso à API: `apps/web/app/services/tanStackQuery/` (não acesse Axios diretamente nas rotas).
 - Token: `localStorage['access_token']`, injetado por interceptor em `services/axios/api.ts`.
+  Resposta 401 limpa a sessão e redireciona para o login (interceptor de response).
+- `DashboardLayout` tem guarda de autenticação e botão de logout (`clearSession`).
 - Alias de import: `~/`.
 - `QueryClient`: `staleTime` 5 min, `retry` 1.
 
@@ -90,17 +92,15 @@ Toda alteração em `availableQuantity` deve ser **transacional**. As regras vig
 Campos a revisar sempre que tocar `EventsService` ou `RentalsService`:
 `availableQuantity` · `totalQuantity` · `returnedQuantity` · `divergences`
 
-### Eventos — dois fluxos de conclusão
+### Eventos — fluxo único de conclusão
 
 ```
 PATCH /events/:id          { status: COMPLETED, inventoryCountConfirmed, completionItems }
-  └─ Fluxo completo: registra conferência, faltas, avarias, ajusta estoque com precisão.
-
-PATCH /events/:id/complete
-  └─ Fluxo simples: apenas conclui e devolve itens reservados ao estoque.
+  └─ Registra conferência, faltas, avarias, ajusta estoque com precisão e
+     cancela tarefas pendentes do evento.
 ```
 
-Não mescle os dois fluxos. Prefira o primeiro quando precisar de rastreabilidade.
+A rota `PATCH /events/:id/complete` foi **removida** — não recrie um fluxo de conclusão sem conferência. Eventos `COMPLETED`/`CANCELLED` não são mais editáveis via `PATCH /events/:id`.
 
 ### Locações — restrições
 
@@ -169,12 +169,11 @@ Estas inconsistências **já existem**. Não as propague ao adicionar código no
 
 | # | Problema | Localização |
 |---|---------|-------------|
-| 1 | `useMe()` chama `GET /users/me`, rota não existe no backend | `services/tanStackQuery` |
-| 2 | `LoginPage.tsx` está vazio; login real está em `routes/users/components/login.tsx` | `routes/users/` |
-| 3 | Migration `20260513120000_add_item_image_variants` adiciona `thumbnail_image_url` e `modal_image_url`, mas `schema.prisma` ainda expõe só `imageUrl` | `prisma/` |
-| 4 | Types frontend referenciam `thumbnailImageUrl`/`modalImageUrl`; backend usa `imageUrl` | `app/types/` |
-| 5 | `clients` não é multi-tenant no banco nem nos services, mas eventos e locações dependem dele | `src/clients/` |
-| 6 | `apps/api/package.json` tem `test` placeholder; não há suíte configurada | — |
+| 1 | `apps/api/package.json` tem `test` placeholder; não há suíte configurada | — |
+| 2 | Imagens de itens são salvas como data URL base64 (~350KB) no campo `imageUrl`; cada `GET /items` trafega todas as imagens | `items` / `ItemImageUploadDialog` |
+| 3 | Faltam `RolesGuard` nas rotas de `users`, `JWT_SECRET` tem fallback hardcoded e CORS usa `origin: '*'` com `credentials: true` | `src/users/` · `src/auth/` · `main.ts` |
+
+> Resolvidas em jul/2026: `GET /users/me` existe no backend; `LoginPage.tsx` vazio foi removido; as colunas de variantes de imagem foram consolidadas em `image_url`; `clients` é multi-tenant.
 
 ---
 

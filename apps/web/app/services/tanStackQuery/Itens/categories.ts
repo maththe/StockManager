@@ -1,15 +1,9 @@
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '~/services/axios/api';
-import { queryClient } from '../queryClient';
 import { mutationError, mutationSuccess } from '../mutationToast';
+import type { Category } from '~/types/category';
 
-export interface Category {
-  id: string;
-  name: string;
-  description?: string;
-  createdAt: string;
-  updatedAt: string;
-}
+export type { Category };
 
 export const useCategories = (search?: string) => {
   return useQuery({
@@ -33,6 +27,7 @@ export const useCategory = (id: string) => {
   });
 };
 export const useCreateCategory = () => {
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (
       payload: Omit<Category, 'id' | 'createdAt' | 'updatedAt'>,
@@ -49,6 +44,7 @@ export const useCreateCategory = () => {
 };
 
 export const useUpdateCategory = () => {
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({
       id,
@@ -69,6 +65,7 @@ export const useUpdateCategory = () => {
 };
 
 export const useDeleteCategory = () => {
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
       await api.delete(`/categories/${id}`);

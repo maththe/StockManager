@@ -1,5 +1,9 @@
 // auth.service.ts
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { UsersService } from '../users/users.service';
@@ -12,6 +16,10 @@ export class AuthService {
   ) {}
 
   async login(email: string, pass: string) {
+    if (typeof email !== 'string' || !email.trim() || typeof pass !== 'string' || !pass) {
+      throw new BadRequestException('Informe e-mail e senha.');
+    }
+
     const user = await this.usersService.findByEmail(email);
 
     if (!user) {

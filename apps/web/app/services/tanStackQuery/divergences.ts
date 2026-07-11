@@ -84,8 +84,11 @@ export const useCreateTaskDivergence = () => {
     onSuccess: (_, { taskId }) => {
       queryClient.invalidateQueries({ queryKey: ['divergences'] });
       queryClient.invalidateQueries({ queryKey: ['events'] });
+      queryClient.invalidateQueries({ queryKey: ['event-items'] });
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       queryClient.invalidateQueries({ queryKey: ['tasks', taskId] });
+      // A divergência dá baixa imediata no estoque total do item
+      queryClient.invalidateQueries({ queryKey: ['items'] });
       mutationSuccess('Divergencia criada com sucesso.');
     },
     onError: (error) => mutationError('Erro ao criar divergencia.', error),

@@ -21,6 +21,17 @@ export const useEvents = (search?: string) => {
   });
 };
 
+export const useEvent = (id?: string) => {
+  return useQuery({
+    queryKey: ['events', id],
+    enabled: Boolean(id),
+    queryFn: async () => {
+      const response = await api.get<Event | null>(`/events/${id}`);
+      return response.data;
+    },
+  });
+};
+
 export const useCreateEvent = () => {
   const queryClient = useQueryClient();
   return useMutation({

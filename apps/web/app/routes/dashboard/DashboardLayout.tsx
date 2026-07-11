@@ -1,24 +1,30 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Box,
   CalendarDays,
   CalendarRange,
   ClipboardList,
   HandCoins,
+  LogOut,
   PanelLeftClose,
   PanelLeftOpen,
   Settings,
   ShieldUser,
+  Tags,
   Users,
 } from 'lucide-react';
-import { NavLink, Outlet } from 'react-router';
+import { NavLink, Outlet, useNavigate } from 'react-router';
+import { useQueryClient } from '@tanstack/react-query';
 
 import { Button } from '~/components/ui/button';
 import { ThemeToggle } from '~/components/theme-toggle';
 import { useMe } from '~/services/tanStackQuery/users';
+import { getCurrentUser } from '~/services/auth/currentUser';
+import { clearSession } from '~/services/axios/api';
 
 const navItems = [
   { to: '/dashboard/inventory', icon: Box, label: 'Inventario' },
+  { to: '/dashboard/categories', label: 'Categorias', icon: Tags },
   { to: '/dashboard/clients', label: 'Clientes', icon: Users },
   { to: '/dashboard/users', label: 'Usuarios', icon: ShieldUser },
   { to: '/dashboard/events', label: 'Eventos', icon: CalendarDays },
@@ -31,6 +37,21 @@ const navItems = [
 export default function DashboardLayout() {
   const { data: currentUser } = useMe();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+
+  // Sem token não há sessão: volta para o login
+  useEffect(() => {
+    if (!getCurrentUser()) {
+      navigate('/', { replace: true });
+    }
+  }, [navigate]);
+
+  const handleLogout = () => {
+    clearSession();
+    queryClient.clear();
+    navigate('/', { replace: true });
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -80,6 +101,17 @@ export default function DashboardLayout() {
             </div>
             <div className="h-8 w-px bg-border hidden sm:block" />
             <ThemeToggle className="h-9 w-9" />
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+              onClick={handleLogout}
+              aria-label="Sair da conta"
+              title="Sair da conta"
+            >
+              <LogOut className="size-5" />
+            </Button>
           </div>
         </div>
       </header>

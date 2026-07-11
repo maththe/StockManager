@@ -22,7 +22,8 @@ export interface Item {
   imageUrl?: string | null;
   totalQuantity: number;
   availableQuantity: number;
-  unitCost: number;
+  // Decimal do Prisma chega serializado como string no JSON
+  unitCost: number | string;
   categoryId: string;
   createdAt: string;
   updatedAt: string;

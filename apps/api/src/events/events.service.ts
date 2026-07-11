@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import {
   DivergenceSource,
+  DivergenceStatus,
   DivergenceType,
   Event,
   EventStatus,
@@ -88,10 +89,17 @@ export class EventsService {
       throw new BadRequestException('O horário de término deve ser após o horário de início.');
     }
 
+    // Sem fuso explícito, compara o dia pelo texto (YYYY-MM-DD) para não depender
+    // do fuso do servidor; com fuso (Z/±hh:mm), compara os componentes locais.
+    const hasExplicitZone = (value: string) => /(?:Z|[+-]\d{2}:?\d{2})$/.test(value.trim());
+    const startDay = startDate.match(/^(\d{4}-\d{2}-\d{2})/)?.[1];
+    const endDay = endDate.match(/^(\d{4}-\d{2}-\d{2})/)?.[1];
     const sameDay =
-      parsedStart.getFullYear() === parsedEnd.getFullYear() &&
-      parsedStart.getMonth() === parsedEnd.getMonth() &&
-      parsedStart.getDate() === parsedEnd.getDate();
+      startDay && endDay && !hasExplicitZone(startDate) && !hasExplicitZone(endDate)
+        ? startDay === endDay
+        : parsedStart.getFullYear() === parsedEnd.getFullYear() &&
+          parsedStart.getMonth() === parsedEnd.getMonth() &&
+          parsedStart.getDate() === parsedEnd.getDate();
 
     if (!sameDay) {
       throw new BadRequestException('O horário de término deve ser no mesmo dia que o início.');
@@ -129,6 +137,12 @@ export class EventsService {
   ) {
     const eventItems = await tx.eventItem.findMany({
       where: { eventId, tenantUuid },
+    });
+
+    // A conferência final substitui a contagem das tarefas ainda pendentes
+    await tx.task.updateMany({
+      where: { eventId, tenantUuid, status: TaskStatus.PENDENTE },
+      data: { status: TaskStatus.CANCELADA },
     });
 
     if (eventItems.length === 0) {
@@ -185,18 +199,39 @@ export class EventsService {
         tenantUuid,
         divergence: { source: DivergenceSource.EVENT, sourceId: eventId },
       },
+      include: { divergence: { select: { status: true } } },
     });
+
+    // Toda divergência de evento já debitou totalQuantity ao ser registrada;
+    // o delta abaixo abate essas perdas já contabilizadas.
     const previousLossByEventItemId = new Map<string, number>();
+    // Divergências resolvidas podem já ter gerado manutenção; são preservadas
+    // e abatidas das novas para não registrar a mesma perda duas vezes.
+    const resolvedLossByEventItemAndType = new Map<string, number>();
     for (const divergenceItem of previousDivergenceItems) {
       if (!divergenceItem.sourceItemId) continue;
       previousLossByEventItemId.set(
         divergenceItem.sourceItemId,
         (previousLossByEventItemId.get(divergenceItem.sourceItemId) ?? 0) + divergenceItem.quantity,
       );
+
+      if (divergenceItem.divergence.status === DivergenceStatus.RESOLVED) {
+        const key = `${divergenceItem.sourceItemId}:${divergenceItem.type}`;
+        resolvedLossByEventItemAndType.set(
+          key,
+          (resolvedLossByEventItemAndType.get(key) ?? 0) + divergenceItem.quantity,
+        );
+      }
     }
 
+    // Divergências pendentes são substituídas pela contagem da conferência final
     await tx.divergence.deleteMany({
-      where: { source: DivergenceSource.EVENT, sourceId: eventId, tenantUuid },
+      where: {
+        source: DivergenceSource.EVENT,
+        sourceId: eventId,
+        tenantUuid,
+        status: DivergenceStatus.PENDING,
+      },
     });
 
     const divergenceItemsToCreate: Omit<Prisma.DivergenceItemCreateManyInput, 'divergenceId'>[] = [];
@@ -231,9 +266,20 @@ export class EventsService {
         });
       }
 
-      if (missingQuantity > 0) {
+      const newMissingQuantity = Math.max(
+        0,
+        missingQuantity -
+          (resolvedLossByEventItemAndType.get(`${eventItem.id}:${DivergenceType.MISSING}`) ?? 0),
+      );
+      const newDamagedQuantity = Math.max(
+        0,
+        damagedQuantity -
+          (resolvedLossByEventItemAndType.get(`${eventItem.id}:${DivergenceType.DAMAGED}`) ?? 0),
+      );
+
+      if (newMissingQuantity > 0) {
         divergenceItemsToCreate.push({
-          quantity: missingQuantity,
+          quantity: newMissingQuantity,
           type: DivergenceType.MISSING,
           notes: completionItem.notes,
           tenantUuid,
@@ -241,9 +287,9 @@ export class EventsService {
           sourceItemId: eventItem.id,
         });
       }
-      if (damagedQuantity > 0) {
+      if (newDamagedQuantity > 0) {
         divergenceItemsToCreate.push({
-          quantity: damagedQuantity,
+          quantity: newDamagedQuantity,
           type: DivergenceType.DAMAGED,
           notes: completionItem.notes,
           tenantUuid,
@@ -424,6 +470,14 @@ export class EventsService {
       throw new NotFoundException('Evento não encontrado.');
     }
 
+    if (existing.status === EventStatus.CANCELLED) {
+      throw new BadRequestException('Não é possível editar um evento cancelado.');
+    }
+
+    if (existing.status === EventStatus.COMPLETED) {
+      throw new BadRequestException('Não é possível editar um evento concluído.');
+    }
+
     if (updateEventInput.clientId && updateEventInput.clientId !== existing.clientId) {
       await this.ensureClientExists(updateEventInput.clientId, tenantUuid);
     }
@@ -440,9 +494,8 @@ export class EventsService {
         ? updateEventInput.endDate
         : (existing.endDate?.toISOString() ?? null);
     const { parsedStart, parsedEnd } = this.parseEventDates(nextStartDate, nextEndDate);
-    const isFinishingEvent =
-      updateEventInput.status === EventStatus.COMPLETED &&
-      existing.status !== EventStatus.COMPLETED;
+    // Eventos COMPLETED/CANCELLED já foram bloqueados acima
+    const isFinishingEvent = updateEventInput.status === EventStatus.COMPLETED;
 
     if (
       updateEventInput.status === EventStatus.IN_PROGRESS &&
@@ -453,27 +506,8 @@ export class EventsService {
       );
     }
 
-    if (
-      updateEventInput.status === EventStatus.CANCELLED &&
-      existing.status !== EventStatus.CANCELLED
-    ) {
+    if (updateEventInput.status === EventStatus.CANCELLED) {
       throw new BadRequestException('Use a ação de cancelar para encerrar o evento.');
-    }
-
-    if (
-      existing.status === EventStatus.CANCELLED &&
-      updateEventInput.status &&
-      updateEventInput.status !== EventStatus.CANCELLED
-    ) {
-      throw new BadRequestException('Não é possível reabrir um evento cancelado.');
-    }
-
-    if (
-      existing.status === EventStatus.COMPLETED &&
-      updateEventInput.status &&
-      updateEventInput.status !== EventStatus.COMPLETED
-    ) {
-      throw new BadRequestException('Não é possível reabrir um evento concluído.');
     }
 
     if (
@@ -617,16 +651,42 @@ export class EventsService {
       throw new BadRequestException('Não é possível cancelar um evento já concluído.');
     }
 
+    const divergenceItems = await this.prisma.divergenceItem.findMany({
+      where: {
+        tenantUuid,
+        sourceItemId: { in: event.eventItems.map((eventItem) => eventItem.id) },
+        divergence: { source: DivergenceSource.EVENT, sourceId: id },
+      },
+    });
+    const lossByEventItemId = new Map<string, number>();
+    for (const divergenceItem of divergenceItems) {
+      if (!divergenceItem.sourceItemId) continue;
+      lossByEventItemId.set(
+        divergenceItem.sourceItemId,
+        (lossByEventItemId.get(divergenceItem.sourceItemId) ?? 0) + divergenceItem.quantity,
+      );
+    }
+
     return this.prisma.$transaction(async (tx) => {
+      await tx.task.updateMany({
+        where: { eventId: id, tenantUuid, status: TaskStatus.PENDENTE },
+        data: { status: TaskStatus.CANCELADA },
+      });
+
       for (const eventItem of event.eventItems) {
-        await tx.item.update({
-          where: { id: eventItem.itemId },
-          data: {
-            availableQuantity: {
-              increment: eventItem.plannedQuantity,
-            },
-          },
-        });
+        // Unidades já devolvidas ou registradas como perda em divergência não voltam ao estoque
+        const recordedLoss = lossByEventItemId.get(eventItem.id) ?? 0;
+        const pendingReturn = Math.max(
+          0,
+          eventItem.plannedQuantity - eventItem.returnedQuantity - recordedLoss,
+        );
+
+        if (pendingReturn > 0) {
+          await tx.item.update({
+            where: { id: eventItem.itemId },
+            data: { availableQuantity: { increment: pendingReturn } },
+          });
+        }
       }
 
       return tx.event.update({
@@ -640,18 +700,6 @@ export class EventsService {
         },
       });
     });
-  }
-
-  async complete(id: string, tenantUuid: string) {
-    const event = await this.prisma.event.findFirst({ where: { id, tenantUuid } });
-
-    if (!event) {
-      throw new NotFoundException('Evento não encontrado.');
-    }
-
-    throw new BadRequestException(
-      'Use PATCH /events/:id com inventoryCountConfirmed e completionItems para concluir o evento com contagem de estoque.',
-    );
   }
 
   async findItems(eventId: string, tenantUuid: string) {
@@ -810,25 +858,32 @@ export class EventsService {
     }
 
     const plannedDelta = nextPlannedQuantity - eventItem.plannedQuantity;
+    const returnedDelta = nextReturnedQuantity - eventItem.returnedQuantity;
+    // Reservar mais unidades consome estoque; registrar devolução repõe
+    const stockDelta = returnedDelta - plannedDelta;
 
-    if (plannedDelta > 0 && eventItem.item.availableQuantity < plannedDelta) {
-      throw new BadRequestException('Estoque insuficiente para aumentar a quantidade planejada.');
+    if (stockDelta < 0 && eventItem.item.availableQuantity < Math.abs(stockDelta)) {
+      throw new BadRequestException('Estoque insuficiente para a alteração solicitada.');
     }
 
     return this.prisma.$transaction(async (tx) => {
-      if (plannedDelta > 0) {
+      if (stockDelta < 0) {
         const reserved = await tx.item.updateMany({
-          where: { id: eventItem.itemId, tenantUuid, availableQuantity: { gte: plannedDelta } },
-          data: { availableQuantity: { decrement: plannedDelta } },
+          where: {
+            id: eventItem.itemId,
+            tenantUuid,
+            availableQuantity: { gte: Math.abs(stockDelta) },
+          },
+          data: { availableQuantity: { decrement: Math.abs(stockDelta) } },
         });
 
         if (reserved.count !== 1) {
-          throw new BadRequestException('Estoque insuficiente para aumentar a quantidade planejada.');
+          throw new BadRequestException('Estoque insuficiente para a alteração solicitada.');
         }
-      } else if (plannedDelta < 0) {
+      } else if (stockDelta > 0) {
         await tx.item.update({
           where: { id: eventItem.itemId },
-          data: { availableQuantity: { increment: Math.abs(plannedDelta) } },
+          data: { availableQuantity: { increment: stockDelta } },
         });
       }
 
@@ -883,22 +938,26 @@ export class EventsService {
       );
     }
 
-    return this.prisma.$transaction(async (tx) => {
-      await tx.item.update({
-        where: { id: eventItem.itemId },
-        data: {
-          availableQuantity: {
-            increment: eventItem.plannedQuantity,
-          },
-        },
-      });
+    // Divergências já debitaram o estoque total; apagá-las junto com o item corromperia a contagem
+    const divergenceCount = await this.prisma.divergenceItem.count({
+      where: { sourceItemId: eventItem.id, tenantUuid },
+    });
 
-      await tx.divergenceItem.deleteMany({
-        where: {
-          sourceItemId: eventItem.id,
-          divergence: { source: DivergenceSource.EVENT, sourceId: eventId },
-        },
-      });
+    if (divergenceCount > 0) {
+      throw new BadRequestException(
+        'Este item possui divergências registradas. Trate-as antes de removê-lo do evento.',
+      );
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const pendingReturn = eventItem.plannedQuantity - eventItem.returnedQuantity;
+
+      if (pendingReturn > 0) {
+        await tx.item.update({
+          where: { id: eventItem.itemId },
+          data: { availableQuantity: { increment: pendingReturn } },
+        });
+      }
 
       return tx.eventItem.delete({
         where: { id: eventItem.id },

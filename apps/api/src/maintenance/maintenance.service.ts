@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { MaintenanceStatus, MaintenanceType, Prisma } from '@prisma/client';
 import { PrismaService } from 'src/services/prisma.service';
+import { nextSequentialCode } from 'src/common/code.util';
 import { CreateMaintenanceInput } from './dto/create-maintenance.input';
 import { UpdateMaintenanceInput } from './dto/update-maintenance.input';
 
@@ -8,25 +9,22 @@ import { UpdateMaintenanceInput } from './dto/update-maintenance.input';
 export class MaintenanceService {
   constructor(private readonly prisma: PrismaService) {}
 
-  private async generateCode(tenantUuid: string): Promise<string> {
+  private async generateCode(
+    tenantUuid: string,
+    tx: Prisma.TransactionClient,
+  ): Promise<string> {
+    // Serializa a geração por tenant dentro da transação para não gerar código duplicado
+    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${`maintenance-code:${tenantUuid}`}))`;
+
     const year = new Date().getFullYear();
     const prefix = `MAN-${year}-`;
 
-    const last = await this.prisma.maintenance.findFirst({
+    const existing = await tx.maintenance.findMany({
       where: { tenantUuid, code: { startsWith: prefix } },
-      orderBy: { code: 'desc' },
       select: { code: true },
     });
 
-    let nextNumber = 1;
-    if (last) {
-      const match = last.code.match(/-(\d+)$/);
-      if (match) {
-        nextNumber = Number.parseInt(match[1], 10) + 1;
-      }
-    }
-
-    return `${prefix}${String(nextNumber).padStart(4, '0')}`;
+    return nextSequentialCode(prefix, existing.map((maintenance) => maintenance.code));
   }
 
   private validateQuantity(quantity: number) {
@@ -63,7 +61,7 @@ export class MaintenanceService {
     const results: Awaited<ReturnType<typeof tx.maintenance.create>>[] = [];
 
     for (const di of damagedItems) {
-      const code = await this.generateCode(tenantUuid);
+      const code = await this.generateCode(tenantUuid, tx);
       const maintenance = await tx.maintenance.create({
         data: {
           code,
@@ -93,9 +91,9 @@ export class MaintenanceService {
       throw new BadRequestException('Estoque insuficiente para criar a manutenção.');
     }
 
-    const code = await this.generateCode(tenantUuid);
-
     return this.prisma.$transaction(async (tx) => {
+      const code = await this.generateCode(tenantUuid, tx);
+
       const reserved = await tx.item.updateMany({
         where: { id: input.itemId, tenantUuid, availableQuantity: { gte: input.quantity } },
         data: { availableQuantity: { decrement: input.quantity } },

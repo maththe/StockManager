@@ -196,6 +196,20 @@ export class DivergencesService {
         })),
       });
 
+      // Baixa imediata no acervo: a perda registrada sai do estoque total agora.
+      // A conferência final do evento abate esse valor (previousLoss) para não
+      // debitar duas vezes, e a manutenção de item avariado repõe ao concluir.
+      const lossByItemId = new Map<string, number>();
+      for (const item of divergenceItems) {
+        lossByItemId.set(item.itemId, (lossByItemId.get(item.itemId) ?? 0) + item.quantity);
+      }
+      for (const [itemId, quantity] of lossByItemId) {
+        await tx.item.update({
+          where: { id: itemId },
+          data: { totalQuantity: { decrement: quantity } },
+        });
+      }
+
       return tx.divergence.findUniqueOrThrow({
         where: { id: divergence.id },
         include: {

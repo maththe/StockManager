@@ -2,7 +2,13 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { CreateItemInput } from './dto/create-item.input';
 import { UpdateItemInput } from './dto/update-item.input';
 import { PrismaService } from 'src/services/prisma.service';
-import { Item } from '@prisma/client';
+import {
+  DivergenceSource,
+  EventStatus,
+  Item,
+  MaintenanceStatus,
+  RentalStatus,
+} from '@prisma/client';
 
 @Injectable()
 export class ItemsService {
@@ -98,11 +104,27 @@ export class ItemsService {
       throw new NotFoundException('Item não encontrado.');
     }
 
-    this.validateStockQuantities(
-      updateItemInput.totalQuantity ?? existing.totalQuantity,
-      updateItemInput.availableQuantity ?? existing.availableQuantity,
-    );
+    const nextTotalQuantity = updateItemInput.totalQuantity ?? existing.totalQuantity;
+    const nextAvailableQuantity =
+      updateItemInput.availableQuantity ?? existing.availableQuantity;
+
+    this.validateStockQuantities(nextTotalQuantity, nextAvailableQuantity);
     this.validateUnitCost(updateItemInput.unitCost);
+
+    if (
+      updateItemInput.totalQuantity !== undefined ||
+      updateItemInput.availableQuantity !== undefined
+    ) {
+      const reservedQuantity = await this.getReservedQuantity(id, tenantUuid);
+
+      if (nextAvailableQuantity + reservedQuantity > nextTotalQuantity) {
+        throw new BadRequestException(
+          `Há ${reservedQuantity} unidade(s) reservadas em eventos, locações ou manutenções. ` +
+            `Com quantidade total de ${nextTotalQuantity}, a disponível não pode passar de ` +
+            `${Math.max(0, nextTotalQuantity - reservedQuantity)}.`,
+        );
+      }
+    }
 
     // Se está tentando mudar de categoria, verificar se a nova existe
     if (updateItemInput.categoryId && updateItemInput.categoryId !== existing.categoryId) {
@@ -120,8 +142,77 @@ export class ItemsService {
 
     return this.prisma.item.update({
       where: { id },
-      data: updateItemInput,
+      data: {
+        name: updateItemInput.name,
+        totalQuantity: updateItemInput.totalQuantity,
+        availableQuantity: updateItemInput.availableQuantity,
+        unitCost: updateItemInput.unitCost,
+        categoryId: updateItemInput.categoryId,
+        imageUrl: updateItemInput.imageUrl,
+      },
     });
+  }
+
+  // Unidades comprometidas em eventos/locações ativos e manutenções manuais em aberto.
+  // Garante o invariante: disponível + reservado <= total.
+  private async getReservedQuantity(itemId: string, tenantUuid: string): Promise<number> {
+    const [eventItems, rentalItems, maintenanceSum] = await Promise.all([
+      this.prisma.eventItem.findMany({
+        where: {
+          itemId,
+          tenantUuid,
+          event: { status: { in: [EventStatus.PLANNING, EventStatus.IN_PROGRESS] } },
+        },
+        select: { id: true, plannedQuantity: true, returnedQuantity: true },
+      }),
+      this.prisma.rentalItem.findMany({
+        where: {
+          itemId,
+          tenantUuid,
+          rental: { status: { in: [RentalStatus.DRAFT, RentalStatus.ACTIVE] } },
+        },
+        select: { quantity: true, returnedQuantity: true },
+      }),
+      this.prisma.maintenance.aggregate({
+        _sum: { quantity: true },
+        where: {
+          itemId,
+          tenantUuid,
+          // Manutenções vindas de divergência já saíram do estoque total
+          divergenceId: null,
+          status: { in: [MaintenanceStatus.PENDENTE, MaintenanceStatus.EM_ANDAMENTO] },
+        },
+      }),
+    ]);
+
+    // Perdas registradas em divergência já foram debitadas do total e não contam como reserva
+    const writeOffSum = eventItems.length
+      ? await this.prisma.divergenceItem.aggregate({
+          _sum: { quantity: true },
+          where: {
+            tenantUuid,
+            itemId,
+            sourceItemId: { in: eventItems.map((eventItem) => eventItem.id) },
+            divergence: { source: DivergenceSource.EVENT },
+          },
+        })
+      : null;
+
+    const reservedInEvents =
+      eventItems.reduce(
+        (sum, eventItem) => sum + eventItem.plannedQuantity - eventItem.returnedQuantity,
+        0,
+      ) - (writeOffSum?._sum.quantity ?? 0);
+    const reservedInRentals = rentalItems.reduce(
+      (sum, rentalItem) => sum + rentalItem.quantity - rentalItem.returnedQuantity,
+      0,
+    );
+
+    return (
+      Math.max(0, reservedInEvents) +
+      reservedInRentals +
+      (maintenanceSum._sum.quantity ?? 0)
+    );
   }
 
   async remove(id: string, tenantUuid: string): Promise<Item> {

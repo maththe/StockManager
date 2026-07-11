@@ -34,7 +34,7 @@ function getDefaultValues(
         name: item.name,
         totalQuantity: item.totalQuantity,
         availableQuantity: item.availableQuantity,
-        unitCost: item.unitCost,
+        unitCost: Number(item.unitCost),
         categoryId: item.categoryId,
         imageUrl: item.imageUrl,
       }

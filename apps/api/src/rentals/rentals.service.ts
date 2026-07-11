@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Rental, RentalStatus } from '@prisma/client';
 import { PrismaService } from 'src/services/prisma.service';
+import { nextSequentialCode } from 'src/common/code.util';
 import { CreateRentalInput } from './dto/create-rental.input';
 import { CreateRentalItemInput } from './dto/create-rental-item.input';
 import { UpdateRentalInput } from './dto/update-rental.input';
@@ -29,21 +30,13 @@ export class RentalsService {
     const year = new Date().getFullYear();
     const prefix = `LOC-${year}-`;
 
-    const last = await this.prisma.rental.findFirst({
+    const existing = await this.prisma.rental.findMany({
       where: { tenantUuid, rentalCode: { startsWith: prefix } },
-      orderBy: { rentalCode: 'desc' },
       select: { rentalCode: true },
     });
 
-    let nextNumber = 1;
-    if (last) {
-      const match = last.rentalCode.match(/-(\d+)$/);
-      if (match) {
-        nextNumber = Number.parseInt(match[1], 10) + 1;
-      }
-    }
-
-    return `${prefix}${String(nextNumber).padStart(4, '0')}`;
+    // Corrida entre requisições é coberta pelo retry de P2002 em create()
+    return nextSequentialCode(prefix, existing.map((rental) => rental.rentalCode));
   }
 
   private normalizeQuantity(value: number | undefined, fieldName: string): number {

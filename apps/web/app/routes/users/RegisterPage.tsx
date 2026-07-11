@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { Label } from '~/components/ui/label';
+import { FormProvider, useForm } from 'react-hook-form';
+import { Loader2, Package2 } from 'lucide-react';
+
 import {
   Card,
   CardContent,
@@ -9,16 +11,21 @@ import {
   CardHeader,
   CardTitle,
 } from '~/components/ui/card';
-import { Loader2, Package2 } from 'lucide-react';
-import { useLogin } from '~/services/tanStackQuery/auth';
-import { FormProvider, useForm } from 'react-hook-form';
-import { InputForm } from '~/components/Form/InputForm';
 import { Button } from '~/components/ui/button';
+import { Label } from '~/components/ui/label';
+import { InputForm } from '~/components/Form/InputForm';
+import { useRegister } from '~/services/tanStackQuery/auth';
 import { getCurrentUser } from '~/services/auth/currentUser';
 
-export default function Login() {
-  const login = useLogin();
-  const form = useForm();
+interface RegisterFormValues {
+  name: string;
+  email: string;
+  password: string;
+}
+
+export default function RegisterPage() {
+  const register = useRegister();
+  const form = useForm<RegisterFormValues>();
   const navigate = useNavigate();
 
   // Já autenticado? Vai direto para o painel
@@ -28,17 +35,16 @@ export default function Login() {
     }
   }, [navigate]);
 
-  const onSubmit = async () => {
-    const payload = {
-      email: form.getValues('email'),
-      senha: form.getValues('password'),
-    };
-
+  const onSubmit = async (data: RegisterFormValues) => {
     try {
-      await login.mutateAsync(payload);
-      navigate('/dashboard');
+      await register.mutateAsync({
+        name: data.name,
+        email: data.email,
+        senha: data.password,
+      });
+      navigate('/');
     } catch {
-      // Erro já exibido em toast pelo useLogin
+      // Erro já exibido em toast pelo useRegister
     }
   };
 
@@ -54,10 +60,10 @@ export default function Login() {
             <Package2 className="w-6 h-6" />
           </div>
           <CardTitle className="text-3xl font-extrabold tracking-tight">
-            StockManager
+            Criar conta
           </CardTitle>
           <CardDescription className="text-center">
-            Gerencie seu estoque com rapidez e eficiência
+            Cadastre sua empresa e comece a gerenciar o estoque
           </CardDescription>
         </CardHeader>
 
@@ -65,11 +71,21 @@ export default function Login() {
           <form onSubmit={form.handleSubmit(onSubmit)}>
             <CardContent className="grid gap-4 px-8 py-2">
               <div className="grid gap-2">
+                <Label htmlFor="name">Nome</Label>
+                <InputForm
+                  name="name"
+                  placeholder="Seu nome"
+                  required
+                  className="bg-white/60 dark:bg-transparent"
+                />
+              </div>
+              <div className="grid gap-2">
                 <Label htmlFor="email">E-mail</Label>
                 <InputForm
                   name="email"
                   type="email"
                   placeholder="nome@empresa.com"
+                  required
                   className="bg-white/60 dark:bg-transparent"
                 />
               </div>
@@ -89,21 +105,18 @@ export default function Login() {
               <Button
                 className="w-full bg-gradient-to-r from-primary to-secondary text-white shadow-md hover:opacity-95"
                 type="submit"
-                disabled={login.isPending}
+                disabled={register.isPending}
               >
-                {login.isPending && (
+                {register.isPending && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 )}
-                Acessar Painel
+                Criar conta
               </Button>
 
               <p className="text-sm text-center text-muted-foreground">
-                Não tem uma conta?{' '}
-                <Link
-                  to="/register"
-                  className="text-primary font-medium hover:underline"
-                >
-                  Cadastre sua empresa
+                Já tem uma conta?{' '}
+                <Link to="/" className="text-primary font-medium hover:underline">
+                  Entrar
                 </Link>
               </p>
             </CardFooter>

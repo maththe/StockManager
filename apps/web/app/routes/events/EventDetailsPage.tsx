@@ -46,8 +46,8 @@ import {
   useCompleteEvent,
   useDeleteEvent,
   useDeleteEventItem,
+  useEvent,
   useEventItems,
-  useEvents,
   useStartEvent,
   useUpdateEvent,
   useUpdateEventItem,
@@ -80,7 +80,7 @@ export default function EventDetailsPage() {
   const { eventId } = useParams();
   const navigate = useNavigate();
 
-  const { data: events = [], isLoading: isLoadingEvents } = useEvents();
+  const { data: event, isLoading: isLoadingEvents } = useEvent(eventId);
   const { data: eventItems = [], isLoading: isLoadingItems } =
     useEventItems(eventId);
   const { data: items = [] } = useItems();
@@ -104,8 +104,6 @@ export default function EventDetailsPage() {
   const createPartialTask = useCreatePartialTask();
   const updateEventItem = useUpdateEventItem();
   const deleteEventItem = useDeleteEventItem();
-
-  const event = events.find((current) => current.id === eventId);
 
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [partialTaskDialogOpen, setPartialTaskDialogOpen] = useState(false);
@@ -367,7 +365,7 @@ export default function EventDetailsPage() {
             </div>
           </div>
 
-          {/* Action buttons */}
+          {/* Action buttons — eventos concluídos são imutáveis, sem ações */}
           <div className="flex flex-wrap items-center gap-2">
             {event.status === 'CANCELLED' ? (
               <Button
@@ -385,7 +383,7 @@ export default function EventDetailsPage() {
                 )}
                 Excluir
               </Button>
-            ) : (
+            ) : event.status === 'COMPLETED' ? null : (
               <>
                 {event.status === 'PLANNING' &&
                   (eventItems.length > 0) &&
@@ -426,27 +424,27 @@ export default function EventDetailsPage() {
                       Criar tarefa parcial
                     </Button>
                   )}
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="border-emerald-200/60 text-emerald-600 transition-colors hover:bg-emerald-50 hover:text-emerald-700 dark:border-emerald-900/50 dark:hover:bg-emerald-950"
-                  onClick={() =>
-                    setPendingAction({ type: 'complete', event })
-                  }
-                  disabled={
-                    event.status === 'COMPLETED' ||
-                    completingId === event.id ||
-                    Boolean(pendingAction)
-                  }
-                >
-                  {completingId === event.id ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <CheckCircle2 className="mr-2 h-4 w-4" />
-                  )}
-                  Concluir
-                </Button>
+                {canManageTasks && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="border-emerald-200/60 text-emerald-600 transition-colors hover:bg-emerald-50 hover:text-emerald-700 dark:border-emerald-900/50 dark:hover:bg-emerald-950"
+                    onClick={() =>
+                      setPendingAction({ type: 'complete', event })
+                    }
+                    disabled={
+                      completingId === event.id || Boolean(pendingAction)
+                    }
+                  >
+                    {completingId === event.id ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <CheckCircle2 className="mr-2 h-4 w-4" />
+                    )}
+                    Concluir
+                  </Button>
+                )}
                 <Button
                   type="button"
                   variant="outline"
@@ -454,9 +452,7 @@ export default function EventDetailsPage() {
                   className="border-amber-200/60 text-amber-600 transition-colors hover:bg-amber-50 hover:text-amber-700 dark:border-amber-900/50 dark:hover:bg-amber-950"
                   onClick={() => setPendingAction({ type: 'cancel', event })}
                   disabled={
-                    event.status === 'COMPLETED' ||
-                    cancellingId === event.id ||
-                    Boolean(pendingAction)
+                    cancellingId === event.id || Boolean(pendingAction)
                   }
                 >
                   {cancellingId === event.id ? (
@@ -466,16 +462,18 @@ export default function EventDetailsPage() {
                   )}
                   Cancelar
                 </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="border-border/60 transition-colors hover:bg-primary/10 hover:text-primary"
-                  onClick={() => setEditDialogOpen(true)}
-                >
-                  <Edit2 className="mr-2 h-4 w-4" />
-                  Editar
-                </Button>
+                {canManageTasks && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="border-border/60 transition-colors hover:bg-primary/10 hover:text-primary"
+                    onClick={() => setEditDialogOpen(true)}
+                  >
+                    <Edit2 className="mr-2 h-4 w-4" />
+                    Editar
+                  </Button>
+                )}
               </>
             )}
           </div>

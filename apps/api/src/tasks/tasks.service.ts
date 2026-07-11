@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { EventStatus, Prisma, TaskStatus, TaskType } from '@prisma/client';
 import { PrismaService } from 'src/services/prisma.service';
+import { nextSequentialCode } from 'src/common/code.util';
 import { UpdateTaskInput } from './dto/update-task.input';
 import { ConfirmTaskInput } from './dto/confirm-task.input';
 import { CreatePartialTaskInput } from './dto/create-partial-task.input';
@@ -17,28 +18,19 @@ interface CreateGalpaoTaskItem {
 export class TasksService {
   constructor(private readonly prisma: PrismaService) {}
 
-  private async generateTaskCode(
-    tenantUuid: string,
-    client: PrismaTx | PrismaService = this.prisma,
-  ): Promise<string> {
+  private async generateTaskCode(tenantUuid: string, client: PrismaTx): Promise<string> {
+    // Serializa a geração por tenant dentro da transação para não gerar código duplicado
+    await client.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${`task-code:${tenantUuid}`}))`;
+
     const year = new Date().getFullYear();
     const prefix = `TRB-${year}-`;
 
-    const last = await client.task.findFirst({
+    const existing = await client.task.findMany({
       where: { tenantUuid, code: { startsWith: prefix } },
-      orderBy: { code: 'desc' },
       select: { code: true },
     });
 
-    let nextNumber = 1;
-    if (last) {
-      const match = last.code.match(/-(\d+)$/);
-      if (match) {
-        nextNumber = Number.parseInt(match[1], 10) + 1;
-      }
-    }
-
-    return `${prefix}${String(nextNumber).padStart(4, '0')}`;
+    return nextSequentialCode(prefix, existing.map((task) => task.code));
   }
 
   private async createGalpaoTask(
@@ -52,7 +44,14 @@ export class TasksService {
   ) {
     if (!items.length) return null;
 
-    const client: PrismaTx | PrismaService = tx ?? this.prisma;
+    // A geração do código exige transação (lock consultivo por tenant)
+    if (!tx) {
+      return this.prisma.$transaction((innerTx) =>
+        this.createGalpaoTask(type, eventId, items, tenantUuid, createdById, innerTx, options),
+      );
+    }
+
+    const client = tx;
     const code = await this.generateTaskCode(tenantUuid, client);
 
     return client.task.create({

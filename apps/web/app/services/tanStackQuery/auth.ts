@@ -28,3 +28,29 @@ export const useLogin = () => {
     onError: (error) => mutationError('Erro ao realizar login.', error),
   });
 };
+
+interface RegisterInput {
+  name: string;
+  email: string;
+  senha: string;
+}
+
+interface RegisterResponse {
+  id: string;
+  name: string;
+  email: string;
+}
+
+// POST /users é público e cria a empresa (novo tenant) com o primeiro usuário
+export const useRegister = () => {
+  return useMutation({
+    mutationFn: async (data: RegisterInput) => {
+      const response = await api.post<RegisterResponse>('/users', data);
+      return response.data;
+    },
+    onSuccess: () => {
+      mutationSuccess('Cadastro realizado com sucesso. Faça login para começar.');
+    },
+    onError: (error) => mutationError('Erro ao realizar cadastro.', error),
+  });
+};

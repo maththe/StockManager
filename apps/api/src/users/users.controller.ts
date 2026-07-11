@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import type { Request } from 'express';
 import crypto from 'crypto';
+import { UserRole } from '@prisma/client';
 import { Public } from '../auth/public.decorator';
 import { UsersService } from './users.service';
 import { CreateUserInput } from './dto/create-user.input';
@@ -29,8 +30,13 @@ export class UsersController {
   @Public()
   @Post()
   async create(@Body() createUserDto: CreateUserInput) {
+    // Cadastro público cria um novo tenant; o primeiro usuário é o ADMIN da empresa
     const tenantUuid = crypto.randomUUID();
-    const user = await this.usersService.create(createUserDto, tenantUuid);
+    const user = await this.usersService.create(
+      createUserDto,
+      tenantUuid,
+      UserRole.ADMIN,
+    );
     return this.sanitize(user);
   }
 

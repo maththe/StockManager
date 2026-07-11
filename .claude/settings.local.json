@@ -25,7 +25,14 @@
       "Bash(PRISMA_USER_CONSENT_FOR_DANGEROUS_AI_ACTION='sim!' pnpm exec prisma migrate reset --force)",
       "Bash(git *)",
       "Bash(Find \"C:\\\\Users\\\\mathe\\\\StockManager\\\\apps\\\\api\\\\src\\\\events\" -type f -name \"*.ts\")",
-      "Bash(Get-ChildItem \"C:\\\\Users\\\\mathe\\\\StockManager\\\\apps\\\\web\\\\app\\\\services\\\\tanStackQuery\" -Filter \"*ask*\")"
+      "Bash(Get-ChildItem \"C:\\\\Users\\\\mathe\\\\StockManager\\\\apps\\\\web\\\\app\\\\services\\\\tanStackQuery\" -Filter \"*ask*\")",
+      "Bash(ls prisma *)",
+      "Bash(cat .env)",
+      "PowerShell(Get-Command *)",
+      "PowerShell(corepack *)",
+      "Bash(./node_modules/.bin/tsc --noEmit -p tsconfig.json)",
+      "Bash(pnpm install *)",
+      "Bash(pnpm build *)"
     ]
   }
 }

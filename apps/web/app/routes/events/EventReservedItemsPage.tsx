@@ -8,14 +8,12 @@ import {
   CardHeader,
   CardTitle,
 } from '~/components/ui/card';
-import { useEvents } from '~/services/tanStackQuery/events';
+import { useEvent } from '~/services/tanStackQuery/events';
 import { EventItemsDialog } from './components/EventItemsDialog';
 
 export default function EventReservedItemsPage() {
   const { eventId } = useParams();
-  const { data: events = [], isLoading: isLoadingEvents } = useEvents();
-
-  const event = events.find((currentEvent) => currentEvent.id === eventId);
+  const { data: event, isLoading: isLoadingEvents } = useEvent(eventId);
 
   if (isLoadingEvents) {
     return (
