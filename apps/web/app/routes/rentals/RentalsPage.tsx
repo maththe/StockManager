@@ -1,7 +1,10 @@
 import { useMemo, useState } from 'react';
 import {
   CalendarClock,
+  CalendarRange,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   Loader2,
   PackageOpen,
   Plus,
@@ -45,30 +48,73 @@ const statusFilters: Array<{ value: RentalStatus | 'ALL'; label: string }> = [
   { value: 'CANCELLED', label: 'Canceladas' },
 ];
 
+const startOfDay = (date: Date) =>
+  new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
 export default function RentalsPage() {
+  const today = startOfDay(new Date());
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<RentalStatus | 'ALL'>('ALL');
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [periodOffset, setPeriodOffset] = useState<number | 'all'>(0);
 
   const { data: rentals = [], isLoading } = useRentals(search);
   const { data: clients = [] } = useClients();
 
   const createRental = useCreateRental();
 
+  const currentPeriod = useMemo(() => {
+    if (periodOffset === 'all') return null;
+
+    const reference = new Date(
+      today.getFullYear(),
+      today.getMonth() + periodOffset,
+      1,
+    );
+    const year = reference.getFullYear();
+    const month = reference.getMonth();
+    return {
+      label: new Intl.DateTimeFormat('pt-BR', {
+        month: 'long',
+        year: 'numeric',
+      }).format(reference),
+      start: new Date(year, month, 1).getTime(),
+      end: new Date(year, month + 1, 0, 23, 59, 59, 999).getTime(),
+    };
+  }, [today, periodOffset]);
+
+  const periodRentals = useMemo(() => {
+    if (!currentPeriod) return rentals;
+
+    // Contrato ativo em qualquer dia do mês conta no período
+    return rentals.filter((rental) => {
+      const rentalStart = new Date(rental.startDate).getTime();
+      const rentalEnd = new Date(
+        rental.returnedAt ?? rental.expectedReturn,
+      ).getTime();
+      return (
+        rentalStart <= currentPeriod.end && rentalEnd >= currentPeriod.start
+      );
+    });
+  }, [rentals, currentPeriod]);
+
   const stats = useMemo(
     () => ({
-      total: rentals.length,
-      draft: rentals.filter((rental) => rental.status === 'DRAFT').length,
-      active: rentals.filter((rental) => rental.status === 'ACTIVE').length,
-      returned: rentals.filter((rental) => rental.status === 'RETURNED').length,
+      total: periodRentals.length,
+      draft: periodRentals.filter((rental) => rental.status === 'DRAFT')
+        .length,
+      active: periodRentals.filter((rental) => rental.status === 'ACTIVE')
+        .length,
+      returned: periodRentals.filter((rental) => rental.status === 'RETURNED')
+        .length,
     }),
-    [rentals],
+    [periodRentals],
   );
 
   const filteredRentals = useMemo(() => {
-    if (statusFilter === 'ALL') return rentals;
-    return rentals.filter((rental) => rental.status === statusFilter);
-  }, [rentals, statusFilter]);
+    if (statusFilter === 'ALL') return periodRentals;
+    return periodRentals.filter((rental) => rental.status === statusFilter);
+  }, [periodRentals, statusFilter]);
 
   const handleOpenCreate = () => {
     setDialogOpen(true);
@@ -95,6 +141,71 @@ export default function RentalsPage() {
           <Plus className="mr-2 h-5 w-5" />
           Nova Locação
         </Button>
+      </div>
+
+      {/* Period navigator */}
+      <div className="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        <CalendarRange className="h-4 w-4 text-primary" />
+        Período:
+        {currentPeriod ? (
+          <div className="flex items-center gap-1">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              onClick={() =>
+                setPeriodOffset((current) =>
+                  current === 'all' ? -1 : current - 1,
+                )
+              }
+              aria-label="Mês anterior"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <span className="min-w-32 text-center capitalize text-foreground">
+              {currentPeriod.label}
+            </span>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              onClick={() =>
+                setPeriodOffset((current) =>
+                  current === 'all' ? 1 : current + 1,
+                )
+              }
+              aria-label="Próximo mês"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        ) : (
+          <span className="text-foreground">Todos os períodos</span>
+        )}
+        <div className="flex items-center gap-2">
+          {periodOffset !== 0 && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-7 border-border/60 text-xs"
+              onClick={() => setPeriodOffset(0)}
+            >
+              Hoje
+            </Button>
+          )}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-7 border-border/60 text-xs"
+            onClick={() =>
+              setPeriodOffset((current) => (current === 'all' ? 0 : 'all'))
+            }
+          >
+            {periodOffset === 'all' ? 'Ver mês atual' : 'Todos os períodos'}
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -171,7 +282,7 @@ export default function RentalsPage() {
             <div className="flex items-center justify-center py-16 text-muted-foreground">
               <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Carregando locações...
             </div>
-          ) : rentals.length === 0 ? (
+          ) : rentals.length === 0 && !search.trim() ? (
             <div className="rounded-xl border border-dashed border-border/60 py-16 text-center">
               <PackageOpen className="mx-auto mb-4 h-12 w-12 text-muted-foreground/60" />
               <div className="mb-2 text-lg font-semibold text-foreground">
@@ -186,6 +297,26 @@ export default function RentalsPage() {
               >
                 <Plus className="mr-2 h-4 w-4" />
                 Nova Locação
+              </Button>
+            </div>
+          ) : periodRentals.length === 0 && rentals.length > 0 && currentPeriod ? (
+            <div className="rounded-xl border border-dashed border-border/60 py-12 text-center">
+              <div className="text-sm text-muted-foreground">
+                Nenhuma locação em{' '}
+                <span className="font-semibold capitalize text-foreground">
+                  {currentPeriod.label}
+                </span>
+                . Use as setas para navegar entre os meses ou veja todos os
+                períodos.
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="mt-4 border-border/60"
+                onClick={() => setPeriodOffset('all')}
+              >
+                Ver todos os períodos
               </Button>
             </div>
           ) : filteredRentals.length === 0 ? (

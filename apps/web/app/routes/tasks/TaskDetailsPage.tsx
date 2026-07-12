@@ -28,7 +28,7 @@ import {
   CardHeader,
   CardTitle,
 } from '~/components/ui/card';
-import { Input } from '~/components/ui/input';
+import { QuantityField } from '~/components/Form/QuantityInput';
 import { Label } from '~/components/ui/label';
 import { useCreateTaskDivergence } from '~/services/tanStackQuery/divergences';
 import {
@@ -104,16 +104,16 @@ function ItemRow({
           <Label className="text-xs text-muted-foreground">
             {locked ? 'Confirmado' : 'Contado'}
           </Label>
-          <Input
-            type="number"
-            min={0}
-            max={taskItem.requestedQuantity}
+          <QuantityField
             value={confirmedQuantity}
-            onChange={(event) =>
-              onChange(Math.max(0, Number.parseInt(event.target.value, 10) || 0))
+            minimum={0}
+            maximum={taskItem.requestedQuantity}
+            size="compact"
+            className="w-36"
+            onChange={(value) =>
+              onChange(Math.max(0, Number.parseInt(value, 10) || 0))
             }
             disabled={locked}
-            className="h-8 w-20 text-center"
           />
         </div>
       </div>
@@ -136,8 +136,6 @@ export default function TaskDetailsPage() {
   const locked = task?.status !== 'PENDENTE';
   const taskItems = task?.taskItems ?? [];
   const isEntrada = task?.type === 'ENTRADA_GALPAO';
-  // Divergência a partir da tarefa é um fluxo específico de evento (reconciliação
-  // na conferência final). Tarefas de locação exigem confirmação exata.
   const isRentalTask = Boolean(task?.rentalId ?? task?.rental);
   const typeTitle = isEntrada ? 'Entrada no Galpao' : 'Saida do Galpao';
   const confirmActionLabel = isEntrada ? 'Confirmar entrada' : 'Confirmar saida';
@@ -316,18 +314,16 @@ export default function TaskDetailsPage() {
                 <XCircle className="mr-2 h-4 w-4" />
                 Cancelar tarefa
               </Button>
-              {!isRentalTask && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="border-amber-300 text-amber-700 hover:bg-amber-50"
-                  onClick={() => setDivergenceDialog(true)}
-                  disabled={!canCreateDivergence}
-                >
-                  <AlertTriangle className="mr-2 h-4 w-4" />
-                  Criar uma divergencia
-                </Button>
-              )}
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-amber-300 text-amber-700 hover:bg-amber-50"
+                onClick={() => setDivergenceDialog(true)}
+                disabled={!canCreateDivergence}
+              >
+                <AlertTriangle className="mr-2 h-4 w-4" />
+                Criar uma divergencia
+              </Button>
               <Button
                 size="sm"
                 className="bg-green-600 text-white hover:bg-green-700"
@@ -367,15 +363,9 @@ export default function TaskDetailsPage() {
               A tarefa nao pode ser concluida com quantidade diferente da solicitada
             </div>
             <p className="mt-2 text-sm">
-              {isRentalTask ? (
-                'Ajuste a contagem para bater com o solicitado para concluir a tarefa.'
-              ) : (
-                <>
-                  Ajuste a contagem para bater com o solicitado ou use{' '}
-                  <span className="font-semibold">Criar uma divergencia</span>{' '}
-                  para relatar o problema encontrado.
-                </>
-              )}
+              Ajuste a contagem para bater com o solicitado ou use{' '}
+              <span className="font-semibold">Criar uma divergencia</span> para
+              relatar o problema encontrado.
             </p>
           </div>
         )}

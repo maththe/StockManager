@@ -67,6 +67,13 @@ export class DivergencesService {
                 },
               },
             },
+            rentalItem: {
+              include: {
+                item: {
+                  select: { id: true, name: true },
+                },
+              },
+            },
           },
         },
       },
@@ -76,9 +83,9 @@ export class DivergencesService {
       throw new NotFoundException('Tarefa nao encontrada.');
     }
 
-    if (!task.eventId) {
+    if (!task.eventId && !task.rentalId) {
       throw new BadRequestException(
-        'Divergencias so podem ser criadas a partir de tarefas de evento.',
+        'A tarefa nao esta vinculada a um evento ou locacao.',
       );
     }
 
@@ -121,10 +128,13 @@ export class DivergencesService {
         );
       }
 
-      // Tarefa de evento (garantido pelo guard acima): item sempre tem eventItem.
-      if (!taskItem.eventItem || !taskItem.eventItemId) {
+      // A linha aponta para EventItem (tarefa de evento) ou RentalItem (locação).
+      const sourceItem = taskItem.eventItem ?? taskItem.rentalItem;
+      const sourceItemId = taskItem.eventItemId ?? taskItem.rentalItemId;
+
+      if (!sourceItem || !sourceItemId) {
         throw new BadRequestException(
-          'Um dos itens da tarefa nao pertence a um evento.',
+          'Um dos itens da tarefa nao esta vinculado a um evento ou locacao.',
         );
       }
 
@@ -174,8 +184,8 @@ export class DivergencesService {
           type: DivergenceType.MISSING,
           notes: item.notes ?? null,
           tenantUuid,
-          itemId: taskItem.eventItem.item.id,
-          sourceItemId: taskItem.eventItemId,
+          itemId: sourceItem.item.id,
+          sourceItemId,
         });
       }
 
@@ -185,8 +195,8 @@ export class DivergencesService {
           type: DivergenceType.DAMAGED,
           notes: item.notes ?? null,
           tenantUuid,
-          itemId: taskItem.eventItem.item.id,
-          sourceItemId: taskItem.eventItemId,
+          itemId: sourceItem.item.id,
+          sourceItemId,
         });
       }
     }
@@ -194,8 +204,8 @@ export class DivergencesService {
     return this.prisma.$transaction(async (tx) => {
       const divergence = await tx.divergence.create({
         data: {
-          source: DivergenceSource.EVENT,
-          sourceId: task.eventId,
+          source: task.eventId ? DivergenceSource.EVENT : DivergenceSource.RENTAL,
+          sourceId: task.eventId ?? task.rentalId,
           tenantUuid,
           createdById: createdById ?? null,
           notes: input.notes?.trim() ? input.notes.trim() : null,
@@ -210,8 +220,9 @@ export class DivergencesService {
       });
 
       // Baixa imediata no acervo: a perda registrada sai do estoque total agora.
-      // A conferência final do evento abate esse valor (previousLoss) para não
-      // debitar duas vezes, e a manutenção de item avariado repõe ao concluir.
+      // Em eventos, a conferência final abate esse valor (previousLoss); em
+      // locações, a devolução/cancelamento desconta a perda do retorno pendente.
+      // A manutenção de item avariado repõe ao concluir, em ambos os casos.
       const lossByItemId = new Map<string, number>();
       for (const item of divergenceItems) {
         lossByItemId.set(item.itemId, (lossByItemId.get(item.itemId) ?? 0) + item.quantity);

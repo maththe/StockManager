@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { Rental, RentalStatus, TaskStatus, TaskType } from '@prisma/client';
+import { DivergenceSource, Rental, RentalStatus, TaskStatus, TaskType } from '@prisma/client';
 import { PrismaService } from 'src/services/prisma.service';
 import { TasksService } from 'src/tasks/tasks.service';
 import { nextSequentialCode } from 'src/common/code.util';
@@ -203,6 +203,33 @@ export class RentalsService {
     return this.prisma.rental.delete({ where: { id }, include: { client: true } });
   }
 
+  // Perdas registradas em divergências desta locação, por item da locação.
+  // Essas unidades já saíram do estoque total e não voltam ao disponível.
+  private async getRecordedLossByRentalItemId(
+    rentalId: string,
+    rentalItemIds: string[],
+    tenantUuid: string,
+  ) {
+    const divergenceItems = await this.prisma.divergenceItem.findMany({
+      where: {
+        tenantUuid,
+        sourceItemId: { in: rentalItemIds },
+        divergence: { source: DivergenceSource.RENTAL, sourceId: rentalId },
+      },
+    });
+
+    const lossByRentalItemId = new Map<string, number>();
+    for (const divergenceItem of divergenceItems) {
+      if (!divergenceItem.sourceItemId) continue;
+      lossByRentalItemId.set(
+        divergenceItem.sourceItemId,
+        (lossByRentalItemId.get(divergenceItem.sourceItemId) ?? 0) + divergenceItem.quantity,
+      );
+    }
+
+    return lossByRentalItemId;
+  }
+
   async cancel(id: string, tenantUuid: string) {
     const rental = await this.findOne(id, tenantUuid);
     if (!rental) {
@@ -217,14 +244,31 @@ export class RentalsService {
       throw new BadRequestException('Não é possível cancelar uma locação já devolvida.');
     }
 
+    const lossByRentalItemId = await this.getRecordedLossByRentalItemId(
+      id,
+      rental.rentalItems.map((rentalItem) => rentalItem.id),
+      tenantUuid,
+    );
+
     return this.prisma.$transaction(async (tx) => {
+      await tx.task.updateMany({
+        where: { rentalId: id, tenantUuid, status: TaskStatus.PENDENTE },
+        data: { status: TaskStatus.CANCELADA },
+      });
+
       for (const rentalItem of rental.rentalItems) {
-        await tx.item.update({
-          where: { id: rentalItem.itemId },
-          data: {
-            availableQuantity: { increment: rentalItem.quantity - rentalItem.returnedQuantity },
-          },
-        });
+        const recordedLoss = lossByRentalItemId.get(rentalItem.id) ?? 0;
+        const pendingReturn = Math.max(
+          0,
+          rentalItem.quantity - rentalItem.returnedQuantity - recordedLoss,
+        );
+
+        if (pendingReturn > 0) {
+          await tx.item.update({
+            where: { id: rentalItem.itemId },
+            data: { availableQuantity: { increment: pendingReturn } },
+          });
+        }
       }
 
       return tx.rental.update({
@@ -249,9 +293,25 @@ export class RentalsService {
       throw new BadRequestException('Não é possível devolver uma locação cancelada.');
     }
 
+    const lossByRentalItemId = await this.getRecordedLossByRentalItemId(
+      id,
+      rental.rentalItems.map((rentalItem) => rentalItem.id),
+      tenantUuid,
+    );
+
     return this.prisma.$transaction(async (tx) => {
+      await tx.task.updateMany({
+        where: { rentalId: id, tenantUuid, status: TaskStatus.PENDENTE },
+        data: { status: TaskStatus.CANCELADA },
+      });
+
       for (const rentalItem of rental.rentalItems) {
-        const pendingReturn = rentalItem.quantity - rentalItem.returnedQuantity;
+        const recordedLoss = lossByRentalItemId.get(rentalItem.id) ?? 0;
+        const pendingReturn = Math.max(
+          0,
+          rentalItem.quantity - rentalItem.returnedQuantity - recordedLoss,
+        );
+
         if (pendingReturn > 0) {
           await tx.item.update({
             where: { id: rentalItem.itemId },
@@ -259,7 +319,9 @@ export class RentalsService {
           });
           await tx.rentalItem.update({
             where: { id: rentalItem.id },
-            data: { returnedQuantity: rentalItem.quantity },
+            data: {
+              returnedQuantity: rentalItem.returnedQuantity + pendingReturn,
+            },
           });
         }
       }
@@ -442,6 +504,17 @@ export class RentalsService {
 
     if (rentalItem.rental.status === "CANCELLED" || rentalItem.rental.status === "RETURNED") {
       throw new BadRequestException('Não é possível remover itens de uma locação encerrada.');
+    }
+
+    // Divergências já debitaram o estoque total; apagar o item junto corromperia a contagem
+    const divergenceCount = await this.prisma.divergenceItem.count({
+      where: { sourceItemId: rentalItem.id, tenantUuid },
+    });
+
+    if (divergenceCount > 0) {
+      throw new BadRequestException(
+        'Este item possui divergências registradas. Trate-as antes de removê-lo da locação.',
+      );
     }
 
     return this.prisma.$transaction(async (tx) => {

@@ -85,6 +85,7 @@ export const useCreateTaskDivergence = () => {
       queryClient.invalidateQueries({ queryKey: ['divergences'] });
       queryClient.invalidateQueries({ queryKey: ['events'] });
       queryClient.invalidateQueries({ queryKey: ['event-items'] });
+      queryClient.invalidateQueries({ queryKey: ['rentals'] });
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       queryClient.invalidateQueries({ queryKey: ['tasks', taskId] });
       // A divergência dá baixa imediata no estoque total do item

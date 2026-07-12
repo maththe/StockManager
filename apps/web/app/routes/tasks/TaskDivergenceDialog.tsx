@@ -10,7 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '~/components/ui/dialog';
-import { Input } from '~/components/ui/input';
+import { QuantityField } from '~/components/Form/QuantityInput';
 import { Label } from '~/components/ui/label';
 import type { CreateTaskDivergenceInput, TaskItem } from '~/types/task';
 import { getTaskItemName } from './task-helpers';
@@ -158,32 +158,32 @@ export function TaskDivergenceDialog({
                 <div className="mt-3 grid gap-3 sm:grid-cols-2">
                   <label className="space-y-1 text-xs font-medium text-muted-foreground">
                     Faltantes
-                    <Input
-                      type="number"
-                      min={0}
-                      max={candidate.difference}
+                    <QuantityField
                       value={draft?.missingQuantity ?? 0}
-                      onChange={(event) =>
+                      minimum={0}
+                      maximum={candidate.difference}
+                      size="compact"
+                      onChange={(value) =>
                         handleDraftChange(
                           candidate.taskItem.id,
                           'missingQuantity',
-                          event.target.value,
+                          value,
                         )
                       }
                     />
                   </label>
                   <label className="space-y-1 text-xs font-medium text-muted-foreground">
                     Avariados
-                    <Input
-                      type="number"
-                      min={0}
-                      max={candidate.difference}
+                    <QuantityField
                       value={draft?.damagedQuantity ?? 0}
-                      onChange={(event) =>
+                      minimum={0}
+                      maximum={candidate.difference}
+                      size="compact"
+                      onChange={(value) =>
                         handleDraftChange(
                           candidate.taskItem.id,
                           'damagedQuantity',
-                          event.target.value,
+                          value,
                         )
                       }
                     />
