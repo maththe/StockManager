@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import {
   AlertTriangle,
   ArrowLeft,
+  ArrowRight,
   CheckCircle2,
   Loader2,
   Package,
@@ -44,6 +45,11 @@ import {
   TaskDivergenceDialog,
   type TaskDivergenceCandidate,
 } from './TaskDivergenceDialog';
+import {
+  getTaskItemName,
+  getTaskItemPlanned,
+  getTaskSource,
+} from './task-helpers';
 
 const statusLabel = {
   PENDENTE: 'Pendente',
@@ -72,19 +78,22 @@ function ItemRow({
   locked: boolean;
   isEntrada: boolean;
 }) {
+  const plannedTotal = getTaskItemPlanned(taskItem);
   return (
     <div className="flex items-center gap-4 rounded-lg border border-border/50 p-4">
       <Package className="h-5 w-5 shrink-0 text-muted-foreground" />
       <div className="min-w-0 flex-1">
         <p className="truncate font-medium text-foreground">
-          {taskItem.eventItem.item.name}
+          {getTaskItemName(taskItem)}
         </p>
         <p className="text-xs text-muted-foreground">
           {isEntrada ? 'Retorno declarado pelo decorador' : 'Solicitado nesta tarefa'}:{' '}
           <span className="font-semibold text-foreground">
             {taskItem.requestedQuantity}
-          </span>{' '}
-          · Planejado total do evento: {taskItem.eventItem.plannedQuantity}
+          </span>
+          {plannedTotal !== null && (
+            <> · Total reservado: {plannedTotal}</>
+          )}
         </p>
       </div>
       <div className="flex items-center gap-2">
@@ -127,6 +136,9 @@ export default function TaskDetailsPage() {
   const locked = task?.status !== 'PENDENTE';
   const taskItems = task?.taskItems ?? [];
   const isEntrada = task?.type === 'ENTRADA_GALPAO';
+  // Divergência a partir da tarefa é um fluxo específico de evento (reconciliação
+  // na conferência final). Tarefas de locação exigem confirmação exata.
+  const isRentalTask = Boolean(task?.rentalId ?? task?.rental);
   const typeTitle = isEntrada ? 'Entrada no Galpao' : 'Saida do Galpao';
   const confirmActionLabel = isEntrada ? 'Confirmar entrada' : 'Confirmar saida';
   const confirmDialogTitle = isEntrada
@@ -152,11 +164,11 @@ export default function TaskDetailsPage() {
           const quantity = getQty(taskItem);
 
           if (!Number.isInteger(quantity) || quantity < 0) {
-            return `${taskItem.eventItem.item.name}: a quantidade deve ser um inteiro maior ou igual a zero.`;
+            return `${getTaskItemName(taskItem)}: a quantidade deve ser um inteiro maior ou igual a zero.`;
           }
 
           if (quantity > taskItem.requestedQuantity) {
-            return `${taskItem.eventItem.item.name}: a quantidade nao pode ser maior que ${taskItem.requestedQuantity}.`;
+            return `${getTaskItemName(taskItem)}: a quantidade nao pode ser maior que ${taskItem.requestedQuantity}.`;
           }
 
           return null;
@@ -272,13 +284,24 @@ export default function TaskDetailsPage() {
               </span>
             </div>
             <h1 className="mt-1 text-2xl font-bold tracking-tight">
-              {typeTitle} — {task.event?.eventName}
+              {typeTitle} — {getTaskSource(task).label}
             </h1>
-            {task.assignedTo && (
-              <p className="mt-1 text-sm text-muted-foreground">
-                Responsavel: {task.assignedTo.name}
-              </p>
-            )}
+            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
+              {getTaskSource(task).href && (
+                <Link
+                  to={getTaskSource(task).href!}
+                  className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
+                >
+                  {isRentalTask ? 'Ver locação' : 'Ver evento'}
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
+              )}
+              {task.assignedTo && (
+                <p className="text-sm text-muted-foreground">
+                  Responsavel: {task.assignedTo.name}
+                </p>
+              )}
+            </div>
           </div>
 
           {!locked && (
@@ -293,16 +316,18 @@ export default function TaskDetailsPage() {
                 <XCircle className="mr-2 h-4 w-4" />
                 Cancelar tarefa
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="border-amber-300 text-amber-700 hover:bg-amber-50"
-                onClick={() => setDivergenceDialog(true)}
-                disabled={!canCreateDivergence}
-              >
-                <AlertTriangle className="mr-2 h-4 w-4" />
-                Criar uma divergencia
-              </Button>
+              {!isRentalTask && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-amber-300 text-amber-700 hover:bg-amber-50"
+                  onClick={() => setDivergenceDialog(true)}
+                  disabled={!canCreateDivergence}
+                >
+                  <AlertTriangle className="mr-2 h-4 w-4" />
+                  Criar uma divergencia
+                </Button>
+              )}
               <Button
                 size="sm"
                 className="bg-green-600 text-white hover:bg-green-700"
@@ -342,9 +367,15 @@ export default function TaskDetailsPage() {
               A tarefa nao pode ser concluida com quantidade diferente da solicitada
             </div>
             <p className="mt-2 text-sm">
-              Ajuste a contagem para bater com o solicitado ou use{' '}
-              <span className="font-semibold">Criar uma divergencia</span> para
-              relatar o problema encontrado.
+              {isRentalTask ? (
+                'Ajuste a contagem para bater com o solicitado para concluir a tarefa.'
+              ) : (
+                <>
+                  Ajuste a contagem para bater com o solicitado ou use{' '}
+                  <span className="font-semibold">Criar uma divergencia</span>{' '}
+                  para relatar o problema encontrado.
+                </>
+              )}
             </p>
           </div>
         )}

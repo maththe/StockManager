@@ -190,7 +190,7 @@ export function ItemImageUploadDialog({
         onOpenChange(open);
       }}
     >
-      <DialogContent className="max-w-xl">
+      <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>Upload da imagem</DialogTitle>
           <DialogDescription>

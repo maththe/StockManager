@@ -13,8 +13,10 @@ export class MaintenanceService {
     tenantUuid: string,
     tx: Prisma.TransactionClient,
   ): Promise<string> {
-    // Serializa a geração por tenant dentro da transação para não gerar código duplicado
-    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${`maintenance-code:${tenantUuid}`}))`;
+    // Serializa a geração por tenant dentro da transação para não gerar código duplicado.
+    // $executeRaw (e não $queryRaw): pg_advisory_xact_lock retorna void e o adapter-pg
+    // falha ao desserializar essa coluna; executeRaw roda o comando sem ler retorno.
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`maintenance-code:${tenantUuid}`}))`;
 
     const year = new Date().getFullYear();
     const prefix = `MAN-${year}-`;

@@ -10,7 +10,6 @@ import {
   PanelLeftOpen,
   Settings,
   ShieldUser,
-  Tags,
   Users,
 } from 'lucide-react';
 import { NavLink, Outlet, useNavigate } from 'react-router';
@@ -24,7 +23,6 @@ import { clearSession } from '~/services/axios/api';
 
 const navItems = [
   { to: '/dashboard/inventory', icon: Box, label: 'Inventario' },
-  { to: '/dashboard/categories', label: 'Categorias', icon: Tags },
   { to: '/dashboard/clients', label: 'Clientes', icon: Users },
   { to: '/dashboard/users', label: 'Usuarios', icon: ShieldUser },
   { to: '/dashboard/events', label: 'Eventos', icon: CalendarDays },

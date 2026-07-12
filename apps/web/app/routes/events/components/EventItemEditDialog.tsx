@@ -57,7 +57,7 @@ export function EventItemEditDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md overflow-hidden border border-border/60 bg-background p-0">
+      <DialogContent className="overflow-hidden border border-border/60 bg-background p-0 sm:max-w-md">
         <div className="flex items-center gap-4 border-b border-border/60 bg-muted/30 p-5">
           <div className="h-20 w-20 flex-shrink-0 overflow-hidden rounded-2xl border border-border/40 bg-background">
             <ItemThumbnail

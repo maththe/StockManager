@@ -23,12 +23,13 @@ interface EventItemsQuantityDialogProps {
   canConfirmAdd: boolean;
   isCreating: boolean;
   onConfirmAdd: () => void;
+  description?: string;
 }
 
 export function EventItemsQuantityDialog(props: EventItemsQuantityDialogProps) {
   return (
     <Dialog open={props.open} onOpenChange={props.onOpenChange}>
-      <DialogContent className="max-w-2xl overflow-hidden border border-border/60 bg-background p-0">
+      <DialogContent className="overflow-hidden border border-border/60 bg-background p-0 sm:max-w-2xl">
         <div className="grid gap-0 sm:grid-cols-[0.92fr_1.08fr]">
           <div className="min-h-72 bg-muted">
             {props.activeItem && (
@@ -48,8 +49,8 @@ export function EventItemsQuantityDialog(props: EventItemsQuantityDialogProps) {
                 Quantidade desejada?
               </DialogTitle>
               <DialogDescription className="leading-6">
-                Confirme quantas unidades deste item devem ser reservadas para o
-                evento antes de adicionar na lista.
+                {props.description ??
+                  'Confirme quantas unidades deste item devem ser reservadas para o evento antes de adicionar na lista.'}
               </DialogDescription>
             </DialogHeader>
             {props.activeItem && (

@@ -32,7 +32,9 @@
       "PowerShell(corepack *)",
       "Bash(./node_modules/.bin/tsc --noEmit -p tsconfig.json)",
       "Bash(pnpm install *)",
-      "Bash(pnpm build *)"
+      "Bash(pnpm build *)",
+      "PowerShell(pnpm typecheck *)",
+      "PowerShell(cd ..\\\\api; $p = Start-Process -FilePath \"node\" -ArgumentList \"node_modules/@nestjs/cli/bin/nest.js start\" -RedirectStandardOutput boot.log -RedirectStandardError boot.err.log -PassThru -NoNewWindow; Start-Sleep -Seconds 25; if \\(-not $p.HasExited\\) { Write-Output \"STILL_RUNNING \\(boot ok\\)\"; Stop-Process -Id $p.Id -Force } else { Write-Output \"EXITED code=$\\($p.ExitCode\\)\" })"
     ]
   }
 }

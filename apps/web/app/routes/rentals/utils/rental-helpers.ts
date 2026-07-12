@@ -1,4 +1,5 @@
-import type { Rental, RentalStatus } from '~/types/rental';
+import type { Rental, RentalItem, RentalStatus } from '~/types/rental';
+import type { Item } from '~/types/item';
 
 export const rentalStatusLabel: Record<RentalStatus, string> = {
   DRAFT: 'Rascunho',
@@ -47,6 +48,57 @@ export const formatRentalDate = (value?: string | null) => {
     timeStyle: 'short',
   }).format(new Date(value));
 };
+
+export type SelectedRentalItem = RentalItem & {
+  inventoryItem?: Item;
+};
+
+export function getRentalQuantityBounds(rentalItem: RentalItem) {
+  const minimum = Math.max(1, rentalItem.returnedQuantity);
+  const maximum = rentalItem.item.availableQuantity + rentalItem.quantity;
+  return { minimum, maximum };
+}
+
+export function getRentalQuantityError(rentalItem: RentalItem, value: string) {
+  const nextValue = Number(value);
+  const { minimum, maximum } = getRentalQuantityBounds(rentalItem);
+  if (!Number.isFinite(nextValue) || !Number.isInteger(nextValue))
+    return 'Informe um número inteiro.';
+  if (nextValue < minimum)
+    return `A quantidade mínima para este item é ${minimum}.`;
+  if (nextValue > maximum)
+    return `Estoque insuficiente. O máximo permitido é ${maximum}.`;
+  return null;
+}
+
+export function groupRentalItemsByCategory(
+  rentalItems: RentalItem[],
+  itemMap: Map<string, Item>,
+  categoryMap: Map<string, string>,
+) {
+  const groups = new Map<string, SelectedRentalItem[]>();
+
+  for (const rentalItem of rentalItems) {
+    const inventoryItem = itemMap.get(rentalItem.itemId);
+    const categoryName = inventoryItem
+      ? (categoryMap.get(inventoryItem.categoryId) ?? 'Sem categoria')
+      : 'Sem categoria';
+
+    const entry: SelectedRentalItem = { ...rentalItem, inventoryItem };
+    const current = groups.get(categoryName) ?? [];
+    current.push(entry);
+    groups.set(categoryName, current);
+  }
+
+  return Array.from(groups.entries())
+    .map(([categoryName, categoryItems]) => ({
+      categoryName,
+      items: categoryItems.sort((left, right) =>
+        left.item.name.localeCompare(right.item.name),
+      ),
+    }))
+    .sort((left, right) => left.categoryName.localeCompare(right.categoryName));
+}
 
 export const summarizeRentalItems = (rental: Rental) => {
   const totalUnits = rental.rentalItems.reduce(

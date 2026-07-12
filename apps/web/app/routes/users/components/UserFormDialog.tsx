@@ -55,7 +55,7 @@ export function UserFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg rounded-2xl bg-card/75 backdrop-blur-md">
+      <DialogContent className="rounded-2xl bg-card/75 backdrop-blur-md sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{user ? 'Editar Usuario' : 'Novo Usuario'}</DialogTitle>
         </DialogHeader>

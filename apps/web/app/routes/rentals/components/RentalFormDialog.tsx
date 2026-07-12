@@ -29,6 +29,7 @@ import type {
   CreateRentalInput,
   Rental,
   RentalStatus,
+  UpdateRentalInput,
 } from '~/types/rental';
 import {
   rentalStatusDescription,
@@ -47,7 +48,7 @@ interface RentalFormDialogProps {
   clients: Array<{ id: string; companyName: string }>;
   isLoading: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (data: CreateRentalInput) => Promise<void>;
+  onSubmit: (data: CreateRentalInput | UpdateRentalInput) => Promise<void>;
 }
 
 type FormValues = {
@@ -112,12 +113,17 @@ export function RentalFormDialog({
   }, [form, open, rental]);
 
   const handleSubmit = async (data: FormValues) => {
+    const location = data.location.trim();
+    const notes = data.notes.trim();
+
     await onSubmit({
       clientId: data.clientId,
       startDate: toIsoString(data.startDate),
       expectedReturn: toIsoString(data.expectedReturn),
-      location: data.location || undefined,
-      notes: data.notes || undefined,
+      // Na edição, campo esvaziado precisa enviar null para limpar no banco
+      // (undefined faz o backend manter o valor antigo).
+      location: location || (isEdit ? null : undefined),
+      notes: notes || (isEdit ? null : undefined),
       status: data.status,
     });
     if (!isEdit) {
@@ -130,7 +136,7 @@ export function RentalFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[92vh] max-w-4xl overflow-y-auto rounded-2xl bg-card/75 backdrop-blur-md">
+      <DialogContent className="max-h-[92vh] overflow-y-auto rounded-2xl bg-card/75 backdrop-blur-md sm:max-w-4xl">
         <DialogHeader className="space-y-3 border-b border-border/40 pb-4">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2.5">
@@ -195,6 +201,17 @@ export function RentalFormDialog({
                 <InputDate
                   name="expectedReturn"
                   label="Devolução prevista"
+                  min={form.watch('startDate')}
+                  registerOptions={{
+                    validate: (value: string) => {
+                      const start = form.getValues('startDate');
+                      if (!value || !start) return true;
+                      return (
+                        new Date(value) >= new Date(start) ||
+                        'A devolução prevista deve ser igual ou posterior ao início.'
+                      );
+                    },
+                  }}
                   required
                 />
               </div>

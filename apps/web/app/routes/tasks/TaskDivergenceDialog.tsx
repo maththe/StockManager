@@ -13,6 +13,7 @@ import {
 import { Input } from '~/components/ui/input';
 import { Label } from '~/components/ui/label';
 import type { CreateTaskDivergenceInput, TaskItem } from '~/types/task';
+import { getTaskItemName } from './task-helpers';
 
 export interface TaskDivergenceCandidate {
   taskItem: TaskItem;
@@ -72,7 +73,7 @@ export function TaskDivergenceDialog({
           const total = missingQuantity + damagedQuantity;
 
           if (total !== candidate.difference) {
-            return `${candidate.taskItem.eventItem.item.name}: faltante + avariado deve ser igual a ${candidate.difference}.`;
+            return `${getTaskItemName(candidate.taskItem)}: faltante + avariado deve ser igual a ${candidate.difference}.`;
           }
 
           return null;
@@ -121,7 +122,7 @@ export function TaskDivergenceDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto border border-border/60 bg-background">
+      <DialogContent className="max-h-[90vh] overflow-y-auto border border-border/60 bg-background sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl">
             <AlertTriangle className="h-5 w-5 text-amber-500" />
@@ -144,7 +145,7 @@ export function TaskDivergenceDialog({
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
                     <div className="font-semibold text-foreground">
-                      {candidate.taskItem.eventItem.item.name}
+                      {getTaskItemName(candidate.taskItem)}
                     </div>
                     <div className="text-xs text-muted-foreground">
                       Solicitado: {candidate.taskItem.requestedQuantity} ·

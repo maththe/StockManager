@@ -56,7 +56,7 @@ export function SelectForm({
 
   const rules: RegisterOptions = { ...(registerOptions ?? {}) };
   if (required && !rules.required) {
-    rules.required = 'Selecione uma opcao.';
+    rules.required = 'Selecione uma opção.';
   }
 
   return (
@@ -100,7 +100,7 @@ export function SelectForm({
             <SelectContent>
               {options.length === 0 ? (
                 <div className="px-2 py-6 text-center text-xs text-muted-foreground">
-                  Nenhuma opcao disponivel
+                  Nenhuma opção disponível
                 </div>
               ) : (
                 options.map((option) => (

@@ -25,8 +25,7 @@ export function SelectedGroup(props: SelectedGroupProps) {
         <span className="h-px flex-1 bg-border/60" />
       </div>
 
-      {/* GRID AQUI */}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
         {props.group.items.map((eventItem) => (
           <SelectedItemCard
             key={eventItem.id}

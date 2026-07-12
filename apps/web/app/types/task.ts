@@ -7,20 +7,34 @@ export interface TaskItemEventItem {
   item: { id: string; name: string };
 }
 
+export interface TaskItemRentalItem {
+  id: string;
+  quantity: number;
+  item: { id: string; name: string };
+}
+
 export interface TaskItem {
   id: string;
   requestedQuantity: number;
   confirmedQuantity: number;
   confirmed: boolean;
   notes?: string;
-  eventItemId: string;
-  eventItem: TaskItemEventItem;
+  eventItemId?: string | null;
+  eventItem?: TaskItemEventItem | null;
+  rentalItemId?: string | null;
+  rentalItem?: TaskItemRentalItem | null;
 }
 
 export interface TaskEvent {
   id: string;
   eventName: string;
   startDate?: string;
+}
+
+export interface TaskRental {
+  id: string;
+  rentalCode: string;
+  client?: { companyName: string };
 }
 
 export interface TaskUser {
@@ -35,8 +49,10 @@ export interface Task {
   status: TaskStatus;
   notes?: string;
   tenantUuid: string;
-  eventId: string;
-  event?: TaskEvent;
+  eventId?: string | null;
+  event?: TaskEvent | null;
+  rentalId?: string | null;
+  rental?: TaskRental | null;
   assignedTo?: TaskUser;
   taskItems?: TaskItem[];
   completedAt?: string;

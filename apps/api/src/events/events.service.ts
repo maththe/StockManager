@@ -409,6 +409,7 @@ export class EventsService {
       const searchTerm = search.trim().toLowerCase();
       where.OR = [
         { eventName: { contains: searchTerm, mode: 'insensitive' } },
+        { eventLocation: { contains: searchTerm, mode: 'insensitive' } },
         { client: { companyName: { contains: searchTerm, mode: 'insensitive' } } },
         { responsible: { name: { contains: searchTerm, mode: 'insensitive' } } },
       ];

@@ -78,7 +78,7 @@ export function ItemFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg rounded-2xl bg-card/75 backdrop-blur-md dark:bg-card/60">
+      <DialogContent className="rounded-2xl bg-card/75 backdrop-blur-md dark:bg-card/60 sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{item ? 'Editar Item' : 'Novo Item'}</DialogTitle>
         </DialogHeader>

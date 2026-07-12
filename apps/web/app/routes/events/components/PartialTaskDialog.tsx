@@ -46,6 +46,7 @@ export function PartialTaskDialog({
       if (task.status === 'CANCELADA') continue;
       if (task.type !== 'SAIDA_GALPAO') continue;
       for (const taskItem of task.taskItems ?? []) {
+        if (!taskItem.eventItemId) continue;
         const current = map.get(taskItem.eventItemId) ?? 0;
         map.set(taskItem.eventItemId, current + taskItem.requestedQuantity);
       }
@@ -135,7 +136,7 @@ export function PartialTaskDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto border border-border/60 bg-background">
+      <DialogContent className="max-h-[90vh] overflow-y-auto border border-border/60 bg-background sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl">
             <PackagePlus className="h-5 w-5 text-primary" />

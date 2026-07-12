@@ -52,6 +52,12 @@ export class RentalsController {
     return this.rentalsService.remove(id, user.tenantUuid);
   }
 
+  @Post(':id/tasks')
+  async gerarTarefaGalpao(@Param('id') id: string, @Req() req: Request) {
+    const user = (req as any).user;
+    return this.rentalsService.gerarTarefaGalpao(id, user.tenantUuid, user.sub);
+  }
+
   @Post(':id/items')
   async addItem(@Param('id') id: string, @Body() dto: CreateRentalItemInput, @Req() req: Request) {
     const user = (req as any).user;

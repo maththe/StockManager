@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import {
+  AlertTriangle,
   ArrowLeft,
   Ban,
   Building2,
@@ -10,6 +11,7 @@ import {
   FileDown,
   Loader2,
   MapPin,
+  MoreHorizontal,
   Package,
   PackagePlus,
   Play,
@@ -30,6 +32,13 @@ import {
   AlertDialogTitle,
 } from '~/components/ui/alert-dialog';
 import { Button } from '~/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '~/components/ui/dropdown-menu';
 import { showErrorToast, showSuccessToast } from '~/components/ui/toast';
 import {
   Card,
@@ -64,15 +73,17 @@ import type { CreatePartialTaskInput } from '~/types/task';
 
 import { EventCompleteDialog } from './components/EventCompleteDialog';
 import { EventFormDialog } from './components/EventFormDialog';
+import { EventItemDivergenceBadges } from './components/EventItemDivergenceBadges';
+import { EventStatusStepper } from './components/EventStatusStepper';
 import { PartialTaskDialog } from './components/PartialTaskDialog';
 import { useCreatePartialTask, useTasks } from '~/services/tanStackQuery/tasks';
 import { EventItemEditDialog } from './components/EventItemEditDialog';
 import { ItemThumbnail } from './components/ItemThumbnail';
 import { downloadEventPdf } from './utils/eventPdf';
 import {
-  eventStatusClassName,
-  eventStatusLabel,
   formatEventDate,
+  getDivergenceQuantity,
+  groupEventItemsByCategory,
   type SelectedEventItem,
 } from './utils/utils';
 
@@ -241,38 +252,26 @@ export default function EventDetailsPage() {
     [items],
   );
 
-  const groupedItems = useMemo(() => {
-    const groups = new Map<string, SelectedEventItem[]>();
-
-    for (const eventItem of eventItems) {
-      const inventoryItem = itemMap.get(eventItem.itemId);
-      const categoryName = inventoryItem
-        ? (categoryMap.get(inventoryItem.categoryId) ?? 'Sem categoria')
-        : 'Sem categoria';
-
-      const entry: SelectedEventItem = { ...eventItem, inventoryItem };
-      const current = groups.get(categoryName) ?? [];
-      current.push(entry);
-      groups.set(categoryName, current);
-    }
-
-    return Array.from(groups.entries())
-      .map(([categoryName, categoryItems]) => ({
-        categoryName,
-        items: categoryItems.sort((left, right) =>
-          left.item.name.localeCompare(right.item.name),
-        ),
-      }))
-      .sort((left, right) =>
-        left.categoryName.localeCompare(right.categoryName),
-      );
-  }, [eventItems, itemMap, categoryMap]);
+  const groupedItems = useMemo(
+    () => groupEventItemsByCategory(eventItems, itemMap, categoryMap),
+    [eventItems, itemMap, categoryMap],
+  );
 
   const totalReservedUnits = useMemo(
     () =>
       eventItems.reduce(
         (total, current) => total + (current.plannedQuantity ?? 0),
         0,
+      ),
+    [eventItems],
+  );
+
+  const itemsWithDivergences = useMemo(
+    () =>
+      eventItems.filter(
+        (eventItem) =>
+          getDivergenceQuantity(eventItem, 'MISSING') > 0 ||
+          getDivergenceQuantity(eventItem, 'DAMAGED') > 0,
       ),
     [eventItems],
   );
@@ -357,11 +356,9 @@ export default function EventDetailsPage() {
               <h1 className="text-3xl font-bold tracking-tight text-foreground">
                 {event.eventName}
               </h1>
-              <span
-                className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${eventStatusClassName[event.status]}`}
-              >
-                {eventStatusLabel[event.status]}
-              </span>
+            </div>
+            <div className="mt-3">
+              <EventStatusStepper status={event.status} />
             </div>
           </div>
 
@@ -385,19 +382,25 @@ export default function EventDetailsPage() {
               </Button>
             ) : event.status === 'COMPLETED' ? null : (
               <>
-                {event.status === 'PLANNING' &&
-                  (eventItems.length > 0) &&
-                  canManageTasks && (
+                {event.status === 'PLANNING' && canManageTasks && (
+                  <span
+                    title={
+                      eventItems.length === 0
+                        ? 'Adicione ao menos um item reservado para iniciar o evento.'
+                        : undefined
+                    }
+                  >
                     <Button
                       type="button"
-                      variant="outline"
                       size="sm"
-                      className="border-blue-200/60 text-blue-600 transition-colors hover:bg-blue-50 hover:text-blue-700 dark:border-blue-900/50 dark:hover:bg-blue-950"
+                      className="bg-gradient-to-r from-primary to-secondary font-medium text-white shadow-md transition-all hover:shadow-lg disabled:opacity-60"
                       onClick={() =>
                         setPendingAction({ type: 'start', event })
                       }
                       disabled={
-                        startingId === event.id || Boolean(pendingAction)
+                        eventItems.length === 0 ||
+                        startingId === event.id ||
+                        Boolean(pendingAction)
                       }
                     >
                       {startingId === event.id ? (
@@ -407,29 +410,13 @@ export default function EventDetailsPage() {
                       )}
                       Iniciar evento
                     </Button>
-                  )}
-                {(event.status === 'PLANNING' ||
-                  event.status === 'IN_PROGRESS') &&
-                  eventItems.length > 0 &&
-                  canManageTasks && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="border-primary/40 text-primary transition-colors hover:bg-primary/10"
-                      onClick={() => setPartialTaskDialogOpen(true)}
-                      disabled={Boolean(pendingAction)}
-                    >
-                      <PlusSquare className="mr-2 h-4 w-4" />
-                      Criar tarefa parcial
-                    </Button>
-                  )}
-                {canManageTasks && (
+                  </span>
+                )}
+                {event.status === 'IN_PROGRESS' && canManageTasks && (
                   <Button
                     type="button"
-                    variant="outline"
                     size="sm"
-                    className="border-emerald-200/60 text-emerald-600 transition-colors hover:bg-emerald-50 hover:text-emerald-700 dark:border-emerald-900/50 dark:hover:bg-emerald-950"
+                    className="bg-gradient-to-r from-primary to-secondary font-medium text-white shadow-md transition-all hover:shadow-lg"
                     onClick={() =>
                       setPendingAction({ type: 'complete', event })
                     }
@@ -445,35 +432,67 @@ export default function EventDetailsPage() {
                     Concluir
                   </Button>
                 )}
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="border-amber-200/60 text-amber-600 transition-colors hover:bg-amber-50 hover:text-amber-700 dark:border-amber-900/50 dark:hover:bg-amber-950"
-                  onClick={() => setPendingAction({ type: 'cancel', event })}
-                  disabled={
-                    cancellingId === event.id || Boolean(pendingAction)
-                  }
-                >
-                  {cancellingId === event.id ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Ban className="mr-2 h-4 w-4" />
-                  )}
-                  Cancelar
-                </Button>
-                {canManageTasks && (
+                {eventItems.length > 0 && canManageTasks && (
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="border-border/60 transition-colors hover:bg-primary/10 hover:text-primary"
-                    onClick={() => setEditDialogOpen(true)}
+                    className="border-primary/40 text-primary transition-colors hover:bg-primary/10"
+                    onClick={() => setPartialTaskDialogOpen(true)}
+                    disabled={Boolean(pendingAction)}
                   >
-                    <Edit2 className="mr-2 h-4 w-4" />
-                    Editar
+                    <PlusSquare className="mr-2 h-4 w-4" />
+                    Criar tarefa parcial
                   </Button>
                 )}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="border-border/60"
+                      aria-label="Mais ações"
+                      disabled={Boolean(pendingAction)}
+                    >
+                      {cancellingId === event.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <MoreHorizontal className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    {canManageTasks && (
+                      <DropdownMenuItem
+                        onSelect={() => setEditDialogOpen(true)}
+                      >
+                        <Edit2 />
+                        Editar evento
+                      </DropdownMenuItem>
+                    )}
+                    {event.status === 'PLANNING' && canManageTasks && (
+                      <DropdownMenuItem
+                        onSelect={() =>
+                          setPendingAction({ type: 'complete', event })
+                        }
+                      >
+                        <CheckCircle2 />
+                        Concluir evento
+                      </DropdownMenuItem>
+                    )}
+                    {canManageTasks && <DropdownMenuSeparator />}
+                    <DropdownMenuItem
+                      className="text-destructive focus:bg-destructive/10 focus:text-destructive"
+                      onSelect={() =>
+                        setPendingAction({ type: 'cancel', event })
+                      }
+                    >
+                      <Ban />
+                      Cancelar evento
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </>
             )}
           </div>
@@ -528,6 +547,77 @@ export default function EventDetailsPage() {
           </div>
         </div>
       </div>
+
+      {/* Divergências da conferência */}
+      {event.status === 'COMPLETED' && itemsWithDivergences.length > 0 && (
+        <Card className="border-amber-300/40 bg-amber-50/60 shadow-sm dark:bg-amber-950/20">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-lg font-bold text-amber-700 dark:text-amber-400">
+              <AlertTriangle className="h-5 w-5" />
+              Divergências da conferência
+            </CardTitle>
+            <CardDescription>
+              Itens com faltas ou avarias registradas na conclusão do evento.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {itemsWithDivergences.map((entry) => {
+              const missingQuantity = getDivergenceQuantity(entry, 'MISSING');
+              const damagedQuantity = getDivergenceQuantity(entry, 'DAMAGED');
+              const hasPending = entry.divergences?.some(
+                (divergence) => divergence.status === 'PENDING',
+              );
+              const notes = entry.divergences?.find(
+                (divergence) => divergence.notes,
+              )?.notes;
+
+              return (
+                <div
+                  key={entry.id}
+                  className="rounded-xl border border-amber-200/60 bg-background/70 p-3 dark:border-amber-900/40"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="text-sm font-semibold text-foreground">
+                      {entry.item.name}
+                    </div>
+                    <span
+                      className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
+                        hasPending
+                          ? 'bg-destructive/10 text-destructive ring-1 ring-destructive/30'
+                          : 'bg-accent/10 text-accent ring-1 ring-accent/30'
+                      }`}
+                    >
+                      {hasPending ? 'Pendente' : 'Resolvida'}
+                    </span>
+                  </div>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    {missingQuantity > 0 && (
+                      <span>
+                        {missingQuantity}{' '}
+                        {missingQuantity === 1 ? 'faltante' : 'faltantes'}
+                      </span>
+                    )}
+                    {missingQuantity > 0 && damagedQuantity > 0 && ' • '}
+                    {damagedQuantity > 0 && (
+                      <span>
+                        {damagedQuantity}{' '}
+                        {damagedQuantity === 1 ? 'avariado' : 'avariados'}
+                      </span>
+                    )}
+                    {' • '}Retornaram {entry.returnedQuantity} de{' '}
+                    {entry.plannedQuantity}
+                  </div>
+                  {notes && (
+                    <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+                      {notes}
+                    </p>
+                  )}
+                </div>
+              );
+            })}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Items section */}
       <Card className="border border-border/60 bg-card/50 shadow-sm">
@@ -587,6 +677,7 @@ export default function EventDetailsPage() {
               </div>
               <p className="mt-2 max-w-md text-sm text-muted-foreground">
                 Abra o catálogo para adicionar itens do estoque a este evento.
+                É necessário reservar itens antes de iniciar o evento.
               </p>
               {canAddItems && (
                 <Button
@@ -617,11 +708,13 @@ export default function EventDetailsPage() {
                     {group.items.map((entry) => {
                       const isRemoving = removingItemId === entry.id;
                       const isLockedByTask = lockedEventItemIds.has(entry.id);
+                      const isCompletedEvent = event.status === 'COMPLETED';
                       return (
                         <div
                           key={entry.id}
-                          className="group flex items-center gap-3 rounded-xl border border-border/50 bg-background/60 p-3 shadow-sm transition-all duration-200 hover:border-primary/40 hover:bg-background hover:shadow-md"
+                          className="group rounded-xl border border-border/50 bg-background/60 p-3 shadow-sm transition-all duration-200 hover:border-primary/40 hover:bg-background hover:shadow-md"
                         >
+                          <div className="flex items-center gap-3">
                           <div className="relative h-14 w-14 flex-shrink-0 overflow-hidden rounded-lg border border-border/40 bg-muted/40">
                             <ItemThumbnail
                               item={entry.inventoryItem ?? entry.item}
@@ -637,6 +730,15 @@ export default function EventDetailsPage() {
                               <span className="inline-block h-1.5 w-1.5 rounded-full bg-muted-foreground/40" />
                               {group.categoryName}
                             </div>
+                            {isCompletedEvent && (
+                              <div className="mt-0.5 text-xs text-muted-foreground">
+                                {entry.shippedQuantity > 0 && (
+                                  <>Enviados {entry.shippedQuantity} • </>
+                                )}
+                                Retornaram {entry.returnedQuantity} de{' '}
+                                {entry.plannedQuantity}
+                              </div>
+                            )}
                           </div>
 
                           <div className="flex flex-shrink-0 items-baseline gap-1 rounded-lg bg-primary/10 px-3 py-1.5 ring-1 ring-primary/20">
@@ -648,7 +750,7 @@ export default function EventDetailsPage() {
                             </span>
                           </div>
 
-                          <div className="flex flex-shrink-0 flex-col gap-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
+                          <div className="flex flex-shrink-0 flex-col gap-1">
                             <Button
                               type="button"
                               variant="ghost"
@@ -690,6 +792,13 @@ export default function EventDetailsPage() {
                               )}
                             </Button>
                           </div>
+                          </div>
+
+                          {isCompletedEvent && (
+                            <div className="mt-2 empty:mt-0 empty:hidden">
+                              <EventItemDivergenceBadges eventItem={entry} />
+                            </div>
+                          )}
                         </div>
                       );
                     })}

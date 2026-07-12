@@ -1,11 +1,15 @@
+import { useMemo, useState } from 'react';
 import {
-  ClipboardList,
+  ArrowRight,
+  CalendarDays,
   CheckCircle2,
-  XCircle,
+  ClipboardList,
   Clock,
   PackageMinus,
+  PackageOpen,
   PackagePlus,
-  ArrowRight,
+  Search,
+  XCircle,
 } from 'lucide-react';
 import { Link } from 'react-router';
 
@@ -13,17 +17,21 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardHeader,
   CardTitle,
 } from '~/components/ui/card';
+import { Input } from '~/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '~/components/ui/select';
+import { StatCard } from '~/components/StatCard';
+import { matchesSearch } from '~/lib/search';
 import { useTasks } from '~/services/tanStackQuery/tasks';
 import type { Task, TaskStatus, TaskType } from '~/types/task';
-
-const statusLabel: Record<TaskStatus, string> = {
-  PENDENTE: 'Pendente',
-  CONCLUIDA: 'Concluída',
-  CANCELADA: 'Cancelada',
-};
+import { getTaskSource } from './task-helpers';
 
 const statusDot: Record<TaskStatus, string> = {
   PENDENTE: 'bg-yellow-500',
@@ -49,6 +57,21 @@ const progressColor: Record<TaskStatus, string> = {
   CANCELADA: 'bg-red-400',
 };
 
+type TypeFilter = TaskType | 'ALL';
+type OriginFilter = 'ALL' | 'EVENT' | 'RENTAL';
+
+const typeFilters: Array<{ value: TypeFilter; label: string }> = [
+  { value: 'ALL', label: 'Todos os tipos' },
+  { value: 'SAIDA_GALPAO', label: 'Saída do galpão' },
+  { value: 'ENTRADA_GALPAO', label: 'Entrada no galpão' },
+];
+
+const originFilters: Array<{ value: OriginFilter; label: string }> = [
+  { value: 'ALL', label: 'Todas as origens' },
+  { value: 'EVENT', label: 'Eventos' },
+  { value: 'RENTAL', label: 'Locações' },
+];
+
 // Ordem e metadados das seções. Pendentes primeiro: é o que demanda ação.
 const sectionConfig: {
   status: TaskStatus;
@@ -57,36 +80,45 @@ const sectionConfig: {
   accentText: string;
   emptyHint: string;
 }[] = [
-    {
-      status: 'PENDENTE',
-      title: 'Pendentes',
-      icon: Clock,
-      accentText: 'text-yellow-600 dark:text-yellow-400',
-      emptyHint: 'Nenhuma tarefa pendente no momento.',
-    },
-    {
-      status: 'CONCLUIDA',
-      title: 'Concluídas',
-      icon: CheckCircle2,
-      accentText: 'text-green-600 dark:text-green-400',
-      emptyHint: 'Nenhuma tarefa concluída ainda.',
-    },
-    {
-      status: 'CANCELADA',
-      title: 'Canceladas',
-      icon: XCircle,
-      accentText: 'text-red-500 dark:text-red-400',
-      emptyHint: 'Nenhuma tarefa cancelada.',
-    },
-  ];
+  {
+    status: 'PENDENTE',
+    title: 'Pendentes',
+    icon: Clock,
+    accentText: 'text-yellow-600 dark:text-yellow-400',
+    emptyHint: 'Nenhuma tarefa pendente no momento.',
+  },
+  {
+    status: 'CONCLUIDA',
+    title: 'Concluídas',
+    icon: CheckCircle2,
+    accentText: 'text-green-600 dark:text-green-400',
+    emptyHint: 'Nenhuma tarefa concluída ainda.',
+  },
+  {
+    status: 'CANCELADA',
+    title: 'Canceladas',
+    icon: XCircle,
+    accentText: 'text-red-500 dark:text-red-400',
+    emptyHint: 'Nenhuma tarefa cancelada.',
+  },
+];
+
+const formatTaskDate = (value: string) =>
+  new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short' }).format(
+    new Date(value),
+  );
 
 function TaskCard({ task }: { task: Task }) {
   const totalItems = task.taskItems?.length ?? 0;
+  const totalUnits =
+    task.taskItems?.reduce((sum, ti) => sum + ti.requestedQuantity, 0) ?? 0;
   const confirmedItems =
     task.taskItems?.filter((ti) => ti.confirmed).length ?? 0;
   const progress =
     totalItems > 0 ? Math.round((confirmedItems / totalItems) * 100) : 0;
   const TypeIcon = task.type === 'ENTRADA_GALPAO' ? PackagePlus : PackageMinus;
+  const isRental = Boolean(task.rentalId ?? task.rental);
+  const OriginIcon = isRental ? PackageOpen : CalendarDays;
 
   return (
     <Link
@@ -99,7 +131,7 @@ function TaskCard({ task }: { task: Task }) {
           className={`absolute inset-y-0 left-0 w-1 ${statusDot[task.status]} opacity-70`}
         />
 
-        <CardHeader className="pb-3 pl-5">
+        <CardContent className="flex h-full flex-col gap-3 p-5 pl-6">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
@@ -114,18 +146,26 @@ function TaskCard({ task }: { task: Task }) {
                 </span>
               </div>
               <CardTitle className="mt-2 truncate text-base transition-colors group-hover:text-primary">
-                {task.event?.eventName ?? '—'}
+                {getTaskSource(task).label}
               </CardTitle>
+              <span className="mt-1.5 inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-muted/40 px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wider text-muted-foreground">
+                <OriginIcon className="h-3 w-3" />
+                {isRental ? 'Locação' : 'Evento'}
+              </span>
             </div>
             <ArrowRight className="mt-1 h-4 w-4 shrink-0 -translate-x-1 text-muted-foreground/0 transition-all group-hover:translate-x-0 group-hover:text-primary" />
           </div>
-        </CardHeader>
 
-        <CardContent className="pl-5 pt-0">
-          <div className="space-y-1.5">
+          <div className="mt-auto space-y-1.5">
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">
                 {confirmedItems}/{totalItems} itens confirmados
+                {totalUnits > 0 && (
+                  <span className="text-muted-foreground/70">
+                    {' '}
+                    · {totalUnits} un.
+                  </span>
+                )}
               </span>
               <span className="font-medium tabular-nums text-foreground">
                 {progress}%
@@ -143,26 +183,26 @@ function TaskCard({ task }: { task: Task }) {
                 style={{ width: `${progress}%` }}
               />
             </div>
-          </div>
 
-          <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
-            {task.assignedTo ? (
-              <span className="inline-flex items-center gap-1.5 truncate">
-                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[10px] font-semibold uppercase text-primary">
-                  {task.assignedTo.name.charAt(0)}
+            <div className="flex items-center justify-between pt-1.5 text-xs text-muted-foreground">
+              {task.assignedTo ? (
+                <span className="inline-flex items-center gap-1.5 truncate">
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[10px] font-semibold uppercase text-primary">
+                    {task.assignedTo.name.charAt(0)}
+                  </span>
+                  <span className="truncate">{task.assignedTo.name}</span>
                 </span>
-                <span className="truncate">{task.assignedTo.name}</span>
+              ) : (
+                <span className="italic text-muted-foreground/60">
+                  Sem responsável
+                </span>
+              )}
+              <span className="shrink-0" title="Criada em">
+                {task.completedAt
+                  ? `Concluída em ${formatTaskDate(task.completedAt)}`
+                  : formatTaskDate(task.createdAt)}
               </span>
-            ) : (
-              <span className="italic text-muted-foreground/60">
-                Sem responsável
-              </span>
-            )}
-            {task.completedAt && (
-              <span className="shrink-0">
-                {new Date(task.completedAt).toLocaleDateString('pt-BR')}
-              </span>
-            )}
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -173,16 +213,14 @@ function TaskCard({ task }: { task: Task }) {
 function TaskCardSkeleton() {
   return (
     <Card className="h-full border-border/60">
-      <CardHeader className="pb-3">
+      <CardContent className="space-y-3 p-5">
         <div className="flex flex-wrap items-center gap-2">
           <div className="h-4 w-14 animate-pulse rounded bg-muted" />
           <div className="h-5 w-24 animate-pulse rounded-full bg-muted" />
         </div>
-        <div className="mt-2 h-5 w-3/4 animate-pulse rounded bg-muted" />
-      </CardHeader>
-      <CardContent className="pt-0">
+        <div className="h-5 w-3/4 animate-pulse rounded bg-muted" />
         <div className="h-1.5 w-full animate-pulse rounded-full bg-muted" />
-        <div className="mt-3 h-4 w-1/2 animate-pulse rounded bg-muted" />
+        <div className="h-4 w-1/2 animate-pulse rounded bg-muted" />
       </CardContent>
     </Card>
   );
@@ -226,22 +264,140 @@ function StatusSection({
 export default function TasksPage() {
   const { data: tasks = [], isLoading } = useTasks();
 
-  const grouped: Record<TaskStatus, Task[]> = {
-    PENDENTE: [],
-    CONCLUIDA: [],
-    CANCELADA: [],
-  };
-  for (const task of tasks) {
-    grouped[task.status]?.push(task);
-  }
+  const [search, setSearch] = useState('');
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>('ALL');
+  const [originFilter, setOriginFilter] = useState<OriginFilter>('ALL');
+
+  const stats = useMemo(
+    () => ({
+      total: tasks.length,
+      pending: tasks.filter((task) => task.status === 'PENDENTE').length,
+      completed: tasks.filter((task) => task.status === 'CONCLUIDA').length,
+      cancelled: tasks.filter((task) => task.status === 'CANCELADA').length,
+    }),
+    [tasks],
+  );
+
+  const hasActiveFilters =
+    Boolean(search.trim()) || typeFilter !== 'ALL' || originFilter !== 'ALL';
+
+  const filteredTasks = useMemo(
+    () =>
+      tasks.filter((task) => {
+        if (typeFilter !== 'ALL' && task.type !== typeFilter) return false;
+
+        const isRental = Boolean(task.rentalId ?? task.rental);
+        if (originFilter === 'EVENT' && isRental) return false;
+        if (originFilter === 'RENTAL' && !isRental) return false;
+
+        return matchesSearch(
+          [
+            task.code,
+            getTaskSource(task).label,
+            task.assignedTo?.name,
+            task.notes,
+          ],
+          search,
+        );
+      }),
+    [tasks, search, typeFilter, originFilter],
+  );
+
+  const grouped = useMemo(() => {
+    const groups: Record<TaskStatus, Task[]> = {
+      PENDENTE: [],
+      CONCLUIDA: [],
+      CANCELADA: [],
+    };
+    for (const task of filteredTasks) {
+      groups[task.status]?.push(task);
+    }
+    return groups;
+  }, [filteredTasks]);
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Tarefas do Galpão</h1>
-        <p className="text-sm text-muted-foreground">
-          Confirmações de saída e entrada de itens do galpão para eventos.
+    <div className="space-y-6">
+      {/* Page header */}
+      <div className="border-b border-border/40 pb-5">
+        <h1 className="text-3xl font-bold text-foreground">
+          Tarefas do Galpão
+        </h1>
+        <p className="mt-1.5 max-w-xl text-muted-foreground">
+          Confirmações de saída e entrada de itens do galpão para eventos e
+          locações.
         </p>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <StatCard
+          label="Total"
+          value={stats.total}
+          icon={ClipboardList}
+          tone="muted"
+        />
+        <StatCard
+          label="Pendentes"
+          value={stats.pending}
+          icon={Clock}
+          tone="primary"
+        />
+        <StatCard
+          label="Concluídas"
+          value={stats.completed}
+          icon={CheckCircle2}
+          tone="accent"
+        />
+        <StatCard
+          label="Canceladas"
+          value={stats.cancelled}
+          icon={XCircle}
+          tone="secondary"
+        />
+      </div>
+
+      {/* Filters */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_190px_190px]">
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            type="search"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            className="pl-9"
+            placeholder="Buscar por código, evento, locação ou responsável..."
+          />
+        </div>
+        <Select
+          value={typeFilter}
+          onValueChange={(value) => setTypeFilter(value as TypeFilter)}
+        >
+          <SelectTrigger aria-label="Filtrar por tipo">
+            <SelectValue placeholder="Tipo" />
+          </SelectTrigger>
+          <SelectContent>
+            {typeFilters.map((filter) => (
+              <SelectItem key={filter.value} value={filter.value}>
+                {filter.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select
+          value={originFilter}
+          onValueChange={(value) => setOriginFilter(value as OriginFilter)}
+        >
+          <SelectTrigger aria-label="Filtrar por origem">
+            <SelectValue placeholder="Origem" />
+          </SelectTrigger>
+          <SelectContent>
+            {originFilters.map((filter) => (
+              <SelectItem key={filter.value} value={filter.value}>
+                {filter.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {isLoading ? (
@@ -267,26 +423,49 @@ export default function TasksPage() {
                 Nenhuma tarefa encontrada
               </CardTitle>
               <CardDescription className="mt-1">
-                As tarefas são criadas automaticamente quando um evento inicia.
+                As tarefas são criadas ao iniciar um evento ou ao gerar a
+                tarefa de galpão de uma locação.
               </CardDescription>
             </div>
           </CardContent>
         </Card>
-      ) : (
-        sectionConfig.map(({ status, title, icon, accentText, emptyHint }) => (
-          <StatusSection
-            key={status}
-            title={title}
-            icon={icon}
-            accentText={accentText}
-            count={grouped[status].length}
-            emptyHint={emptyHint}
+      ) : filteredTasks.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-border/60 py-12 text-center">
+          <div className="text-sm text-muted-foreground">
+            Nenhuma tarefa encontrada com os filtros atuais.
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setSearch('');
+              setTypeFilter('ALL');
+              setOriginFilter('ALL');
+            }}
+            className="mt-3 rounded-md text-sm font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            {grouped[status].map((task) => (
-              <TaskCard key={task.id} task={task} />
-            ))}
-          </StatusSection>
-        ))
+            Limpar todos os filtros
+          </button>
+        </div>
+      ) : (
+        sectionConfig.map(({ status, title, icon, accentText, emptyHint }) => {
+          // Com filtros ativos, seções vazias só adicionam ruído
+          if (hasActiveFilters && grouped[status].length === 0) return null;
+
+          return (
+            <StatusSection
+              key={status}
+              title={title}
+              icon={icon}
+              accentText={accentText}
+              count={grouped[status].length}
+              emptyHint={emptyHint}
+            >
+              {grouped[status].map((task) => (
+                <TaskCard key={task.id} task={task} />
+              ))}
+            </StatusSection>
+          );
+        })
       )}
     </div>
   );

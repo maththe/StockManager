@@ -1,31 +1,30 @@
 import { AlertTriangle, CheckCircle2, Loader2, Trash2 } from 'lucide-react';
 import { QuantityControl } from '~/components/Form/QuantityInput';
 import { Button } from '~/components/ui/button';
-import { EventItemDivergenceBadges } from './EventItemDivergenceBadges';
-import { ItemThumbnail } from './ItemThumbnail';
+import { ItemThumbnail } from '~/routes/events/components/ItemThumbnail';
 import {
-  type SelectedEventItem,
-  getPlannedQuantityError,
-  getPlannedQuantityBounds,
-} from '../utils/utils';
+  type SelectedRentalItem,
+  getRentalQuantityBounds,
+  getRentalQuantityError,
+} from '../utils/rental-helpers';
 
-interface SelectedItemCardProps {
-  eventItem: SelectedEventItem;
+interface RentalSelectedItemCardProps {
+  rentalItem: SelectedRentalItem;
   categoryName: string;
   draftValue: string;
   isSaving: boolean;
   isRemoving: boolean;
   isBusy: boolean;
-  onDraftChange: (eventItemId: string, value: string) => void;
-  onStepQuantity: (eventItem: SelectedEventItem, direction: -1 | 1) => void;
-  onSaveQuantity: (eventItem: SelectedEventItem) => void;
-  onRemoveItem: (eventItemId: string) => void;
+  onDraftChange: (rentalItemId: string, value: string) => void;
+  onStepQuantity: (rentalItem: SelectedRentalItem, direction: -1 | 1) => void;
+  onSaveQuantity: (rentalItem: SelectedRentalItem) => void;
+  onRemoveItem: (rentalItemId: string) => void;
 }
 
-export function SelectedItemCard(props: SelectedItemCardProps) {
-  const error = getPlannedQuantityError(props.eventItem, props.draftValue);
-  const isDirty = Number(props.draftValue) !== props.eventItem.plannedQuantity;
-  const { minimum, maximum } = getPlannedQuantityBounds(props.eventItem);
+export function RentalSelectedItemCard(props: RentalSelectedItemCardProps) {
+  const error = getRentalQuantityError(props.rentalItem, props.draftValue);
+  const isDirty = Number(props.draftValue) !== props.rentalItem.quantity;
+  const { minimum, maximum } = getRentalQuantityBounds(props.rentalItem);
 
   const draftNumber = Number(props.draftValue);
   const isFixedQuantity = minimum === maximum;
@@ -37,7 +36,7 @@ export function SelectedItemCard(props: SelectedItemCardProps) {
       <div className="flex flex-col gap-4 sm:flex-row">
         <div className="aspect-square w-full max-w-28 shrink-0 self-start overflow-hidden rounded-2xl border border-border/60 bg-muted">
           <ItemThumbnail
-            item={props.eventItem.inventoryItem ?? props.eventItem.item}
+            item={props.rentalItem.inventoryItem ?? props.rentalItem.item}
             categoryName={props.categoryName}
           />
         </div>
@@ -47,13 +46,21 @@ export function SelectedItemCard(props: SelectedItemCardProps) {
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <h3 className="truncate text-sm font-semibold text-foreground">
-                {props.eventItem.item.name}
+                {props.rentalItem.item.name}
               </h3>
               <p className="mt-1 text-xs text-muted-foreground">
                 Estoque livre agora:{' '}
                 <span className="font-semibold tabular-nums text-foreground">
-                  {props.eventItem.item.availableQuantity}
+                  {props.rentalItem.item.availableQuantity}
                 </span>
+                {props.rentalItem.returnedQuantity > 0 && (
+                  <>
+                    {' • '}Devolvido:{' '}
+                    <span className="font-semibold tabular-nums text-foreground">
+                      {props.rentalItem.returnedQuantity}
+                    </span>
+                  </>
+                )}
               </p>
             </div>
             <Button
@@ -61,9 +68,9 @@ export function SelectedItemCard(props: SelectedItemCardProps) {
               variant="ghost"
               size="icon-sm"
               className="shrink-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-              onClick={() => props.onRemoveItem(props.eventItem.id)}
+              onClick={() => props.onRemoveItem(props.rentalItem.id)}
               disabled={props.isRemoving || props.isBusy}
-              aria-label={`Remover ${props.eventItem.item.name}`}
+              aria-label={`Remover ${props.rentalItem.item.name}`}
             >
               {props.isRemoving ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -74,7 +81,7 @@ export function SelectedItemCard(props: SelectedItemCardProps) {
           </div>
 
           <QuantityControl
-            eventItem={props.eventItem}
+            eventItem={props.rentalItem}
             draftValue={props.draftValue}
             minimum={minimum}
             maximum={maximum}
@@ -86,10 +93,6 @@ export function SelectedItemCard(props: SelectedItemCardProps) {
             onDraftChange={props.onDraftChange}
             onSaveQuantity={props.onSaveQuantity}
           />
-
-          <div className="mt-4 empty:mt-0 empty:hidden">
-            <EventItemDivergenceBadges eventItem={props.eventItem} />
-          </div>
 
           {/* Status + limites */}
           <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">

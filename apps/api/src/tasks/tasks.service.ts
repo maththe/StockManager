@@ -14,13 +14,40 @@ interface CreateGalpaoTaskItem {
   notes?: string;
 }
 
+interface CreateRentalGalpaoTaskItem {
+  rentalItemId: string;
+  requestedQuantity: number;
+  notes?: string;
+}
+
+// Include padrão para retornar a tarefa com sua origem (evento ou locação) e itens.
+const taskInclude = {
+  taskItems: {
+    include: {
+      eventItem: { include: { item: true } },
+      rentalItem: { include: { item: true } },
+    },
+  },
+  assignedTo: { select: { id: true, name: true } },
+  event: { select: { id: true, eventName: true } },
+  rental: {
+    select: {
+      id: true,
+      rentalCode: true,
+      client: { select: { companyName: true } },
+    },
+  },
+} satisfies Prisma.TaskInclude;
+
 @Injectable()
 export class TasksService {
   constructor(private readonly prisma: PrismaService) {}
 
   private async generateTaskCode(tenantUuid: string, client: PrismaTx): Promise<string> {
-    // Serializa a geração por tenant dentro da transação para não gerar código duplicado
-    await client.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${`task-code:${tenantUuid}`}))`;
+    // Serializa a geração por tenant dentro da transação para não gerar código duplicado.
+    // $executeRaw (e não $queryRaw): pg_advisory_xact_lock retorna void e o adapter-pg
+    // falha ao desserializar essa coluna; executeRaw roda o comando sem ler retorno.
+    await client.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`task-code:${tenantUuid}`}))`;
 
     const year = new Date().getFullYear();
     const prefix = `TRB-${year}-`;
@@ -35,8 +62,8 @@ export class TasksService {
 
   private async createGalpaoTask(
     type: TaskType,
-    eventId: string,
-    items: CreateGalpaoTaskItem[],
+    source: { eventId?: string; rentalId?: string },
+    items: Array<{ eventItemId?: string; rentalItemId?: string; requestedQuantity: number; notes?: string }>,
     tenantUuid: string,
     createdById?: string,
     tx?: PrismaTx,
@@ -47,7 +74,7 @@ export class TasksService {
     // A geração do código exige transação (lock consultivo por tenant)
     if (!tx) {
       return this.prisma.$transaction((innerTx) =>
-        this.createGalpaoTask(type, eventId, items, tenantUuid, createdById, innerTx, options),
+        this.createGalpaoTask(type, source, items, tenantUuid, createdById, innerTx, options),
       );
     }
 
@@ -59,14 +86,16 @@ export class TasksService {
         code,
         type,
         tenantUuid,
-        eventId,
+        eventId: source.eventId ?? null,
+        rentalId: source.rentalId ?? null,
         createdById: createdById ?? null,
         assignedToId: options?.assignedToId ?? null,
         notes: options?.notes ?? null,
         taskItems: {
           create: items.map((it) => ({
             tenantUuid,
-            eventItemId: it.eventItemId,
+            eventItemId: it.eventItemId ?? null,
+            rentalItemId: it.rentalItemId ?? null,
             requestedQuantity: it.requestedQuantity,
             confirmedQuantity: 0,
             confirmed: false,
@@ -74,11 +103,7 @@ export class TasksService {
           })),
         },
       },
-      include: {
-        taskItems: { include: { eventItem: { include: { item: true } } } },
-        assignedTo: { select: { id: true, name: true } },
-        event: { select: { id: true, eventName: true } },
-      },
+      include: taskInclude,
     });
   }
 
@@ -92,7 +117,7 @@ export class TasksService {
   ) {
     return this.createGalpaoTask(
       TaskType.SAIDA_GALPAO,
-      eventId,
+      { eventId },
       items,
       tenantUuid,
       createdById,
@@ -111,7 +136,26 @@ export class TasksService {
   ) {
     return this.createGalpaoTask(
       TaskType.ENTRADA_GALPAO,
-      eventId,
+      { eventId },
+      items,
+      tenantUuid,
+      createdById,
+      tx,
+      options,
+    );
+  }
+
+  async createSaidaGalpaoTaskForRental(
+    rentalId: string,
+    items: CreateRentalGalpaoTaskItem[],
+    tenantUuid: string,
+    createdById?: string,
+    tx?: PrismaTx,
+    options?: { assignedToId?: string | null; notes?: string },
+  ) {
+    return this.createGalpaoTask(
+      TaskType.SAIDA_GALPAO,
+      { rentalId },
       items,
       tenantUuid,
       createdById,
@@ -187,6 +231,8 @@ export class TasksService {
 
     const alreadyRequested = new Map<string, number>();
     for (const ti of existingTaskItems) {
+      // Filtrados por task.eventId acima: eventItemId nunca é nulo aqui.
+      if (!ti.eventItemId) continue;
       alreadyRequested.set(
         ti.eventItemId,
         (alreadyRequested.get(ti.eventItemId) ?? 0) + ti.requestedQuantity,
@@ -244,13 +290,7 @@ export class TasksService {
         ...(status ? { status } : {}),
         ...(type ? { type } : {}),
       },
-      include: {
-        assignedTo: { select: { id: true, name: true } },
-        event: { select: { id: true, eventName: true } },
-        taskItems: {
-          include: { eventItem: { include: { item: true } } },
-        },
-      },
+      include: taskInclude,
       orderBy: { createdAt: 'desc' },
     });
   }
@@ -259,13 +299,8 @@ export class TasksService {
     const task = await this.prisma.task.findFirst({
       where: { id, tenantUuid },
       include: {
-        assignedTo: { select: { id: true, name: true } },
+        ...taskInclude,
         createdBy: { select: { id: true, name: true } },
-        event: { select: { id: true, eventName: true, startDate: true } },
-        taskItems: {
-          include: { eventItem: { include: { item: true } } },
-          orderBy: { createdAt: 'asc' },
-        },
       },
     });
 
@@ -289,11 +324,7 @@ export class TasksService {
         assignedToId: input.assignedToId,
         notes: input.notes,
       },
-      include: {
-        assignedTo: { select: { id: true, name: true } },
-        event: { select: { id: true, eventName: true } },
-        taskItems: { include: { eventItem: { include: { item: true } } } },
-      },
+      include: taskInclude,
     });
   }
 
@@ -364,11 +395,7 @@ export class TasksService {
       return tx.task.update({
         where: { id },
         data: { status: TaskStatus.CONCLUIDA, completedAt: new Date() },
-        include: {
-          taskItems: { include: { eventItem: { include: { item: true } } } },
-          assignedTo: { select: { id: true, name: true } },
-          event: { select: { id: true, eventName: true } },
-        },
+        include: taskInclude,
       });
     });
   }
@@ -387,10 +414,7 @@ export class TasksService {
     return this.prisma.task.update({
       where: { id },
       data: { status: TaskStatus.CANCELADA },
-      include: {
-        event: { select: { id: true, eventName: true } },
-        assignedTo: { select: { id: true, name: true } },
-      },
+      include: taskInclude,
     });
   }
 

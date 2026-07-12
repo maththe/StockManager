@@ -9,6 +9,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 
+import { StatCard } from '~/components/StatCard';
 import { Button } from '~/components/ui/button';
 import {
   Card,
@@ -25,16 +26,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '~/components/ui/select';
-import { useItems } from '~/services/tanStackQuery/Itens/items';
 import { useClients } from '~/services/tanStackQuery/clients';
-import {
-  useCreateRental,
-  useRentals,
-  useUpdateRental,
-} from '~/services/tanStackQuery/rentals';
+import { useCreateRental, useRentals } from '~/services/tanStackQuery/rentals';
 import type {
   CreateRentalInput,
-  Rental,
+  UpdateRentalInput,
   RentalStatus,
 } from '~/types/rental';
 
@@ -53,14 +49,11 @@ export default function RentalsPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<RentalStatus | 'ALL'>('ALL');
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingRental, setEditingRental] = useState<Rental | null>(null);
 
   const { data: rentals = [], isLoading } = useRentals(search);
   const { data: clients = [] } = useClients();
-  const { data: items = [] } = useItems();
 
   const createRental = useCreateRental();
-  const updateRental = useUpdateRental();
 
   const stats = useMemo(
     () => ({
@@ -78,21 +71,11 @@ export default function RentalsPage() {
   }, [rentals, statusFilter]);
 
   const handleOpenCreate = () => {
-    setEditingRental(null);
     setDialogOpen(true);
   };
 
-  const handleOpenEdit = (rental: Rental) => {
-    setEditingRental(rental);
-    setDialogOpen(true);
-  };
-
-  const handleSubmit = async (data: CreateRentalInput) => {
-    if (editingRental) {
-      await updateRental.mutateAsync({ id: editingRental.id, data });
-      return;
-    }
-    await createRental.mutateAsync(data);
+  const handleSubmit = async (data: CreateRentalInput | UpdateRentalInput) => {
+    await createRental.mutateAsync(data as CreateRentalInput);
   };
 
   return (
@@ -210,62 +193,24 @@ export default function RentalsPage() {
               Nenhuma locação encontrada com os filtros atuais.
             </div>
           ) : (
-            filteredRentals.map((rental) => (
-              <RentalCard
-                key={rental.id}
-                rental={rental}
-                inventoryItems={items}
-                onEdit={handleOpenEdit}
-              />
-            ))
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 2xl:grid-cols-3">
+              {filteredRentals.map((rental) => (
+                <RentalCard key={rental.id} rental={rental} />
+              ))}
+            </div>
           )}
         </CardContent>
       </Card>
 
       <RentalFormDialog
         open={dialogOpen}
-        rental={editingRental}
+        rental={null}
         clients={clients}
-        isLoading={createRental.isPending || updateRental.isPending}
-        onOpenChange={(open) => {
-          setDialogOpen(open);
-          if (!open) setEditingRental(null);
-        }}
+        isLoading={createRental.isPending}
+        onOpenChange={setDialogOpen}
         onSubmit={handleSubmit}
       />
     </div>
   );
 }
 
-const toneStyles: Record<string, string> = {
-  muted: 'border-border/60 bg-gradient-to-br from-card to-muted/30 text-foreground',
-  primary:
-    'border-primary/30 bg-gradient-to-br from-primary/10 to-primary/5 text-primary',
-  secondary:
-    'border-secondary/30 bg-gradient-to-br from-secondary/10 to-secondary/5 text-secondary',
-  accent:
-    'border-accent/30 bg-gradient-to-br from-accent/10 to-accent/5 text-accent',
-};
-
-interface StatCardProps {
-  label: string;
-  value: number;
-  icon: typeof PackageOpen;
-  tone: 'muted' | 'primary' | 'secondary' | 'accent';
-}
-
-function StatCard({ label, value, icon: Icon, tone }: StatCardProps) {
-  return (
-    <Card className={`${toneStyles[tone]} shadow-sm`}>
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardDescription className="text-xs font-semibold uppercase tracking-wider">
-            {label}
-          </CardDescription>
-          <Icon className="h-4 w-4 opacity-70" />
-        </div>
-        <CardTitle className="mt-2 text-3xl font-bold">{value}</CardTitle>
-      </CardHeader>
-    </Card>
-  );
-}

@@ -76,6 +76,12 @@ export class DivergencesService {
       throw new NotFoundException('Tarefa nao encontrada.');
     }
 
+    if (!task.eventId) {
+      throw new BadRequestException(
+        'Divergencias so podem ser criadas a partir de tarefas de evento.',
+      );
+    }
+
     if (task.status !== TaskStatus.PENDENTE) {
       throw new BadRequestException(
         'So e possivel criar divergencia para tarefa pendente.',
@@ -112,6 +118,13 @@ export class DivergencesService {
       if (!taskItem) {
         throw new BadRequestException(
           'Um dos itens informados nao pertence a tarefa.',
+        );
+      }
+
+      // Tarefa de evento (garantido pelo guard acima): item sempre tem eventItem.
+      if (!taskItem.eventItem || !taskItem.eventItemId) {
+        throw new BadRequestException(
+          'Um dos itens da tarefa nao pertence a um evento.',
         );
       }
 

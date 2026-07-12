@@ -3,46 +3,43 @@ import { useEffect, useMemo, useState } from 'react';
 import { useCategories } from '~/services/tanStackQuery/Itens/categories';
 import { useItems } from '~/services/tanStackQuery/Itens/items';
 import {
-  useCreateEventItem,
-  useDeleteEventItem,
-  useEventItems,
-  useUpdateEventItem,
-} from '~/services/tanStackQuery/events';
-import type { Event } from '~/types/event';
+  useCreateRentalItem,
+  useDeleteRentalItem,
+  useUpdateRentalItem,
+} from '~/services/tanStackQuery/rentals';
+import type { Rental } from '~/types/rental';
+import type { Item } from '~/types/item';
 
-import { CatalogSection } from './CatalogSection';
-import { EventItemsHeader } from './EventItemsHeader';
-import { EventItemsQuantityDialog } from './EventItemsQuantityDialog';
+import { CatalogSection } from '~/routes/events/components/CatalogSection';
+import { EventItemsQuantityDialog } from '~/routes/events/components/EventItemsQuantityDialog';
 import { matchesSearch } from '~/lib/search';
-import { SelectedItemsSection } from './SelectedItemsSection';
+import { RentalItemsHeader } from './RentalItemsHeader';
+import { RentalSelectedItemsSection } from './RentalSelectedItemsSection';
 import {
-  type EventCatalogItem,
-  type SelectedEventItem,
-  getPlannedQuantityBounds,
-  getPlannedQuantityError,
-  groupEventItemsByCategory,
-} from '../utils/utils';
+  type SelectedRentalItem,
+  getRentalQuantityBounds,
+  getRentalQuantityError,
+  groupRentalItemsByCategory,
+} from '../utils/rental-helpers';
 
-interface EventItemsDialogProps {
-  event: Event | null;
+interface RentalItemsCatalogProps {
+  rental: Rental;
 }
 
-export function EventItemsDialog({ event }: EventItemsDialogProps) {
-  const { data: eventItems = [], isLoading: isLoadingEventItems } =
-    useEventItems(event?.id);
+export function RentalItemsCatalog({ rental }: RentalItemsCatalogProps) {
   const { data: items = [], isLoading: isLoadingItems } = useItems();
   const { data: categories = [] } = useCategories();
 
-  const createEventItem = useCreateEventItem();
-  const updateEventItem = useUpdateEventItem();
-  const deleteEventItem = useDeleteEventItem();
+  const createRentalItem = useCreateRentalItem();
+  const updateRentalItem = useUpdateRentalItem();
+  const deleteRentalItem = useDeleteRentalItem();
 
   const [search, setSearch] = useState('');
   const [activeCategoryId, setActiveCategoryId] = useState<'all' | string>(
     'all',
   );
   const [quantityDialogOpen, setQuantityDialogOpen] = useState(false);
-  const [activeItem, setActiveItem] = useState<EventCatalogItem | null>(null);
+  const [activeItem, setActiveItem] = useState<Item | null>(null);
   const [activeQuantity, setActiveQuantity] = useState('1');
   const [quantityDrafts, setQuantityDrafts] = useState<Record<string, string>>(
     {},
@@ -55,7 +52,9 @@ export function EventItemsDialog({ event }: EventItemsDialogProps) {
     setActiveItem(null);
     setActiveQuantity('1');
     setQuantityDrafts({});
-  }, [event?.id]);
+  }, [rental.id]);
+
+  const rentalItems = rental.rentalItems;
 
   const categoryMap = useMemo(
     () => new Map(categories.map((category) => [category.id, category.name])),
@@ -68,13 +67,13 @@ export function EventItemsDialog({ event }: EventItemsDialogProps) {
   );
 
   const groupedSelectedItems = useMemo(
-    () => groupEventItemsByCategory(eventItems, itemMap, categoryMap),
-    [eventItems, itemMap, categoryMap],
+    () => groupRentalItemsByCategory(rentalItems, itemMap, categoryMap),
+    [rentalItems, itemMap, categoryMap],
   );
 
   const selectedIds = useMemo(
-    () => new Set(eventItems.map((eventItem) => eventItem.itemId)),
-    [eventItems],
+    () => new Set(rentalItems.map((rentalItem) => rentalItem.itemId)),
+    [rentalItems],
   );
 
   const catalogItems = useMemo(
@@ -82,7 +81,7 @@ export function EventItemsDialog({ event }: EventItemsDialogProps) {
     [items, selectedIds],
   );
 
-  const matchesItemSearch = (item: EventCatalogItem) =>
+  const matchesItemSearch = (item: Item) =>
     matchesSearch(
       [item.name, categoryMap.get(item.categoryId) ?? 'Sem categoria'],
       search,
@@ -101,9 +100,7 @@ export function EventItemsDialog({ event }: EventItemsDialogProps) {
 
   const searchResults = useMemo(
     () =>
-      search.trim()
-        ? catalogItems.filter(matchesItemSearch).slice(0, 6)
-        : [],
+      search.trim() ? catalogItems.filter(matchesItemSearch).slice(0, 6) : [],
     [catalogItems, search, categoryMap],
   );
 
@@ -124,36 +121,35 @@ export function EventItemsDialog({ event }: EventItemsDialogProps) {
   const activeQuantityNumber = Number(activeQuantity);
 
   const canConfirmAdd =
-    Boolean(event?.id) &&
     Boolean(activeItem) &&
     Number.isInteger(activeQuantityNumber) &&
     activeQuantityNumber > 0 &&
     activeQuantityNumber <= activeItemAvailableQuantity;
 
   const isBusy =
-    createEventItem.isPending ||
-    updateEventItem.isPending ||
-    deleteEventItem.isPending;
+    createRentalItem.isPending ||
+    updateRentalItem.isPending ||
+    deleteRentalItem.isPending;
 
-  const savingItemId = updateEventItem.isPending
-    ? (updateEventItem.variables?.eventItemId ?? null)
+  const savingItemId = updateRentalItem.isPending
+    ? (updateRentalItem.variables?.rentalItemId ?? null)
     : null;
-  const removingItemId = deleteEventItem.isPending
-    ? (deleteEventItem.variables?.eventItemId ?? null)
+  const removingItemId = deleteRentalItem.isPending
+    ? (deleteRentalItem.variables?.rentalItemId ?? null)
     : null;
 
-  const openQuantityDialog = (item: EventCatalogItem) => {
+  const openQuantityDialog = (item: Item) => {
     setActiveItem(item);
     setActiveQuantity('1');
     setQuantityDialogOpen(true);
   };
 
   const handleConfirmAdd = async () => {
-    if (!event?.id || !activeItem || !canConfirmAdd) return;
+    if (!activeItem || !canConfirmAdd) return;
 
-    await createEventItem.mutateAsync({
-      eventId: event.id,
-      data: { itemId: activeItem.id, plannedQuantity: activeQuantityNumber },
+    await createRentalItem.mutateAsync({
+      rentalId: rental.id,
+      data: { itemId: activeItem.id, quantity: activeQuantityNumber },
     });
 
     setQuantityDialogOpen(false);
@@ -162,56 +158,57 @@ export function EventItemsDialog({ event }: EventItemsDialogProps) {
     setSearch('');
   };
 
-  const handleDraftChange = (eventItemId: string, value: string) => {
-    setQuantityDrafts((current) => ({ ...current, [eventItemId]: value }));
+  const handleDraftChange = (rentalItemId: string, value: string) => {
+    setQuantityDrafts((current) => ({ ...current, [rentalItemId]: value }));
   };
 
-  const clearDraft = (eventItemId: string) => {
+  const clearDraft = (rentalItemId: string) => {
     setQuantityDrafts((current) => {
-      const { [eventItemId]: _removed, ...rest } = current;
+      const { [rentalItemId]: _removed, ...rest } = current;
       return rest;
     });
   };
 
   const handleStepQuantity = (
-    eventItem: SelectedEventItem,
+    rentalItem: SelectedRentalItem,
     direction: -1 | 1,
   ) => {
-    const { minimum, maximum } = getPlannedQuantityBounds(eventItem);
+    const { minimum, maximum } = getRentalQuantityBounds(rentalItem);
     const draftNumber = Number(
-      quantityDrafts[eventItem.id] ?? eventItem.plannedQuantity,
+      quantityDrafts[rentalItem.id] ?? rentalItem.quantity,
     );
     const baseValue = Number.isFinite(draftNumber)
       ? draftNumber
-      : eventItem.plannedQuantity;
-    const nextValue = Math.min(maximum, Math.max(minimum, baseValue + direction));
-    handleDraftChange(eventItem.id, String(nextValue));
+      : rentalItem.quantity;
+    const nextValue = Math.min(
+      maximum,
+      Math.max(minimum, baseValue + direction),
+    );
+    handleDraftChange(rentalItem.id, String(nextValue));
   };
 
-  const handleSaveQuantity = async (eventItem: SelectedEventItem) => {
-    if (!event?.id) return;
+  const handleSaveQuantity = async (rentalItem: SelectedRentalItem) => {
     const draftValue =
-      quantityDrafts[eventItem.id] ?? String(eventItem.plannedQuantity);
-    if (getPlannedQuantityError(eventItem, draftValue)) return;
+      quantityDrafts[rentalItem.id] ?? String(rentalItem.quantity);
+    if (getRentalQuantityError(rentalItem, draftValue)) return;
 
-    await updateEventItem.mutateAsync({
-      eventId: event.id,
-      eventItemId: eventItem.id,
-      data: { plannedQuantity: Number(draftValue) },
+    await updateRentalItem.mutateAsync({
+      rentalId: rental.id,
+      rentalItemId: rentalItem.id,
+      data: { quantity: Number(draftValue) },
     });
-    clearDraft(eventItem.id);
+    clearDraft(rentalItem.id);
   };
 
-  const handleRemoveItem = async (eventItemId: string) => {
-    if (!event?.id) return;
-    await deleteEventItem.mutateAsync({ eventId: event.id, eventItemId });
-    clearDraft(eventItemId);
+  const handleRemoveItem = async (rentalItemId: string) => {
+    await deleteRentalItem.mutateAsync({ rentalId: rental.id, rentalItemId });
+    clearDraft(rentalItemId);
   };
 
   return (
     <>
       <div className="flex h-full min-h-0 flex-col overflow-hidden border border-border/60 bg-background">
-        <EventItemsHeader event={event} />
+        <RentalItemsHeader rental={rental} />
 
         <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
           <CatalogSection
@@ -226,17 +223,18 @@ export function EventItemsDialog({ event }: EventItemsDialogProps) {
             openQuantityDialog={openQuantityDialog}
             isLoading={isLoadingItems}
             isBusy={isBusy}
+            emptyHint="Ajuste sua busca ou os filtros de categoria. Itens já reservados ficam disponíveis na tela da locação."
           />
 
           <div className="flex min-h-[24rem] flex-col border-t border-border/60 lg:min-h-0 lg:w-[26rem] lg:flex-shrink-0 lg:border-l lg:border-t-0 xl:w-[30rem]">
-            <SelectedItemsSection
+            <RentalSelectedItemsSection
               groupedSelectedItems={groupedSelectedItems}
               categoryMap={categoryMap}
               quantityDrafts={quantityDrafts}
               savingItemId={savingItemId}
               removingItemId={removingItemId}
               isBusy={isBusy}
-              isLoading={isLoadingEventItems}
+              isLoading={false}
               onDraftChange={handleDraftChange}
               onStepQuantity={handleStepQuantity}
               onSaveQuantity={handleSaveQuantity}
@@ -254,8 +252,9 @@ export function EventItemsDialog({ event }: EventItemsDialogProps) {
         onActiveQuantityChange={setActiveQuantity}
         categoryMap={categoryMap}
         canConfirmAdd={canConfirmAdd}
-        isCreating={createEventItem.isPending}
+        isCreating={createRentalItem.isPending}
         onConfirmAdd={handleConfirmAdd}
+        description="Confirme quantas unidades deste item devem ser reservadas para a locação antes de adicionar na lista."
       />
     </>
   );

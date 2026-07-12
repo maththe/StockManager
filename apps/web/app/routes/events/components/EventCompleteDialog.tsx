@@ -10,7 +10,6 @@ import {
 } from 'lucide-react';
 
 import { Button } from '~/components/ui/button';
-import { Input } from '~/components/ui/input';
 import { Label } from '~/components/ui/label';
 import {
   Dialog,
@@ -18,7 +17,10 @@ import {
   DialogDescription,
   DialogTitle,
 } from '~/components/ui/dialog';
+import { QuantityField } from '~/components/Form/QuantityInput';
 import type { CompleteEventItemInput, Event } from '~/types/event';
+import { ItemThumbnail } from './ItemThumbnail';
+import { buildCompletionDrafts } from '../utils/utils';
 
 const formatDate = (value: string) =>
   new Intl.DateTimeFormat('pt-BR', { dateStyle: 'medium' }).format(
@@ -42,25 +44,14 @@ export function EventCompleteDialog({
 }: EventCompleteDialogProps) {
   const eventItems = useMemo(() => event?.eventItems ?? [], [event?.eventItems]);
   const [drafts, setDrafts] = useState<Record<string, CompleteEventItemInput>>({});
+  const [inventoryConfirmed, setInventoryConfirmed] = useState(false);
 
   useEffect(() => {
     if (!open) return;
 
-    setDrafts(
-      Object.fromEntries(
-        eventItems.map((eventItem) => [
-          eventItem.id,
-          {
-            eventItemId: eventItem.id,
-            returnedQuantity: eventItem.plannedQuantity,
-            missingQuantity: 0,
-            damagedQuantity: 0,
-            notes: '',
-          },
-        ]),
-      ),
-    );
-  }, [eventItems, open]);
+    setDrafts(buildCompletionDrafts(event));
+    setInventoryConfirmed(false);
+  }, [event, open]);
 
   const itemsCount = eventItems.length;
   const reservedTotal = eventItems.reduce(
@@ -101,7 +92,7 @@ export function EventCompleteDialog({
   };
 
   const handleConfirm = () => {
-    if (completionErrors.length > 0) return;
+    if (completionErrors.length > 0 || !inventoryConfirmed) return;
     onConfirm(Object.values(drafts));
   };
 
@@ -201,48 +192,64 @@ export function EventCompleteDialog({
               return (
                 <div key={eventItem.id} className="rounded-xl border border-border/50 bg-background/60 p-4">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div>
-                      <div className="font-semibold text-foreground">{eventItem.item.name}</div>
-                      <div className="text-xs text-muted-foreground">
-                        Reservado: {eventItem.plannedQuantity} • Total contado: {totalCounted}
+                    <div className="flex min-w-0 items-center gap-3">
+                      <div className="relative h-14 w-14 flex-shrink-0 overflow-hidden rounded-lg border border-border/40 bg-muted/40">
+                        <ItemThumbnail item={eventItem.item} />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="truncate font-semibold text-foreground">{eventItem.item.name}</div>
+                        <div className="text-xs text-muted-foreground">
+                          Reservado: {eventItem.plannedQuantity} • Total contado: {totalCounted}
+                        </div>
                       </div>
                     </div>
+                    <span
+                      className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+                        totalCounted !== eventItem.plannedQuantity
+                          ? 'bg-destructive/10 text-destructive'
+                          : 'bg-accent/15 text-accent'
+                      }`}
+                    >
+                      {totalCounted !== eventItem.plannedQuantity
+                        ? 'Contagem incompleta'
+                        : 'Contagem confere'}
+                    </span>
                   </div>
 
                   <div className="mt-3 grid gap-3 sm:grid-cols-3">
                     <label className="space-y-1 text-xs font-medium text-muted-foreground">
                       Retornaram
-                      <Input
-                        type="number"
-                        min={0}
-                        max={eventItem.plannedQuantity}
+                      <QuantityField
                         value={draft?.returnedQuantity ?? 0}
-                        onChange={(currentEvent) =>
-                          handleDraftChange(eventItem.id, 'returnedQuantity', currentEvent.target.value)
+                        minimum={0}
+                        maximum={eventItem.plannedQuantity}
+                        size="compact"
+                        onChange={(value) =>
+                          handleDraftChange(eventItem.id, 'returnedQuantity', value)
                         }
                       />
                     </label>
                     <label className="space-y-1 text-xs font-medium text-muted-foreground">
                       Faltantes
-                      <Input
-                        type="number"
-                        min={0}
-                        max={eventItem.plannedQuantity}
+                      <QuantityField
                         value={draft?.missingQuantity ?? 0}
-                        onChange={(currentEvent) =>
-                          handleDraftChange(eventItem.id, 'missingQuantity', currentEvent.target.value)
+                        minimum={0}
+                        maximum={eventItem.plannedQuantity}
+                        size="compact"
+                        onChange={(value) =>
+                          handleDraftChange(eventItem.id, 'missingQuantity', value)
                         }
                       />
                     </label>
                     <label className="space-y-1 text-xs font-medium text-muted-foreground">
                       Avariados
-                      <Input
-                        type="number"
-                        min={0}
-                        max={eventItem.plannedQuantity}
+                      <QuantityField
                         value={draft?.damagedQuantity ?? 0}
-                        onChange={(currentEvent) =>
-                          handleDraftChange(eventItem.id, 'damagedQuantity', currentEvent.target.value)
+                        minimum={0}
+                        maximum={eventItem.plannedQuantity}
+                        size="compact"
+                        onChange={(value) =>
+                          handleDraftChange(eventItem.id, 'damagedQuantity', value)
                         }
                       />
                     </label>
@@ -274,6 +281,33 @@ export function EventCompleteDialog({
             </div>
           )}
 
+          <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
+            <div className="flex items-start gap-2">
+              <input
+                id="completeInventoryConfirmed"
+                type="checkbox"
+                className="mt-0.5 h-4 w-4 accent-primary"
+                checked={inventoryConfirmed}
+                disabled={isLoading}
+                onChange={(currentEvent) =>
+                  setInventoryConfirmed(currentEvent.target.checked)
+                }
+              />
+              <Label
+                htmlFor="completeInventoryConfirmed"
+                className="cursor-pointer text-sm text-foreground"
+              >
+                Confirmo que realizei a contagem dos itens e validei o retorno
+                ao estoque.
+              </Label>
+            </div>
+            {!inventoryConfirmed && (
+              <p className="mt-2 text-xs text-muted-foreground">
+                Marque a confirmação da contagem para habilitar a finalização.
+              </p>
+            )}
+          </div>
+
           <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             <Button
               type="button"
@@ -287,7 +321,9 @@ export function EventCompleteDialog({
             <Button
               type="button"
               onClick={handleConfirm}
-              disabled={isLoading || completionErrors.length > 0}
+              disabled={
+                isLoading || completionErrors.length > 0 || !inventoryConfirmed
+              }
               className="bg-gradient-to-r from-primary to-secondary font-semibold text-white shadow-md transition-all hover:shadow-lg"
             >
               {isLoading ? (

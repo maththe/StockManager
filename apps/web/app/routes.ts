@@ -1,4 +1,9 @@
-import { type RouteConfig, index, route } from '@react-router/dev/routes';
+import {
+  type RouteConfig,
+  index,
+  prefix,
+  route,
+} from '@react-router/dev/routes';
 
 export default [
   index('routes/home.tsx'),
@@ -10,9 +15,13 @@ export default [
     route('categories', 'routes/categories/CategoriesPage.tsx'),
     route('clients', 'routes/clients/ClientsPage.tsx'),
     route('users', 'routes/users/UsersPage.tsx'),
-    route('rentals', 'routes/rentals/RentalsPage.tsx'),
+    ...prefix('rentals', [
+      index('routes/rentals/RentalsPage.tsx'),
+      route(':rentalId', 'routes/rentals/RentalDetailsPage.tsx'),
+      route(':rentalId/items', 'routes/rentals/RentalItemsPage.tsx'),
+    ]),
     route('calendar', 'routes/calendar/CalendarPage.tsx'),
-    route('events', 'routes/events/EventsLayout.tsx', [
+    ...prefix('events', [
       index('routes/events/EventsPage.tsx'),
       route(':eventId', 'routes/events/EventDetailsPage.tsx'),
       route(':eventId/items', 'routes/events/EventReservedItemsPage.tsx'),

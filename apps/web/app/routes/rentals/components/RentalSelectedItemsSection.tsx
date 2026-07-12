@@ -1,11 +1,11 @@
 import { Loader2, Package } from 'lucide-react';
-import { SelectedGroup } from './SelectedGroup';
-import type { SelectedEventItem } from '../utils/utils';
+import type { SelectedRentalItem } from '../utils/rental-helpers';
+import { RentalSelectedItemCard } from './RentalSelectedItemCard';
 
-interface SelectedItemsSectionProps {
+interface RentalSelectedItemsSectionProps {
   groupedSelectedItems: Array<{
     categoryName: string;
-    items: SelectedEventItem[];
+    items: SelectedRentalItem[];
   }>;
   categoryMap: Map<string, string>;
   quantityDrafts: Record<string, string>;
@@ -13,13 +13,13 @@ interface SelectedItemsSectionProps {
   removingItemId: string | null;
   isBusy: boolean;
   isLoading: boolean;
-  onDraftChange: (eventItemId: string, value: string) => void;
-  onStepQuantity: (eventItem: SelectedEventItem, direction: -1 | 1) => void;
-  onSaveQuantity: (eventItem: SelectedEventItem) => void;
-  onRemoveItem: (eventItemId: string) => void;
+  onDraftChange: (rentalItemId: string, value: string) => void;
+  onStepQuantity: (rentalItem: SelectedRentalItem, direction: -1 | 1) => void;
+  onSaveQuantity: (rentalItem: SelectedRentalItem) => void;
+  onRemoveItem: (rentalItemId: string) => void;
 }
 
-export function SelectedItemsSection({
+export function RentalSelectedItemsSection({
   groupedSelectedItems,
   categoryMap,
   quantityDrafts,
@@ -31,7 +31,7 @@ export function SelectedItemsSection({
   onStepQuantity,
   onSaveQuantity,
   onRemoveItem,
-}: SelectedItemsSectionProps) {
+}: RentalSelectedItemsSectionProps) {
   const totalItems = groupedSelectedItems.reduce(
     (count, group) => count + group.items.length,
     0,
@@ -41,7 +41,7 @@ export function SelectedItemsSection({
     (count, group) =>
       count +
       group.items.reduce(
-        (sum, eventItem) => sum + (eventItem.plannedQuantity ?? 0),
+        (sum, rentalItem) => sum + (rentalItem.quantity ?? 0),
         0,
       ),
     0,
@@ -98,25 +98,46 @@ export function SelectedItemsSection({
             </div>
             <p className="mt-2 max-w-prose text-sm leading-6 text-muted-foreground">
               Use o catálogo para localizar o item, revisar o estoque
-              disponível e definir a quantidade a reservar para o evento.
+              disponível e definir a quantidade a reservar para a locação.
             </p>
           </div>
         ) : (
           <div className="space-y-5 animate-in fade-in duration-300">
             {groupedSelectedItems.map((group) => (
-              <SelectedGroup
-                key={group.categoryName}
-                group={group}
-                categoryMap={categoryMap}
-                quantityDrafts={quantityDrafts}
-                savingItemId={savingItemId}
-                removingItemId={removingItemId}
-                isBusy={isBusy}
-                onDraftChange={onDraftChange}
-                onStepQuantity={onStepQuantity}
-                onSaveQuantity={onSaveQuantity}
-                onRemoveItem={onRemoveItem}
-              />
+              <div key={group.categoryName} className="space-y-3">
+                <div className="flex items-center gap-2 px-2">
+                  <span className="h-px flex-1 bg-border/60" />
+                  <div className="rounded-full border border-border/70 bg-background px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                    {group.categoryName}
+                  </div>
+                  <span className="h-px flex-1 bg-border/60" />
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+                  {group.items.map((rentalItem) => (
+                    <RentalSelectedItemCard
+                      key={rentalItem.id}
+                      rentalItem={rentalItem}
+                      categoryName={
+                        (rentalItem.inventoryItem
+                          ? categoryMap.get(rentalItem.inventoryItem.categoryId)
+                          : undefined) ?? group.categoryName
+                      }
+                      draftValue={
+                        quantityDrafts[rentalItem.id] ??
+                        String(rentalItem.quantity)
+                      }
+                      isSaving={savingItemId === rentalItem.id}
+                      isRemoving={removingItemId === rentalItem.id}
+                      isBusy={isBusy}
+                      onDraftChange={onDraftChange}
+                      onStepQuantity={onStepQuantity}
+                      onSaveQuantity={onSaveQuantity}
+                      onRemoveItem={onRemoveItem}
+                    />
+                  ))}
+                </div>
+              </div>
             ))}
           </div>
         )}

@@ -11,7 +11,7 @@ interface ItemThumbnailProps {
     name: string;
     imageUrl?: string | null;
   };
-  categoryName: string;
+  categoryName?: string;
   className?: string;
   variant?: ItemImageVariant;
 }
@@ -45,10 +45,12 @@ export function ItemThumbnail({
       <div className="px-3 text-xs font-medium text-foreground">
         {item.name}
       </div>
-      <div className="mt-1 flex items-center gap-1 px-3 text-[11px] text-muted-foreground">
-        <ImageOff className="h-3 w-3" />
-        {categoryName}
-      </div>
+      {categoryName && (
+        <div className="mt-1 flex items-center gap-1 px-3 text-[11px] text-muted-foreground">
+          <ImageOff className="h-3 w-3" />
+          {categoryName}
+        </div>
+      )}
     </div>
   );
 }

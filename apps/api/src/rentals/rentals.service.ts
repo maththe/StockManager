@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { Rental, RentalStatus } from '@prisma/client';
+import { Rental, RentalStatus, TaskStatus, TaskType } from '@prisma/client';
 import { PrismaService } from 'src/services/prisma.service';
+import { TasksService } from 'src/tasks/tasks.service';
 import { nextSequentialCode } from 'src/common/code.util';
 import { CreateRentalInput } from './dto/create-rental.input';
 import { CreateRentalItemInput } from './dto/create-rental-item.input';
@@ -9,7 +10,10 @@ import { UpdateRentalItemInput } from './dto/update-rental-item.input';
 
 @Injectable()
 export class RentalsService {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly tasksService: TasksService,
+  ) { }
 
   private parseRentalDates(startDate: string, expectedReturn: string) {
     const parsedStart = new Date(startDate);
@@ -266,6 +270,50 @@ export class RentalsService {
         include: { client: true, rentalItems: { include: { item: true } } },
       });
     });
+  }
+
+  async gerarTarefaGalpao(id: string, tenantUuid: string, userId?: string) {
+    const rental = await this.findOne(id, tenantUuid);
+    if (!rental) {
+      throw new NotFoundException('Locação não encontrada.');
+    }
+
+    if (rental.status === RentalStatus.CANCELLED || rental.status === RentalStatus.RETURNED) {
+      throw new BadRequestException(
+        'Não é possível gerar tarefa de galpão para uma locação encerrada.',
+      );
+    }
+
+    if (rental.rentalItems.length === 0) {
+      throw new BadRequestException(
+        'Adicione ao menos um item à locação antes de gerar a tarefa de galpão.',
+      );
+    }
+
+    const pendingTask = await this.prisma.task.findFirst({
+      where: {
+        rentalId: id,
+        tenantUuid,
+        type: TaskType.SAIDA_GALPAO,
+        status: TaskStatus.PENDENTE,
+      },
+    });
+
+    if (pendingTask) {
+      throw new BadRequestException(
+        'Já existe uma tarefa de saída do galpão pendente para esta locação.',
+      );
+    }
+
+    return this.tasksService.createSaidaGalpaoTaskForRental(
+      id,
+      rental.rentalItems.map((rentalItem) => ({
+        rentalItemId: rentalItem.id,
+        requestedQuantity: rentalItem.quantity,
+      })),
+      tenantUuid,
+      userId,
+    );
   }
 
   async addItem(rentalId: string, input: CreateRentalItemInput, tenantUuid: string) {

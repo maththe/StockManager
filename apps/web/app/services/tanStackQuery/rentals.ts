@@ -21,6 +21,17 @@ export const useRentals = (search?: string) => {
   });
 };
 
+export const useRental = (id?: string) => {
+  return useQuery({
+    queryKey: ['rentals', 'detail', id],
+    queryFn: async () => {
+      const response = await api.get<Rental>(`/rentals/${id}`);
+      return response.data;
+    },
+    enabled: Boolean(id),
+  });
+};
+
 export const useCreateRental = () => {
   const queryClient = useQueryClient();
   return useMutation({
@@ -92,6 +103,22 @@ export const useReturnRental = () => {
       mutationSuccess('Locação devolvida com sucesso.');
     },
     onError: (error) => mutationError('Erro ao devolver locação.', error),
+  });
+};
+
+export const useCreateRentalGalpaoTask = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (rentalId: string) => {
+      const response = await api.post(`/rentals/${rentalId}/tasks`);
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['rentals'] });
+      mutationSuccess('Tarefa de saída do galpão criada.');
+    },
+    onError: (error) => mutationError('Erro ao gerar tarefa de galpão.', error),
   });
 };
 

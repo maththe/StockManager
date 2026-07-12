@@ -1,4 +1,9 @@
-import type { EventItem, EventStatus } from '~/types/event';
+import type {
+  CompleteEventItemInput,
+  Event,
+  EventItem,
+  EventStatus,
+} from '~/types/event';
 import type { Item } from '~/types/item';
 
 export const eventStatusLabel: Record<EventStatus, string> = {
@@ -30,10 +35,6 @@ export type EventCatalogItem = Item;
 export type SelectedEventItem = EventItem & {
   inventoryItem?: EventCatalogItem;
 };
-
-export function normalizeText(value: string) {
-  return value.trim().toLowerCase();
-}
 
 export type ItemImageVariant = 'thumbnail' | 'modal';
 
@@ -67,10 +68,70 @@ export function getPlannedQuantityError(eventItem: EventItem, value: string) {
   const nextValue = Number(value);
   const { minimum, maximum } = getPlannedQuantityBounds(eventItem);
   if (!Number.isFinite(nextValue) || !Number.isInteger(nextValue))
-    return 'Informe um numero inteiro.';
+    return 'Informe um número inteiro.';
   if (nextValue < minimum)
-    return `A quantidade minima para este item e ${minimum}.`;
+    return `A quantidade mínima para este item é ${minimum}.`;
   if (nextValue > maximum)
-    return `Estoque insuficiente. O maximo permitido e ${maximum}.`;
+    return `Estoque insuficiente. O máximo permitido é ${maximum}.`;
   return null;
 }
+
+export function groupEventItemsByCategory(
+  eventItems: EventItem[],
+  itemMap: Map<string, Item>,
+  categoryMap: Map<string, string>,
+) {
+  const groups = new Map<string, SelectedEventItem[]>();
+
+  for (const eventItem of eventItems) {
+    const inventoryItem = itemMap.get(eventItem.itemId);
+    const categoryName = inventoryItem
+      ? (categoryMap.get(inventoryItem.categoryId) ?? 'Sem categoria')
+      : 'Sem categoria';
+
+    const entry: SelectedEventItem = { ...eventItem, inventoryItem };
+    const current = groups.get(categoryName) ?? [];
+    current.push(entry);
+    groups.set(categoryName, current);
+  }
+
+  return Array.from(groups.entries())
+    .map(([categoryName, categoryItems]) => ({
+      categoryName,
+      items: categoryItems.sort((left, right) =>
+        left.item.name.localeCompare(right.item.name),
+      ),
+    }))
+    .sort((left, right) => left.categoryName.localeCompare(right.categoryName));
+}
+
+export const getDivergenceQuantity = (
+  eventItem: EventItem,
+  type: 'MISSING' | 'DAMAGED',
+) =>
+  eventItem.divergences
+    ?.filter((divergence) => divergence.type === type)
+    .reduce((total, divergence) => total + divergence.quantity, 0) ?? 0;
+
+export const buildCompletionDrafts = (event?: Event | null) =>
+  Object.fromEntries(
+    (event?.eventItems ?? []).map((eventItem) => [
+      eventItem.id,
+      {
+        eventItemId: eventItem.id,
+        returnedQuantity:
+          eventItem.returnedQuantity ||
+          Math.max(
+            0,
+            eventItem.plannedQuantity -
+              getDivergenceQuantity(eventItem, 'MISSING') -
+              getDivergenceQuantity(eventItem, 'DAMAGED'),
+          ),
+        missingQuantity: getDivergenceQuantity(eventItem, 'MISSING'),
+        damagedQuantity: getDivergenceQuantity(eventItem, 'DAMAGED'),
+        notes:
+          eventItem.divergences?.find((divergence) => divergence.notes)
+            ?.notes ?? '',
+      },
+    ]),
+  ) as Record<string, CompleteEventItemInput>;

@@ -2,14 +2,20 @@ import { useMemo, useState } from 'react';
 import {
   CalendarDays,
   CalendarRange,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  ClipboardList,
   Loader2,
   MapPin,
+  Play,
   Plus,
   Search,
   UserRound,
 } from 'lucide-react';
 import { useNavigate } from 'react-router';
 
+import { StatCard } from '~/components/StatCard';
 import { Button } from '~/components/ui/button';
 import {
   Card,
@@ -60,34 +66,48 @@ export function EventsList() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<EventStatus | 'ALL'>('ALL');
+  const [periodOffset, setPeriodOffset] = useState<number | 'all'>(0);
 
-  const { data: events = [], isLoading } = useEvents();
+  const { data: events = [], isLoading } = useEvents(searchTerm.trim());
   const { data: clients = [] } = useClients();
   const { data: users = [] } = useUsers();
   const createEvent = useCreateEvent();
 
   const currentPeriod = useMemo(() => {
-    const year = today.getFullYear();
-    const month = today.getMonth();
+    if (periodOffset === 'all') return null;
+
+    const reference = new Date(
+      today.getFullYear(),
+      today.getMonth() + periodOffset,
+      1,
+    );
+    const year = reference.getFullYear();
+    const month = reference.getMonth();
     return {
       label: new Intl.DateTimeFormat('pt-BR', {
         month: 'long',
         year: 'numeric',
-      }).format(today),
+      }).format(reference),
       start: new Date(year, month, 1).getTime(),
       end: new Date(year, month + 1, 0, 23, 59, 59, 999).getTime(),
     };
-  }, [today]);
+  }, [today, periodOffset]);
 
-  const periodEvents = useMemo(
-    () =>
-      events.filter((event) => {
-        const eventStart = new Date(event.startDate).getTime();
-        const eventEnd = new Date(event.endDate ?? event.startDate).getTime();
-        return eventStart <= currentPeriod.end && eventEnd >= currentPeriod.start;
-      }),
-    [events, currentPeriod],
-  );
+  const periodEvents = useMemo(() => {
+    if (!currentPeriod) {
+      return [...events].sort(
+        (left, right) =>
+          new Date(right.startDate).getTime() -
+          new Date(left.startDate).getTime(),
+      );
+    }
+
+    return events.filter((event) => {
+      const eventStart = new Date(event.startDate).getTime();
+      const eventEnd = new Date(event.endDate ?? event.startDate).getTime();
+      return eventStart <= currentPeriod.end && eventEnd >= currentPeriod.start;
+    });
+  }, [events, currentPeriod]);
 
   const stats = useMemo(
     () => ({
@@ -102,24 +122,13 @@ export function EventsList() {
     [periodEvents],
   );
 
-  const filteredEvents = useMemo(() => {
-    const search = searchTerm.trim().toLowerCase();
-    return periodEvents.filter((event) => {
-      const matchesStatus =
-        statusFilter === 'ALL' || event.status === statusFilter;
-      if (!matchesStatus) return false;
-      if (!search) return true;
-      const haystack = [
-        event.eventName,
-        event.eventLocation,
-        event.client?.companyName ?? '',
-        event.responsible?.name ?? '',
-      ]
-        .join(' ')
-        .toLowerCase();
-      return haystack.includes(search);
-    });
-  }, [periodEvents, searchTerm, statusFilter]);
+  const filteredEvents = useMemo(
+    () =>
+      periodEvents.filter(
+        (event) => statusFilter === 'ALL' || event.status === statusFilter,
+      ),
+    [periodEvents, statusFilter],
+  );
 
   const handleOpenDialog = () => {
     setDialogOpen(true);
@@ -201,52 +210,94 @@ export function EventsList() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+      <div className="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
         <CalendarRange className="h-4 w-4 text-primary" />
-        Período:{' '}
-        <span className="capitalize text-foreground">{currentPeriod.label}</span>
+        Período:
+        {currentPeriod ? (
+          <div className="flex items-center gap-1">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              onClick={() =>
+                setPeriodOffset((current) =>
+                  current === 'all' ? -1 : current - 1,
+                )
+              }
+              aria-label="Mês anterior"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <span className="min-w-32 text-center capitalize text-foreground">
+              {currentPeriod.label}
+            </span>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              onClick={() =>
+                setPeriodOffset((current) =>
+                  current === 'all' ? 1 : current + 1,
+                )
+              }
+              aria-label="Próximo mês"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        ) : (
+          <span className="text-foreground">Todos os períodos</span>
+        )}
+        <div className="flex items-center gap-2">
+          {periodOffset !== 0 && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-7 border-border/60 text-xs"
+              onClick={() => setPeriodOffset(0)}
+            >
+              Hoje
+            </Button>
+          )}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-7 border-border/60 text-xs"
+            onClick={() =>
+              setPeriodOffset((current) => (current === 'all' ? 0 : 'all'))
+            }
+          >
+            {periodOffset === 'all' ? 'Ver mês atual' : 'Todos os períodos'}
+          </Button>
+        </div>
       </div>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Card className="border-primary/30 bg-gradient-to-br from-primary/10 to-primary/5 shadow-sm">
-          <CardHeader className="pb-3">
-            <CardDescription className="text-xs font-semibold uppercase tracking-wider text-primary">
-              Total
-            </CardDescription>
-            <CardTitle className="mt-2 text-3xl font-bold text-primary">
-              {stats.total}
-            </CardTitle>
-          </CardHeader>
-        </Card>
-        <Card className="border-secondary/30 bg-gradient-to-br from-secondary/10 to-secondary/5 shadow-sm">
-          <CardHeader className="pb-3">
-            <CardDescription className="text-xs font-semibold uppercase tracking-wider text-secondary">
-              Em planejamento
-            </CardDescription>
-            <CardTitle className="mt-2 text-3xl font-bold text-secondary">
-              {stats.planning}
-            </CardTitle>
-          </CardHeader>
-        </Card>
-        <Card className="border-accent/30 bg-gradient-to-br from-accent/10 to-accent/5 shadow-sm">
-          <CardHeader className="pb-3">
-            <CardDescription className="text-xs font-semibold uppercase tracking-wider text-accent">
-              Em andamento
-            </CardDescription>
-            <CardTitle className="mt-2 text-3xl font-bold text-accent">
-              {stats.active}
-            </CardTitle>
-          </CardHeader>
-        </Card>
-        <Card className="border-border/60 bg-gradient-to-br from-card to-muted/30 shadow-sm">
-          <CardHeader className="pb-3">
-            <CardDescription className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Concluídos
-            </CardDescription>
-            <CardTitle className="mt-2 text-3xl font-bold text-foreground">
-              {stats.completed}
-            </CardTitle>
-          </CardHeader>
-        </Card>
+        <StatCard
+          label="Total"
+          value={stats.total}
+          icon={CalendarDays}
+          tone="primary"
+        />
+        <StatCard
+          label="Em planejamento"
+          value={stats.planning}
+          icon={ClipboardList}
+          tone="secondary"
+        />
+        <StatCard
+          label="Em andamento"
+          value={stats.active}
+          icon={Play}
+          tone="accent"
+        />
+        <StatCard
+          label="Concluídos"
+          value={stats.completed}
+          icon={CheckCircle2}
+          tone="muted"
+        />
       </div>
 
       <Card className="border border-border/50 bg-card/50 shadow-sm backdrop-blur-sm">
@@ -312,7 +363,7 @@ export function EventsList() {
             <div className="flex justify-center py-16">
               <Loader2 className="h-10 w-10 animate-spin text-muted-foreground" />
             </div>
-          ) : events.length === 0 ? (
+          ) : events.length === 0 && !searchTerm.trim() ? (
             <div className="py-16 text-center">
               <CalendarDays className="mx-auto mb-4 h-14 w-14 text-muted-foreground/50" />
               <div className="mb-3 text-lg font-semibold text-foreground">
@@ -328,6 +379,26 @@ export function EventsList() {
               >
                 <Plus className="mr-2 h-5 w-5" />
                 Novo Evento
+              </Button>
+            </div>
+          ) : periodEvents.length === 0 && events.length > 0 && currentPeriod ? (
+            <div className="rounded-xl border border-dashed border-border/60 py-12 text-center">
+              <div className="text-sm text-muted-foreground">
+                Nenhum evento em{' '}
+                <span className="font-semibold capitalize text-foreground">
+                  {currentPeriod.label}
+                </span>
+                . Use as setas para navegar entre os meses ou veja todos os
+                períodos.
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="mt-4 border-border/60"
+                onClick={() => setPeriodOffset('all')}
+              >
+                Ver todos os períodos
               </Button>
             </div>
           ) : filteredEvents.length === 0 ? (

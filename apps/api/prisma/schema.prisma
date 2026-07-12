@@ -219,6 +219,7 @@ model Rental {
   client   Client @relation(fields: [clientId], references: [id], onDelete: Restrict)
 
   rentalItems RentalItem[]
+  tasks       Task[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -240,6 +241,8 @@ model RentalItem {
 
   itemId String
   item   Item   @relation(fields: [itemId], references: [id], onDelete: Restrict)
+
+  taskItems TaskItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -306,8 +309,9 @@ model DivergenceItem {
 }
 
 // Tarefa de confirmação de movimentação no galpão.
-// SAIDA_GALPAO: criada automaticamente ao evento → IN_PROGRESS (decorador).
-// ENTRADA_GALPAO: criada automaticamente ao evento → COMPLETED (decorador) para os itens com retorno > 0.
+// Vinculada a um Event OU a um Rental (exatamente uma das duas origens).
+// SAIDA_GALPAO: itens saindo do galpão. ENTRADA_GALPAO: itens retornando.
+// Eventos criam automaticamente (iniciar/concluir); locações geram sob demanda.
 model Task {
   id           String     @id @default(uuid())
   code         String
@@ -317,8 +321,11 @@ model Task {
   tenantUuid   String
   completedAt  DateTime?
 
-  eventId String
-  event   Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  eventId String?
+  event   Event?  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  rentalId String?
+  rental   Rental? @relation(fields: [rentalId], references: [id], onDelete: Cascade)
 
   assignedToId String?
   assignedTo   User?   @relation("TasksAssigned", fields: [assignedToId], references: [id], onDelete: SetNull)
@@ -334,6 +341,7 @@ model Task {
   @@unique([tenantUuid, code])
   @@index([tenantUuid])
   @@index([eventId])
+  @@index([rentalId])
   @@map("tasks")
 }
 
@@ -348,14 +356,18 @@ model TaskItem {
   taskId String
   task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
-  eventItemId String
-  eventItem   EventItem @relation(fields: [eventItemId], references: [id], onDelete: Cascade)
+  eventItemId String?
+  eventItem   EventItem? @relation(fields: [eventItemId], references: [id], onDelete: Cascade)
+
+  rentalItemId String?
+  rentalItem   RentalItem? @relation(fields: [rentalItemId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([taskId])
   @@index([eventItemId])
+  @@index([rentalItemId])
   @@map("task_items")
 }
 

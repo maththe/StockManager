@@ -57,7 +57,7 @@ export function ClientFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg rounded-2xl bg-card/75 backdrop-blur-md">
+      <DialogContent className="rounded-2xl bg-card/75 backdrop-blur-md sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>
             {client ? 'Editar Cliente' : 'Novo Cliente'}
