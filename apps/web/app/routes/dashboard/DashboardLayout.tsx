@@ -6,6 +6,7 @@ import {
   ClipboardList,
   HandCoins,
   LogOut,
+  TriangleAlert,
   PanelLeftClose,
   PanelLeftOpen,
   Settings,
@@ -29,6 +30,7 @@ const navItems = [
   { to: '/dashboard/calendar', label: 'Calendário', icon: CalendarRange },
   { to: '/dashboard/rentals', label: 'Locações', icon: HandCoins },
   { to: '/dashboard/tasks', label: 'Tarefas', icon: ClipboardList },
+  { to: '/dashboard/divergences', label: 'Divergências', icon: TriangleAlert },
   { to: '/dashboard/maintenance', label: 'Manutenções', icon: Settings },
 ];
 

@@ -5,6 +5,7 @@ import { nextSequentialCode } from 'src/common/code.util';
 import { UpdateTaskInput } from './dto/update-task.input';
 import { ConfirmTaskInput } from './dto/confirm-task.input';
 import { CreatePartialTaskInput } from './dto/create-partial-task.input';
+import { ToggleTaskItemInput } from './dto/toggle-task-item.input';
 
 type PrismaTx = Prisma.TransactionClient;
 
@@ -324,6 +325,47 @@ export class TasksService {
         assignedToId: input.assignedToId,
         notes: input.notes,
       },
+      include: taskInclude,
+    });
+  }
+
+  async confirmarItem(
+    taskId: string,
+    taskItemId: string,
+    input: ToggleTaskItemInput,
+    tenantUuid: string,
+  ) {
+    const task = await this.prisma.task.findFirst({
+      where: { id: taskId, tenantUuid },
+      include: { taskItems: true },
+    });
+
+    if (!task) throw new NotFoundException('Tarefa não encontrada.');
+    if (task.status !== TaskStatus.PENDENTE) {
+      throw new BadRequestException(
+        'Apenas itens de tarefas pendentes podem ser confirmados.',
+      );
+    }
+
+    const taskItem = task.taskItems.find((ti) => ti.id === taskItemId);
+    if (!taskItem) {
+      throw new NotFoundException('Item da tarefa não encontrado.');
+    }
+
+    // Confirmar um item significa que ele foi conferido com a quantidade
+    // exata solicitada. Quantidade diferente deve virar divergência.
+    const confirmed = input?.confirmed ?? true;
+
+    await this.prisma.taskItem.update({
+      where: { id: taskItem.id },
+      data: {
+        confirmed,
+        confirmedQuantity: confirmed ? taskItem.requestedQuantity : 0,
+      },
+    });
+
+    return this.prisma.task.findFirst({
+      where: { id: taskId, tenantUuid },
       include: taskInclude,
     });
   }

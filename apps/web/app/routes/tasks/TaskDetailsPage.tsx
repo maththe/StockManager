@@ -6,6 +6,8 @@ import {
   CheckCircle2,
   Loader2,
   Package,
+  PackageCheck,
+  Truck,
   XCircle,
 } from 'lucide-react';
 import { Link, useParams } from 'react-router';
@@ -34,6 +36,7 @@ import { useCreateTaskDivergence } from '~/services/tanStackQuery/divergences';
 import {
   useCancelarTask,
   useConcluirTask,
+  useConfirmarTaskItem,
   useTask,
 } from '~/services/tanStackQuery/tasks';
 import type {
@@ -69,16 +72,25 @@ function ItemRow({
   taskItem,
   confirmedQuantity,
   onChange,
+  onToggleConfirm,
+  toggling,
   locked,
   isEntrada,
 }: {
   taskItem: TaskItem;
   confirmedQuantity: number;
   onChange: (qty: number) => void;
+  onToggleConfirm: (confirmed: boolean) => void;
+  toggling: boolean;
   locked: boolean;
   isEntrada: boolean;
 }) {
   const plannedTotal = getTaskItemPlanned(taskItem);
+  const ConfirmIcon = isEntrada ? PackageCheck : Truck;
+  const confirmLabel = isEntrada ? 'Confirmar retorno' : 'Confirmar no caminhao';
+  const confirmedLabel = isEntrada ? 'Retorno confirmado' : 'No caminhao';
+  const countMatches = confirmedQuantity === taskItem.requestedQuantity;
+
   return (
     <div className="flex items-center gap-4 rounded-lg border border-border/50 p-4">
       <Package className="h-5 w-5 shrink-0 text-muted-foreground" />
@@ -96,8 +108,8 @@ function ItemRow({
           )}
         </p>
       </div>
-      <div className="flex items-center gap-2">
-        {taskItem.confirmed && (
+      <div className="flex items-center gap-3">
+        {locked && taskItem.confirmed && (
           <CheckCircle2 className="h-4 w-4 text-green-500" />
         )}
         <div className="flex flex-col gap-1">
@@ -113,9 +125,42 @@ function ItemRow({
             onChange={(value) =>
               onChange(Math.max(0, Number.parseInt(value, 10) || 0))
             }
-            disabled={locked}
+            disabled={locked || taskItem.confirmed}
           />
         </div>
+        {!locked &&
+          (taskItem.confirmed ? (
+            <div className="flex flex-col items-end gap-1">
+              <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-1 text-xs font-semibold text-green-800 dark:bg-green-900/30 dark:text-green-400">
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                {confirmedLabel}
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 px-2 text-xs text-muted-foreground"
+                onClick={() => onToggleConfirm(false)}
+                disabled={toggling}
+              >
+                Desfazer
+              </Button>
+            </div>
+          ) : (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onToggleConfirm(true)}
+              disabled={toggling || !countMatches}
+              title={
+                countMatches
+                  ? undefined
+                  : 'So e possivel confirmar o item com a quantidade exata solicitada. Se houver problema, crie uma divergencia.'
+              }
+            >
+              <ConfirmIcon className="mr-2 h-4 w-4" />
+              {confirmLabel}
+            </Button>
+          ))}
       </div>
     </div>
   );
@@ -126,6 +171,7 @@ export default function TaskDetailsPage() {
   const { data: task, isLoading } = useTask(taskId ?? '');
   const concluir = useConcluirTask();
   const cancelar = useCancelarTask();
+  const confirmarItem = useConfirmarTaskItem();
   const createDivergence = useCreateTaskDivergence();
 
   const [quantities, setQuantities] = useState<Record<string, number>>({});
@@ -146,14 +192,16 @@ export default function TaskDetailsPage() {
     ? 'Isso registrara que os itens retornaram fisicamente ao galpao. A tarefa ficara concluida e nao podera ser editada.'
     : 'Isso registrara que os itens sairam fisicamente do galpao. A tarefa ficara concluida e nao podera ser editada.';
   const itemsCardDescription = isEntrada
-    ? 'Informe a quantidade de cada item que retornou fisicamente ao galpao.'
-    : 'Informe a quantidade de cada item que saiu fisicamente do galpao.';
+    ? 'Confirme cada item conforme ele retorna fisicamente ao galpao.'
+    : 'Confirme cada item conforme ele entra no caminhao. Ao final, conclua a tarefa.';
 
   const getQty = (taskItem: TaskItem) => {
-    if (quantities[taskItem.id] !== undefined) return quantities[taskItem.id];
     if (taskItem.confirmed) return taskItem.confirmedQuantity;
+    if (quantities[taskItem.id] !== undefined) return quantities[taskItem.id];
     return taskItem.requestedQuantity;
   };
+
+  const confirmedCount = taskItems.filter((ti) => ti.confirmed).length;
 
   const quantityErrors = useMemo(
     () =>
@@ -213,6 +261,20 @@ export default function TaskDetailsPage() {
     }));
     await concluir.mutateAsync({ id: task.id, data: { items } });
     setConfirmDialog(false);
+  };
+
+  const handleToggleItem = async (taskItem: TaskItem, confirmed: boolean) => {
+    if (!task) return;
+    await confirmarItem.mutateAsync({
+      taskId: task.id,
+      taskItemId: taskItem.id,
+      confirmed,
+    });
+    // Descarta a contagem local para o item voltar a refletir o servidor.
+    setQuantities((current) => {
+      const { [taskItem.id]: _removed, ...rest } = current;
+      return rest;
+    });
   };
 
   const handleCreateDivergence = async (data: CreateTaskDivergenceInput) => {
@@ -375,6 +437,11 @@ export default function TaskDetailsPage() {
           <CardTitle className="flex items-center gap-2">
             <Package className="h-5 w-5" />
             Itens a confirmar
+            {taskItems.length > 0 && (
+              <span className="ml-auto rounded-full bg-muted px-2.5 py-0.5 text-xs font-semibold text-muted-foreground">
+                {confirmedCount}/{taskItems.length} confirmados
+              </span>
+            )}
           </CardTitle>
           <CardDescription>{itemsCardDescription}</CardDescription>
         </CardHeader>
@@ -395,6 +462,10 @@ export default function TaskDetailsPage() {
                     [taskItem.id]: quantity,
                   }))
                 }
+                onToggleConfirm={(confirmed) =>
+                  handleToggleItem(taskItem, confirmed)
+                }
+                toggling={confirmarItem.isPending}
                 locked={locked}
                 isEntrada={isEntrada}
               />

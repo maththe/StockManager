@@ -78,6 +78,35 @@ export const useConcluirTask = () => {
   });
 };
 
+export const useConfirmarTaskItem = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      taskId,
+      taskItemId,
+      confirmed,
+    }: {
+      taskId: string;
+      taskItemId: string;
+      confirmed: boolean;
+    }) => {
+      const response = await api.patch<Task>(
+        `/tasks/${taskId}/itens/${taskItemId}/confirmar`,
+        { confirmed },
+      );
+      return response.data;
+    },
+    onSuccess: (_, { taskId, confirmed }) => {
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['tasks', taskId] });
+      mutationSuccess(
+        confirmed ? 'Item confirmado.' : 'Confirmação do item desfeita.',
+      );
+    },
+    onError: (error) => mutationError('Erro ao confirmar item.', error),
+  });
+};
+
 export const useCreatePartialTask = () => {
   const queryClient = useQueryClient();
   return useMutation({

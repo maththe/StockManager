@@ -1,6 +1,18 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, Req } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import type { Request } from 'express';
-import { DivergenceStatus } from '@prisma/client';
+import { DivergenceStatus, UserRole } from '@prisma/client';
+import { Roles } from '../auth/roles.decorator';
+import { RolesGuard } from '../auth/roles.guard';
 import { DivergencesService } from './divergences.service';
 import { CreateTaskDivergenceInput } from './dto/create-task-divergence.input';
 
@@ -36,6 +48,8 @@ export class DivergencesController {
   }
 
   @Patch(':id/resolver')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.DECORADOR)
   resolver(@Param('id') id: string, @Req() req: Request) {
     const user = (req as any).user;
     return this.divergencesService.resolver(id, user.tenantUuid, user.sub);

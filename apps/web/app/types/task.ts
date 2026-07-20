@@ -75,6 +75,10 @@ export interface ConfirmTaskInput {
   items: ConfirmTaskItemInput[];
 }
 
+export interface ToggleTaskItemInput {
+  confirmed?: boolean;
+}
+
 export interface CreateTaskDivergenceItemInput {
   taskItemId: string;
   confirmedQuantity: number;

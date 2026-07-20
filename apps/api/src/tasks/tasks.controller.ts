@@ -17,6 +17,7 @@ import { TasksService } from './tasks.service';
 import { UpdateTaskInput } from './dto/update-task.input';
 import { ConfirmTaskInput } from './dto/confirm-task.input';
 import { CreatePartialTaskInput } from './dto/create-partial-task.input';
+import { ToggleTaskItemInput } from './dto/toggle-task-item.input';
 
 @Controller('tasks')
 export class TasksController {
@@ -54,6 +55,17 @@ export class TasksController {
   update(@Param('id') id: string, @Body() body: UpdateTaskInput, @Req() req: Request) {
     const { tenantUuid } = (req as any).user;
     return this.tasksService.update(id, body, tenantUuid);
+  }
+
+  @Patch(':id/itens/:taskItemId/confirmar')
+  confirmarItem(
+    @Param('id') id: string,
+    @Param('taskItemId') taskItemId: string,
+    @Body() body: ToggleTaskItemInput,
+    @Req() req: Request,
+  ) {
+    const { tenantUuid } = (req as any).user;
+    return this.tasksService.confirmarItem(id, taskItemId, body, tenantUuid);
   }
 
   @Patch(':id/concluir')

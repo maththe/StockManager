@@ -42,6 +42,15 @@ export default function Login() {
     }
   };
 
+  const enterAsGuest = async () => {
+    try {
+      await login.mutateAsync({ email: 'admin@stockmanager.dev', senha: 'senha123' });
+      navigate('/dashboard');
+    } catch {
+      // Erro já exibido em toast pelo useLogin
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-sky-50 via-white to-indigo-50 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800 p-6">
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -96,6 +105,19 @@ export default function Login() {
                 )}
                 Acessar Painel
               </Button>
+
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                disabled={login.isPending}
+                onClick={enterAsGuest}
+              >
+                Entrar como visitante (demo)
+              </Button>
+              <p className="text-xs text-center text-muted-foreground -mt-2">
+                Acesso completo com dados de exemplo, sem cadastro.
+              </p>
 
               <p className="text-sm text-center text-muted-foreground">
                 Não tem uma conta?{' '}

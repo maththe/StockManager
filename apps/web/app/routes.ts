@@ -28,6 +28,8 @@ export default [
     ]),
     route('tasks', 'routes/tasks/TasksPage.tsx'),
     route('tasks/:taskId', 'routes/tasks/TaskDetailsPage.tsx'),
+    route('divergences', 'routes/divergences/DivergencesPage.tsx'),
+    route('divergences/:divergenceId', 'routes/divergences/DivergenceDetailsPage.tsx'),
     route('maintenance', 'routes/maintenance/MaintenancePage.tsx'),
     route('maintenance/:maintenanceId', 'routes/maintenance/MaintenanceDetailsPage.tsx'),
   ]),
