@@ -87,20 +87,32 @@ Toda alteração em `availableQuantity` deve ser **transacional**. As regras vig
 | Remover item de evento/locação | Devolve estoque |
 | Cancelar evento ou locação | Devolve todo estoque pendente |
 | Devolver locação | Incrementa conforme `returnedQuantity` |
-| Concluir evento com conferência | Pode ajustar `totalQuantity` (faltas/avarias) |
+| Concluir a contagem final do evento | Devolve o contado e abate o que faltou de `totalQuantity` |
 
 Campos a revisar sempre que tocar `EventsService` ou `RentalsService`:
 `availableQuantity` · `totalQuantity` · `returnedQuantity` · `divergences`
 
-### Eventos — fluxo único de conclusão
+### Eventos — conclusão em duas etapas (a conferência é do galpão)
 
 ```
-PATCH /events/:id          { status: COMPLETED, inventoryCountConfirmed, completionItems }
-  └─ Registra conferência, faltas, avarias, ajusta estoque com precisão e
-     cancela tarefas pendentes do evento.
+1. POST /events/:id/concluir            (ADMIN/DECORADOR)
+   └─ NÃO conclui o evento e NÃO toca no estoque.
+      Cancela tarefas de saída pendentes e cria a tarefa ENTRADA_GALPAO
+      de contagem final, com a quantidade esperada por item.
+
+2. PATCH /tasks/:id/concluir            (funcionário que contou)
+   └─ EventCountService.liquidarContagemFinal:
+      devolve availableQuantity pelo contado, abate totalQuantity do que
+      faltou, cria Divergence PENDING (type MISSING, a classificar) e só
+      então move o evento para COMPLETED.
 ```
 
-A rota `PATCH /events/:id/complete` foi **removida** — não recrie um fluxo de conclusão sem conferência. Eventos `COMPLETED`/`CANCELLED` não são mais editáveis via `PATCH /events/:id`.
+Regras que sustentam esse fluxo:
+
+- `PATCH /events/:id` com `status: COMPLETED` é **rejeitado**. Não recrie um caminho que conclua evento sem contagem do galpão.
+- A tarefa de contagem final é a **única** que aceita `confirmedQuantity` menor que `requestedQuantity` — identificada por `type === ENTRADA_GALPAO && eventId != null`. Nas demais, o backend impõe a quantidade solicitada.
+- `EventCountService` vive em módulo próprio (`EventCountModule`) porque `EventsModule` já depende de `TasksModule`; importar no sentido inverso criaria ciclo.
+- Divergências **resolvidas** do evento não são apagadas nem creditadas de volta na contagem: já podem ter virado manutenção. Só as **pendentes** são substituídas.
 
 ### Locações — restrições
 
@@ -186,6 +198,7 @@ Estas inconsistências **já existem**. Não as propague ao adicionar código no
 | Banco de dados | `apps/api/src/services/prisma.service.ts` |
 | Schema | `apps/api/prisma/schema.prisma` |
 | Lógica de eventos | `apps/api/src/events/events.service.ts` |
+| Contagem final / fechamento do evento | `apps/api/src/events/event-count.service.ts` |
 | Lógica de locações | `apps/api/src/rentals/rentals.service.ts` |
 | Rotas web | `apps/web/app/routes.ts` |
 | Root da SPA | `apps/web/app/root.tsx` |

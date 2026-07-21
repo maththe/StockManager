@@ -78,16 +78,6 @@ export interface CreateEventInput {
   status?: EventStatus;
   clientId: string;
   responsibleId?: string | null;
-  inventoryCountConfirmed?: boolean;
-  completionItems?: CompleteEventItemInput[];
-}
-
-export interface CompleteEventItemInput {
-  eventItemId: string;
-  returnedQuantity: number;
-  missingQuantity?: number;
-  damagedQuantity?: number;
-  notes?: string;
 }
 
 export interface UpdateEventInput {
@@ -98,8 +88,6 @@ export interface UpdateEventInput {
   status?: EventStatus;
   clientId?: string;
   responsibleId?: string | null;
-  inventoryCountConfirmed?: boolean;
-  completionItems?: CompleteEventItemInput[];
 }
 
 export interface CreateEventItemInput {

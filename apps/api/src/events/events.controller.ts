@@ -62,6 +62,16 @@ export class EventsController {
     return this.eventsService.iniciar(id, user.tenantUuid, user.sub);
   }
 
+  // Não fecha o evento: cria a tarefa de contagem final para o galpão.
+  // O evento só vira COMPLETED quando essa tarefa for concluída.
+  @Post(':id/concluir')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.DECORADOR)
+  async concluir(@Param('id') id: string, @Req() req: Request) {
+    const user = (req as any).user;
+    return this.eventsService.solicitarContagemFinal(id, user.tenantUuid, user.sub);
+  }
+
   @Patch(':id/cancel')
   async cancel(@Param('id') id: string, @Req() req: Request) {
     const user = (req as any).user;

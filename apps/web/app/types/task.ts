@@ -77,6 +77,9 @@ export interface ConfirmTaskInput {
 
 export interface ToggleTaskItemInput {
   confirmed?: boolean;
+  // Só é lida na contagem final de evento, onde a quantidade contada pode
+  // divergir da solicitada.
+  confirmedQuantity?: number;
 }
 
 export interface CreateTaskDivergenceItemInput {

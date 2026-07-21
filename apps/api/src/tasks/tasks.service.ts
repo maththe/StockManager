@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { EventStatus, Prisma, TaskStatus, TaskType } from '@prisma/client';
 import { PrismaService } from 'src/services/prisma.service';
+import { EventCountService } from 'src/events/event-count.service';
 import { nextSequentialCode } from 'src/common/code.util';
 import { UpdateTaskInput } from './dto/update-task.input';
 import { ConfirmTaskInput } from './dto/confirm-task.input';
@@ -42,7 +43,16 @@ const taskInclude = {
 
 @Injectable()
 export class TasksService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly eventCountService: EventCountService,
+  ) {}
+
+  // Tarefa de contagem final de evento: única que aceita quantidade divergente
+  // da solicitada, porque é exatamente ela que apura a diferença.
+  private isContagemFinalDeEvento(task: { type: TaskType; eventId: string | null }) {
+    return task.type === TaskType.ENTRADA_GALPAO && !!task.eventId;
+  }
 
   private async generateTaskCode(tenantUuid: string, client: PrismaTx): Promise<string> {
     // Serializa a geração por tenant dentro da transação para não gerar código duplicado.
@@ -352,16 +362,32 @@ export class TasksService {
       throw new NotFoundException('Item da tarefa não encontrado.');
     }
 
-    // Confirmar um item significa que ele foi conferido com a quantidade
-    // exata solicitada. Quantidade diferente deve virar divergência.
+    // Em tarefas de saída, confirmar significa conferir a quantidade exata
+    // solicitada; diferença precisa virar divergência. Na contagem final de
+    // evento é o oposto: o funcionário registra o que contou de verdade.
     const confirmed = input?.confirmed ?? true;
+    const contagemFinal = this.isContagemFinalDeEvento(task);
+
+    let confirmedQuantity = 0;
+    if (confirmed) {
+      confirmedQuantity = contagemFinal
+        ? (input?.confirmedQuantity ?? taskItem.confirmedQuantity)
+        : taskItem.requestedQuantity;
+
+      if (
+        !Number.isInteger(confirmedQuantity) ||
+        confirmedQuantity < 0 ||
+        confirmedQuantity > taskItem.requestedQuantity
+      ) {
+        throw new BadRequestException(
+          `A quantidade contada deve ser um inteiro entre 0 e ${taskItem.requestedQuantity}.`,
+        );
+      }
+    }
 
     await this.prisma.taskItem.update({
       where: { id: taskItem.id },
-      data: {
-        confirmed,
-        confirmedQuantity: confirmed ? taskItem.requestedQuantity : 0,
-      },
+      data: { confirmed, confirmedQuantity },
     });
 
     return this.prisma.task.findFirst({
@@ -370,13 +396,20 @@ export class TasksService {
     });
   }
 
-  async concluir(id: string, input: ConfirmTaskInput, tenantUuid: string) {
+  async concluir(
+    id: string,
+    input: ConfirmTaskInput,
+    tenantUuid: string,
+    userId?: string,
+  ) {
     const task = await this.prisma.task.findFirst({
       where: { id, tenantUuid },
       include: { taskItems: { include: { eventItem: true } } },
     });
 
     if (!task) throw new NotFoundException('Tarefa não encontrada.');
+
+    const contagemFinal = this.isContagemFinalDeEvento(task);
     if (task.status === TaskStatus.CONCLUIDA) {
       throw new BadRequestException('Esta tarefa já está concluída.');
     }
@@ -412,7 +445,9 @@ export class TasksService {
         );
       }
 
-      if (update.confirmedQuantity !== taskItem.requestedQuantity) {
+      // A contagem final é justamente quem apura a diferença: aceita menos que
+      // o solicitado e transforma o que faltou em divergência.
+      if (!contagemFinal && update.confirmedQuantity !== taskItem.requestedQuantity) {
         throw new BadRequestException(
           'A tarefa so pode ser concluida com a quantidade exata solicitada. Se houver problema, crie uma divergencia.',
         );
@@ -434,11 +469,32 @@ export class TasksService {
         });
       }
 
-      return tx.task.update({
+      const concluida = await tx.task.update({
         where: { id },
         data: { status: TaskStatus.CONCLUIDA, completedAt: new Date() },
         include: taskInclude,
       });
+
+      // Concluir a contagem final devolve o estoque, registra a divergência do
+      // que não voltou e fecha o evento — tudo na mesma transação.
+      if (contagemFinal && task.eventId) {
+        await this.eventCountService.liquidarContagemFinal(
+          task.eventId,
+          task.taskItems
+            .filter((ti) => ti.eventItemId)
+            .map((ti) => ({
+              eventItemId: ti.eventItemId!,
+              expectedQuantity: ti.requestedQuantity,
+              countedQuantity: itemsById.get(ti.id)?.confirmedQuantity ?? 0,
+              notes: itemsById.get(ti.id)?.notes ?? ti.notes,
+            })),
+          tenantUuid,
+          tx,
+          userId,
+        );
+      }
+
+      return concluida;
     });
   }
 

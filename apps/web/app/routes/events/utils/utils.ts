@@ -1,9 +1,4 @@
-import type {
-  CompleteEventItemInput,
-  Event,
-  EventItem,
-  EventStatus,
-} from '~/types/event';
+import type { Event, EventItem, EventStatus } from '~/types/event';
 import type { Item } from '~/types/item';
 
 export const eventStatusLabel: Record<EventStatus, string> = {
@@ -112,26 +107,3 @@ export const getDivergenceQuantity = (
   eventItem.divergences
     ?.filter((divergence) => divergence.type === type)
     .reduce((total, divergence) => total + divergence.quantity, 0) ?? 0;
-
-export const buildCompletionDrafts = (event?: Event | null) =>
-  Object.fromEntries(
-    (event?.eventItems ?? []).map((eventItem) => [
-      eventItem.id,
-      {
-        eventItemId: eventItem.id,
-        returnedQuantity:
-          eventItem.returnedQuantity ||
-          Math.max(
-            0,
-            eventItem.plannedQuantity -
-              getDivergenceQuantity(eventItem, 'MISSING') -
-              getDivergenceQuantity(eventItem, 'DAMAGED'),
-          ),
-        missingQuantity: getDivergenceQuantity(eventItem, 'MISSING'),
-        damagedQuantity: getDivergenceQuantity(eventItem, 'DAMAGED'),
-        notes:
-          eventItem.divergences?.find((divergence) => divergence.notes)
-            ?.notes ?? '',
-      },
-    ]),
-  ) as Record<string, CompleteEventItemInput>;

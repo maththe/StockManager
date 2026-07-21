@@ -1,5 +1,12 @@
-import { type ChangeEvent, type DragEvent, useEffect, useState } from 'react';
-import { Loader2 } from 'lucide-react';
+import {
+  type ChangeEvent,
+  type DragEvent,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import { ImageUp, Loader2, Trash2, Upload } from 'lucide-react';
 import { Button } from '~/components/ui/button';
 import {
   Dialog,
@@ -9,7 +16,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '~/components/ui/dialog';
-import { Input } from '~/components/ui/input';
 import { mutationError } from '~/services/tanStackQuery/mutationToast';
 import type { Item } from '~/types/item';
 
@@ -92,14 +98,27 @@ export function ItemImageUploadDialog({
   isSaving,
 }: ItemImageUploadDialogProps) {
   const [preview, setPreview] = useState<string | null>(null);
+  const [fileName, setFileName] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isDragActive, setIsDragActive] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isBusy = isProcessing || isSaving;
+
+  const previewSizeLabel = useMemo(() => {
+    if (!preview) {
+      return null;
+    }
+
+    const base64 = preview.slice(preview.indexOf(',') + 1);
+    const bytes = Math.round((base64.length * 3) / 4);
+    return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  }, [preview]);
 
   useEffect(() => {
     if (!item) {
       setPreview(null);
+      setFileName(null);
       setIsProcessing(false);
       setIsDragActive(false);
     }
@@ -112,6 +131,21 @@ export function ItemImageUploadDialog({
     onOpenChange(false);
   };
 
+  const openFilePicker = () => {
+    if (isBusy) {
+      return;
+    }
+    fileInputRef.current?.click();
+  };
+
+  const handleClearPreview = () => {
+    if (isBusy) {
+      return;
+    }
+    setPreview(null);
+    setFileName(null);
+  };
+
   const handleProcessImageFile = async (file?: File | null) => {
     if (!file) {
       return;
@@ -119,10 +153,11 @@ export function ItemImageUploadDialog({
 
     if (!file.type.startsWith('image/')) {
       mutationError(
-        'Selecione um arquivo de imagem valido.',
+        'Esse arquivo não é uma imagem. Use PNG, JPG ou WEBP.',
         new Error('invalid-image-type'),
       );
       setPreview(null);
+      setFileName(null);
       return;
     }
 
@@ -130,9 +165,11 @@ export function ItemImageUploadDialog({
       setIsProcessing(true);
       const compressedImage = await compressImage(file);
       setPreview(compressedImage);
+      setFileName(file.name);
     } catch (error) {
       mutationError('Nao foi possivel processar a imagem selecionada.', error);
       setPreview(null);
+      setFileName(null);
     } finally {
       setIsProcessing(false);
     }
@@ -145,6 +182,10 @@ export function ItemImageUploadDialog({
   };
 
   const handleDragOver = (event: DragEvent<HTMLDivElement>) => {
+    if (!event.dataTransfer.types.includes('Files')) {
+      return;
+    }
+
     event.preventDefault();
     if (!isBusy) {
       setIsDragActive(true);
@@ -190,53 +231,137 @@ export function ItemImageUploadDialog({
         onOpenChange(open);
       }}
     >
-      <DialogContent className="sm:max-w-xl">
+      <DialogContent
+        className="sm:max-w-xl"
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDropImage}
+      >
+        {isDragActive && (
+          <div className="pointer-events-none absolute inset-0 z-50 flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-primary bg-background/90 backdrop-blur-[2px]">
+            <div className="flex size-16 items-center justify-center rounded-full bg-primary/15">
+              <ImageUp className="size-8 text-primary" />
+            </div>
+            <p className="text-base font-semibold text-primary">
+              Solte a imagem aqui
+            </p>
+            {item && (
+              <p className="text-xs text-muted-foreground">
+                Ela será usada como foto de "{item.name}"
+              </p>
+            )}
+          </div>
+        )}
+
         <DialogHeader>
-          <DialogTitle>Upload da imagem</DialogTitle>
+          <DialogTitle>
+            {preview ? 'Confirmar imagem' : 'Adicionar imagem ao item'}
+          </DialogTitle>
           <DialogDescription>
             {item
-              ? `O item "${item.name}" ainda nao possui imagem cadastrada.`
-              : 'Selecione uma imagem para o item.'}
+              ? `Arraste uma imagem para qualquer lugar desta janela para ilustrar "${item.name}".`
+              : 'Arraste uma imagem para qualquer lugar desta janela.'}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
-          <Input
-            type="file"
-            accept="image/*"
-            onChange={handleSelectImage}
-            disabled={isBusy}
-          />
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleSelectImage}
+          disabled={isBusy}
+        />
 
-          <div
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDropImage}
-            className={`rounded-lg border border-dashed px-4 py-8 transition ${
-              isDragActive
-                ? 'border-primary bg-primary/10'
-                : 'border-border/70 bg-muted/10'
-            } ${isBusy ? 'pointer-events-none opacity-70' : ''}`}
-          >
-            {preview ? (
-              <div className="flex justify-center">
-                <img
-                  src={preview}
-                  alt="Pre-visualizacao da imagem"
-                  className="max-h-[50vh] max-w-full rounded-md object-contain"
-                />
+        {preview ? (
+          <div className="space-y-3">
+            <div className="relative overflow-hidden rounded-xl border border-border/70 bg-muted/20">
+              <img
+                src={preview}
+                alt={`Pré-visualização da imagem de ${item?.name ?? 'item'}`}
+                className="mx-auto max-h-[45vh] w-full object-contain"
+              />
+              {isBusy && (
+                <div className="absolute inset-0 flex items-center justify-center bg-background/70">
+                  <Loader2 className="size-7 animate-spin text-primary" />
+                </div>
+              )}
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="min-w-0 truncate text-xs text-muted-foreground">
+                {fileName && (
+                  <span className="font-medium text-foreground">{fileName}</span>
+                )}
+                {fileName && previewSizeLabel && ' · '}
+                {previewSizeLabel && `comprimida para ${previewSizeLabel}`}
+              </p>
+              <div className="flex shrink-0 gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={openFilePicker}
+                  disabled={isBusy}
+                >
+                  <Upload className="size-3.5" />
+                  Trocar
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="text-muted-foreground"
+                  onClick={handleClearPreview}
+                  disabled={isBusy}
+                >
+                  <Trash2 className="size-3.5" />
+                  Remover
+                </Button>
               </div>
-            ) : (
-              <div className="text-center text-sm text-muted-foreground">
-                {isProcessing
-                  ? 'Processando imagem...'
-                  : isDragActive
-                    ? 'Solte a imagem aqui.'
-                    : 'Arraste e solte uma imagem aqui ou selecione um arquivo acima.'}
-              </div>
-            )}
+            </div>
+
+            <p className="text-xs text-muted-foreground">
+              Prefere outra foto? Arraste-a para esta janela para substituir.
+            </p>
           </div>
-        </div>
+        ) : (
+          <button
+            type="button"
+            onClick={openFilePicker}
+            disabled={isBusy}
+            className="group flex w-full flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-border/70 bg-muted/20 px-6 py-10 text-center transition outline-none hover:border-primary/60 hover:bg-primary/5 focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isProcessing ? (
+              <>
+                <Loader2 className="size-8 animate-spin text-primary" />
+                <p className="text-sm font-medium text-foreground">
+                  Processando imagem...
+                </p>
+              </>
+            ) : (
+              <>
+                <div className="flex size-14 items-center justify-center rounded-full bg-primary/10 transition group-hover:bg-primary/15">
+                  <ImageUp className="size-7 text-primary" />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm font-semibold text-foreground">
+                    Arraste a imagem para cá
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    ou{' '}
+                    <span className="font-medium text-primary underline underline-offset-2">
+                      clique para escolher um arquivo
+                    </span>
+                  </p>
+                </div>
+                <p className="text-[0.7rem] text-muted-foreground">
+                  PNG, JPG ou WEBP · redimensionamos e comprimimos automaticamente
+                </p>
+              </>
+            )}
+          </button>
+        )}
 
         <DialogFooter>
           <Button

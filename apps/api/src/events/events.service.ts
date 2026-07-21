@@ -1,17 +1,16 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import {
   DivergenceSource,
-  DivergenceStatus,
-  DivergenceType,
   Event,
   EventStatus,
   Prisma,
   TaskStatus,
+  TaskType,
 } from '@prisma/client';
 import { PrismaService } from 'src/services/prisma.service';
 import { TasksService } from 'src/tasks/tasks.service';
 import { CreateEventInput } from './dto/create-event.input';
-import { CompleteEventItemInput, UpdateEventInput } from './dto/update-event.input';
+import { UpdateEventInput } from './dto/update-event.input';
 import { CreateEventItemInput } from './dto/create-event-item.input';
 import { UpdateEventItemInput } from './dto/update-event-item.input';
 
@@ -126,220 +125,6 @@ export class EventsService {
     }
 
     return quantity;
-  }
-
-  private async applyCompletionReport(
-    eventId: string,
-    tenantUuid: string,
-    completionItems: CompleteEventItemInput[] | undefined,
-    tx: Prisma.TransactionClient,
-    userId?: string,
-  ) {
-    const eventItems = await tx.eventItem.findMany({
-      where: { eventId, tenantUuid },
-    });
-
-    // A conferência final substitui a contagem das tarefas ainda pendentes
-    await tx.task.updateMany({
-      where: { eventId, tenantUuid, status: TaskStatus.PENDENTE },
-      data: { status: TaskStatus.CANCELADA },
-    });
-
-    if (eventItems.length === 0) {
-      return;
-    }
-
-    if (!completionItems?.length) {
-      throw new BadRequestException(
-        'Informe a contagem de retorno dos itens para finalizar o evento.',
-      );
-    }
-
-    const completionByEventItemId = new Map(
-      completionItems.map((completionItem) => [completionItem.eventItemId, completionItem]),
-    );
-
-    if (completionByEventItemId.size !== completionItems.length) {
-      throw new BadRequestException('Há itens duplicados na contagem de finalização.');
-    }
-
-    for (const eventItem of eventItems) {
-      const completionItem = completionByEventItemId.get(eventItem.id);
-
-      if (!completionItem) {
-        throw new BadRequestException(
-          'Informe a contagem de retorno para todos os itens do evento.',
-        );
-      }
-
-      const returnedQuantity = this.normalizeCompletionQuantity(
-        completionItem.returnedQuantity,
-        'Quantidade retornada',
-      );
-      const missingQuantity = this.normalizeCompletionQuantity(
-        completionItem.missingQuantity,
-        'Quantidade faltante',
-      );
-      const damagedQuantity = this.normalizeCompletionQuantity(
-        completionItem.damagedQuantity,
-        'Quantidade avariada',
-      );
-      const totalCounted = returnedQuantity + missingQuantity + damagedQuantity;
-
-      if (totalCounted !== eventItem.plannedQuantity) {
-        throw new BadRequestException(
-          'A soma de itens retornados, faltantes e avariados deve ser igual à quantidade reservada.',
-        );
-      }
-    }
-
-    const previousDivergenceItems = await tx.divergenceItem.findMany({
-      where: {
-        sourceItemId: { in: eventItems.map((eventItem) => eventItem.id) },
-        tenantUuid,
-        divergence: { source: DivergenceSource.EVENT, sourceId: eventId },
-      },
-      include: { divergence: { select: { status: true } } },
-    });
-
-    // Toda divergência de evento já debitou totalQuantity ao ser registrada;
-    // o delta abaixo abate essas perdas já contabilizadas.
-    const previousLossByEventItemId = new Map<string, number>();
-    // Divergências resolvidas podem já ter gerado manutenção; são preservadas
-    // e abatidas das novas para não registrar a mesma perda duas vezes.
-    const resolvedLossByEventItemAndType = new Map<string, number>();
-    for (const divergenceItem of previousDivergenceItems) {
-      if (!divergenceItem.sourceItemId) continue;
-      previousLossByEventItemId.set(
-        divergenceItem.sourceItemId,
-        (previousLossByEventItemId.get(divergenceItem.sourceItemId) ?? 0) + divergenceItem.quantity,
-      );
-
-      if (divergenceItem.divergence.status === DivergenceStatus.RESOLVED) {
-        const key = `${divergenceItem.sourceItemId}:${divergenceItem.type}`;
-        resolvedLossByEventItemAndType.set(
-          key,
-          (resolvedLossByEventItemAndType.get(key) ?? 0) + divergenceItem.quantity,
-        );
-      }
-    }
-
-    // Divergências pendentes são substituídas pela contagem da conferência final
-    await tx.divergence.deleteMany({
-      where: {
-        source: DivergenceSource.EVENT,
-        sourceId: eventId,
-        tenantUuid,
-        status: DivergenceStatus.PENDING,
-      },
-    });
-
-    const divergenceItemsToCreate: Omit<Prisma.DivergenceItemCreateManyInput, 'divergenceId'>[] = [];
-    const entradaTaskItems: { eventItemId: string; requestedQuantity: number; notes?: string }[] = [];
-
-    for (const eventItem of eventItems) {
-      const completionItem = completionByEventItemId.get(eventItem.id)!;
-      const returnedQuantity = this.normalizeCompletionQuantity(
-        completionItem.returnedQuantity,
-        'Quantidade retornada',
-      );
-      const missingQuantity = this.normalizeCompletionQuantity(
-        completionItem.missingQuantity,
-        'Quantidade faltante',
-      );
-      const damagedQuantity = this.normalizeCompletionQuantity(
-        completionItem.damagedQuantity,
-        'Quantidade avariada',
-      );
-      const lossQuantity = missingQuantity + damagedQuantity;
-      const previousLossQuantity = previousLossByEventItemId.get(eventItem.id) ?? 0;
-      const availableDelta = returnedQuantity - eventItem.returnedQuantity;
-      const totalQuantityDelta = previousLossQuantity - lossQuantity;
-
-      if (availableDelta !== 0 || totalQuantityDelta !== 0) {
-        await tx.item.update({
-          where: { id: eventItem.itemId },
-          data: {
-            availableQuantity: { increment: availableDelta },
-            totalQuantity: { increment: totalQuantityDelta },
-          },
-        });
-      }
-
-      const newMissingQuantity = Math.max(
-        0,
-        missingQuantity -
-          (resolvedLossByEventItemAndType.get(`${eventItem.id}:${DivergenceType.MISSING}`) ?? 0),
-      );
-      const newDamagedQuantity = Math.max(
-        0,
-        damagedQuantity -
-          (resolvedLossByEventItemAndType.get(`${eventItem.id}:${DivergenceType.DAMAGED}`) ?? 0),
-      );
-
-      if (newMissingQuantity > 0) {
-        divergenceItemsToCreate.push({
-          quantity: newMissingQuantity,
-          type: DivergenceType.MISSING,
-          notes: completionItem.notes,
-          tenantUuid,
-          itemId: eventItem.itemId,
-          sourceItemId: eventItem.id,
-        });
-      }
-      if (newDamagedQuantity > 0) {
-        divergenceItemsToCreate.push({
-          quantity: newDamagedQuantity,
-          type: DivergenceType.DAMAGED,
-          notes: completionItem.notes,
-          tenantUuid,
-          itemId: eventItem.itemId,
-          sourceItemId: eventItem.id,
-        });
-      }
-
-      await tx.eventItem.update({
-        where: { id: eventItem.id },
-        data: {
-          shippedQuantity: eventItem.plannedQuantity,
-          returnedQuantity,
-        },
-      });
-
-      if (returnedQuantity > 0) {
-        entradaTaskItems.push({
-          eventItemId: eventItem.id,
-          requestedQuantity: returnedQuantity,
-          notes: completionItem.notes ?? undefined,
-        });
-      }
-    }
-
-    if (divergenceItemsToCreate.length > 0) {
-      const divergenceHeader = await tx.divergence.create({
-        data: {
-          source: DivergenceSource.EVENT,
-          sourceId: eventId,
-          tenantUuid,
-        },
-      });
-      await tx.divergenceItem.createMany({
-        data: divergenceItemsToCreate.map((divergenceItem) => ({
-          ...divergenceItem,
-          divergenceId: divergenceHeader.id,
-        })),
-      });
-    }
-
-    if (entradaTaskItems.length > 0) {
-      await this.tasksService.createEntradaGalpaoTask(
-        eventId,
-        entradaTaskItems,
-        tenantUuid,
-        userId,
-        tx,
-      );
-    }
   }
 
   private async ensureClientExists(clientId: string, tenantUuid: string) {
@@ -495,8 +280,12 @@ export class EventsService {
         ? updateEventInput.endDate
         : (existing.endDate?.toISOString() ?? null);
     const { parsedStart, parsedEnd } = this.parseEventDates(nextStartDate, nextEndDate);
-    // Eventos COMPLETED/CANCELLED já foram bloqueados acima
-    const isFinishingEvent = updateEventInput.status === EventStatus.COMPLETED;
+
+    if (updateEventInput.status === EventStatus.COMPLETED) {
+      throw new BadRequestException(
+        'O evento é concluído pela contagem final. Use a ação de concluir para gerar a tarefa de contagem.',
+      );
+    }
 
     if (
       updateEventInput.status === EventStatus.IN_PROGRESS &&
@@ -514,25 +303,14 @@ export class EventsService {
     if (
       existing.status === EventStatus.IN_PROGRESS &&
       updateEventInput.status &&
-      updateEventInput.status !== EventStatus.IN_PROGRESS &&
-      updateEventInput.status !== EventStatus.COMPLETED
+      updateEventInput.status !== EventStatus.IN_PROGRESS
     ) {
       throw new BadRequestException(
         'Eventos em andamento só podem ser concluídos ou cancelados pelas ações dedicadas.',
       );
     }
 
-    if (isFinishingEvent && !updateEventInput.inventoryCountConfirmed) {
-      throw new BadRequestException(
-        'Para finalizar o evento, confirme a contagem dos itens para validar o retorno ao estoque.',
-      );
-    }
-
     const updateEvent = async (tx: Prisma.TransactionClient) => {
-      if (isFinishingEvent) {
-        await this.applyCompletionReport(id, tenantUuid, updateEventInput.completionItems, tx, userId);
-      }
-
       return tx.event.update({
         where: { id },
         data: {
@@ -605,6 +383,71 @@ export class EventsService {
     });
 
     return updated;
+  }
+
+  // Concluir um evento não fecha o evento: despacha uma tarefa de contagem para
+  // os funcionários. O estoque só é ajustado quando essa tarefa é concluída
+  // (EventCountService.liquidarContagemFinal).
+  async solicitarContagemFinal(id: string, tenantUuid: string, userId?: string) {
+    const existing = await this.findOne(id, tenantUuid);
+    if (!existing) {
+      throw new NotFoundException('Evento não encontrado.');
+    }
+
+    if (existing.status !== EventStatus.IN_PROGRESS) {
+      throw new BadRequestException(
+        'Apenas eventos em andamento podem ir para a contagem final.',
+      );
+    }
+
+    const pendente = await this.prisma.task.findFirst({
+      where: {
+        eventId: id,
+        tenantUuid,
+        type: TaskType.ENTRADA_GALPAO,
+        status: TaskStatus.PENDENTE,
+      },
+      select: { id: true, code: true },
+    });
+
+    if (pendente) {
+      throw new BadRequestException(
+        `Já existe uma contagem pendente para este evento (${pendente.code}).`,
+      );
+    }
+
+    const itensParaContar = existing.eventItems
+      .map((eventItem) => ({
+        eventItemId: eventItem.id,
+        requestedQuantity: eventItem.plannedQuantity - eventItem.returnedQuantity,
+      }))
+      .filter((item) => item.requestedQuantity > 0);
+
+    if (itensParaContar.length === 0) {
+      throw new BadRequestException(
+        'Não há itens pendentes de retorno para conferir neste evento.',
+      );
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      // O caminhão já voltou: tarefas de saída pendentes perdem o sentido.
+      await tx.task.updateMany({
+        where: { eventId: id, tenantUuid, status: TaskStatus.PENDENTE },
+        data: { status: TaskStatus.CANCELADA },
+      });
+
+      return this.tasksService.createEntradaGalpaoTask(
+        id,
+        itensParaContar,
+        tenantUuid,
+        userId,
+        tx,
+        {
+          notes:
+            'Contagem final do evento. Registre a quantidade que realmente voltou ao galpão.',
+        },
+      );
+    });
   }
 
   async remove(id: string, tenantUuid: string) {

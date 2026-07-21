@@ -64,14 +64,12 @@ import {
 import { useUsers } from '~/services/tanStackQuery/users';
 import { getCurrentUser, hasRole } from '~/services/auth/currentUser';
 import type {
-  CompleteEventItemInput,
   CreateEventInput,
   Event,
   UpdateEventInput,
 } from '~/types/event';
 import type { CreatePartialTaskInput } from '~/types/task';
 
-import { EventCompleteDialog } from './components/EventCompleteDialog';
 import { EventFormDialog } from './components/EventFormDialog';
 import { EventItemDivergenceBadges } from './components/EventItemDivergenceBadges';
 import { EventStatusStepper } from './components/EventStatusStepper';
@@ -102,6 +100,15 @@ export default function EventDetailsPage() {
   const eventTasks = useMemo(
     () => tasks.filter((t) => t.eventId === eventId),
     [tasks, eventId],
+  );
+
+  // Contagem final já despachada: o evento fecha quando o galpão concluir esta tarefa.
+  const contagemPendente = useMemo(
+    () =>
+      eventTasks.find(
+        (task) => task.type === 'ENTRADA_GALPAO' && task.status === 'PENDENTE',
+      ),
+    [eventTasks],
   );
 
   const currentUser = useMemo(() => getCurrentUser(), []);
@@ -161,14 +168,18 @@ export default function EventDetailsPage() {
     }
   };
 
-  const handleComplete = async (id: string, completionItems: CompleteEventItemInput[]) => {
+  const handleComplete = async (id: string) => {
     try {
       setCompletingId(id);
-      await completeEvent.mutateAsync({ id, completionItems });
+      await completeEvent.mutateAsync({ id });
     } finally {
       setCompletingId(null);
     }
   };
+
+  const isPendingActionRunning = Boolean(
+    deletingId || cancellingId || startingId || completingId,
+  );
 
   const handleStart = async (id: string) => {
     try {
@@ -195,6 +206,8 @@ export default function EventDetailsPage() {
       await handleStart(targetEvent.id);
     } else if (pendingAction.type === 'cancel') {
       await handleCancel(targetEvent.id);
+    } else if (pendingAction.type === 'complete') {
+      await handleComplete(targetEvent.id);
     }
 
     setPendingAction(null);
@@ -412,26 +425,40 @@ export default function EventDetailsPage() {
                     </Button>
                   </span>
                 )}
-                {event.status === 'IN_PROGRESS' && canManageTasks && (
-                  <Button
-                    type="button"
-                    size="sm"
-                    className="bg-gradient-to-r from-primary to-secondary font-medium text-white shadow-md transition-all hover:shadow-lg"
-                    onClick={() =>
-                      setPendingAction({ type: 'complete', event })
-                    }
-                    disabled={
-                      completingId === event.id || Boolean(pendingAction)
-                    }
-                  >
-                    {completingId === event.id ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <CheckCircle2 className="mr-2 h-4 w-4" />
-                    )}
-                    Concluir
-                  </Button>
-                )}
+                {event.status === 'IN_PROGRESS' &&
+                  canManageTasks &&
+                  (contagemPendente ? (
+                    <Link to={`/dashboard/tasks/${contagemPendente.id}`}>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="border-amber-300 text-amber-700 hover:bg-amber-50 hover:text-amber-800 dark:border-amber-500/40 dark:text-amber-400 dark:hover:bg-amber-950/40 dark:hover:text-amber-300"
+                      >
+                        <AlertTriangle className="mr-2 h-4 w-4" />
+                        Aguardando contagem ({contagemPendente.code})
+                      </Button>
+                    </Link>
+                  ) : (
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="bg-gradient-to-r from-primary to-secondary font-medium text-white shadow-md transition-all hover:shadow-lg"
+                      onClick={() =>
+                        setPendingAction({ type: 'complete', event })
+                      }
+                      disabled={
+                        completingId === event.id || Boolean(pendingAction)
+                      }
+                    >
+                      {completingId === event.id ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <CheckCircle2 className="mr-2 h-4 w-4" />
+                      )}
+                      Concluir
+                    </Button>
+                  ))}
                 {eventItems.length > 0 && canManageTasks && (
                   <Button
                     type="button"
@@ -821,7 +848,7 @@ export default function EventDetailsPage() {
       />
 
       <AlertDialog
-        open={Boolean(pendingAction) && pendingAction?.type !== 'complete'}
+        open={Boolean(pendingAction)}
         onOpenChange={(open) => {
           if (!open) setPendingAction(null);
         }}
@@ -833,29 +860,33 @@ export default function EventDetailsPage() {
                 ? 'Excluir evento?'
                 : pendingAction?.type === 'start'
                   ? 'Iniciar evento?'
-                  : 'Cancelar evento?'}
+                  : pendingAction?.type === 'complete'
+                    ? 'Enviar contagem final para o galpão?'
+                    : 'Cancelar evento?'}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {pendingAction?.type === 'delete'
                 ? `Esta ação removerá permanentemente o evento "${pendingAction.event.eventName}".`
                 : pendingAction?.type === 'start'
                   ? `Ao iniciar "${pendingAction.event.eventName}", uma tarefa de saída do galpão com todos os itens será criada e o status mudará para Em andamento.`
-                  : `Ao cancelar "${pendingAction?.event.eventName}", todos os itens reservados voltarão ao estoque.`}
+                  : pendingAction?.type === 'complete'
+                    ? `Será criada uma tarefa de contagem com todos os itens de "${pendingAction.event.eventName}" para os funcionários conferirem no galpão. O estoque só volta e o evento só é concluído quando essa contagem terminar — o que faltar vira divergência automaticamente.`
+                    : `Ao cancelar "${pendingAction?.event.eventName}", todos os itens reservados voltarão ao estoque.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel
-              disabled={Boolean(deletingId || cancellingId || startingId)}
-            >
+            <AlertDialogCancel disabled={isPendingActionRunning}>
               Voltar
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleConfirmPendingAction}
-              disabled={Boolean(deletingId || cancellingId || startingId)}
+              disabled={isPendingActionRunning}
             >
-              {deletingId || cancellingId || startingId
+              {isPendingActionRunning
                 ? 'Processando...'
-                : 'Confirmar'}
+                : pendingAction?.type === 'complete'
+                  ? 'Enviar contagem'
+                  : 'Confirmar'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -871,18 +902,6 @@ export default function EventDetailsPage() {
         )}
         isLoading={createPartialTask.isPending}
         onSubmit={handleCreatePartialTask}
-      />
-
-      <EventCompleteDialog
-        open={pendingAction?.type === 'complete'}
-        event={pendingAction?.type === 'complete' ? pendingAction.event : null}
-        isLoading={Boolean(completingId)}
-        onConfirm={async (completionItems) => {
-          if (pendingAction?.type !== 'complete') return;
-          await handleComplete(pendingAction.event.id, completionItems);
-          setPendingAction(null);
-        }}
-        onCancel={() => setPendingAction(null)}
       />
 
       <EventItemEditDialog

@@ -70,8 +70,8 @@ export class TasksController {
 
   @Patch(':id/concluir')
   concluir(@Param('id') id: string, @Body() body: ConfirmTaskInput, @Req() req: Request) {
-    const { tenantUuid } = (req as any).user;
-    return this.tasksService.concluir(id, body, tenantUuid);
+    const { tenantUuid, sub } = (req as any).user;
+    return this.tasksService.concluir(id, body, tenantUuid, sub);
   }
 
   @Patch(':id/cancelar')

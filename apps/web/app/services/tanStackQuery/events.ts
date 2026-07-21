@@ -9,6 +9,7 @@ import type {
   UpdateEventInput,
   UpdateEventItemInput,
 } from '~/types/event';
+import type { Task } from '~/types/task';
 
 export const useEvents = (search?: string) => {
   return useQuery({
@@ -123,32 +124,25 @@ export const useCancelEvent = () => {
   });
 };
 
+// Não fecha o evento: despacha a contagem final para o galpão. O evento só vira
+// COMPLETED quando os funcionários concluírem a tarefa gerada aqui.
 export const useCompleteEvent = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({
-      id,
-      completionItems,
-    }: {
-      id: string;
-      completionItems: UpdateEventInput['completionItems'];
-    }) => {
-      const response = await api.patch<Event>(`/events/${id}`, {
-        status: 'COMPLETED',
-        inventoryCountConfirmed: true,
-        completionItems,
-      });
+    mutationFn: async ({ id }: { id: string }) => {
+      const response = await api.post<Task>(`/events/${id}/concluir`);
       return response.data;
     },
-    onSuccess: (_, { id }) => {
+    onSuccess: (task, { id }) => {
       queryClient.invalidateQueries({ queryKey: ['events'] });
       queryClient.invalidateQueries({ queryKey: ['events', id] });
       queryClient.invalidateQueries({ queryKey: ['event-items', id] });
-      queryClient.invalidateQueries({ queryKey: ['items'] });
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
-      mutationSuccess('Evento concluído. Tarefa de entrada no galpão gerada.');
+      mutationSuccess(
+        `Contagem final enviada para o galpão${task?.code ? ` (${task.code})` : ''}. O evento será concluído quando os funcionários terminarem.`,
+      );
     },
-    onError: (error) => mutationError('Erro ao concluir evento.', error),
+    onError: (error) => mutationError('Erro ao enviar a contagem final.', error),
   });
 };
 

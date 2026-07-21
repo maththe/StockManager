@@ -68,8 +68,23 @@ export const useConcluirTask = () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       queryClient.invalidateQueries({ queryKey: ['tasks', id] });
       queryClient.invalidateQueries({ queryKey: ['events'] });
-      const message =
-        task?.type === 'ENTRADA_GALPAO'
+
+      // A contagem final devolve estoque, fecha o evento e pode gerar divergência.
+      const isContagemFinal = task?.type === 'ENTRADA_GALPAO' && !!task?.eventId;
+      if (isContagemFinal) {
+        queryClient.invalidateQueries({ queryKey: ['items'] });
+        queryClient.invalidateQueries({ queryKey: ['divergences'] });
+        if (task?.eventId) {
+          queryClient.invalidateQueries({ queryKey: ['events', task.eventId] });
+          queryClient.invalidateQueries({
+            queryKey: ['event-items', task.eventId],
+          });
+        }
+      }
+
+      const message = isContagemFinal
+        ? 'Contagem finalizada. Estoque atualizado e evento concluído.'
+        : task?.type === 'ENTRADA_GALPAO'
           ? 'Entrada no galpão confirmada com sucesso.'
           : 'Saída do galpão confirmada com sucesso.';
       mutationSuccess(message);
@@ -85,14 +100,18 @@ export const useConfirmarTaskItem = () => {
       taskId,
       taskItemId,
       confirmed,
+      confirmedQuantity,
     }: {
       taskId: string;
       taskItemId: string;
       confirmed: boolean;
+      // Só é aceita na contagem final de evento; nas demais o backend impõe
+      // a quantidade solicitada.
+      confirmedQuantity?: number;
     }) => {
       const response = await api.patch<Task>(
         `/tasks/${taskId}/itens/${taskItemId}/confirmar`,
-        { confirmed },
+        { confirmed, confirmedQuantity },
       );
       return response.data;
     },
