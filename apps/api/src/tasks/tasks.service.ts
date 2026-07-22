@@ -497,7 +497,14 @@ export class TasksService {
   async concluir(id: string, input: ConfirmTaskInput, tenantUuid: string) {
     const task = await this.prisma.task.findFirst({
       where: { id, tenantUuid },
-      include: { taskItems: { include: { eventItem: true } } },
+      include: {
+        taskItems: {
+          include: {
+            eventItem: { include: { item: { select: { name: true } } } },
+            rentalItem: { include: { item: { select: { name: true } } } },
+          },
+        },
+      },
     });
 
     if (!task) throw new NotFoundException('Tarefa não encontrada.');
@@ -550,6 +557,28 @@ export class TasksService {
           `A tarefa só pode ser concluída com a quantidade esperada de cada item (${esperada}). Se faltou ou avariou alguma coisa, registre uma divergência antes de concluir.`,
         );
       }
+    }
+
+    // Concluir não confere item por conta própria: cada linha precisa ter
+    // recebido o "ok" físico de quem está no galpão
+    // (PATCH /tasks/:id/itens/:taskItemId/confirmar). Sem isso a tarefa fecharia
+    // com a quantidade esperada sem ninguém ter olhado para a prateleira.
+    const naoConferidos = task.taskItems.filter((taskItem) => !taskItem.confirmed);
+
+    if (naoConferidos.length > 0) {
+      const nomes = naoConferidos
+        .map(
+          (taskItem) =>
+            taskItem.eventItem?.item.name ?? taskItem.rentalItem?.item.name,
+        )
+        .filter((nome): nome is string => !!nome)
+        .join(', ');
+
+      throw new BadRequestException(
+        nomes
+          ? `Confirme cada item antes de concluir a tarefa. Ainda falta conferir: ${nomes}.`
+          : 'Confirme cada item antes de concluir a tarefa.',
+      );
     }
 
     return this.prisma.$transaction(async (tx) => {

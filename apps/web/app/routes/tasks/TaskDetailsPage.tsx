@@ -283,13 +283,21 @@ export default function TaskDetailsPage() {
     [taskItems, quantities],
   );
 
+  // Fechar a tarefa não confere item nenhum: cada linha precisa do "ok" físico
+  // de quem está no galpão antes de concluir.
+  const itensNaoConferidos = useMemo(
+    () => taskItems.filter((taskItem) => !taskItem.confirmed),
+    [taskItems],
+  );
+
   // Nenhuma tarefa fecha com falta silenciosa, nem a contagem final: a
   // diferença tem que virar divergência antes de concluir.
   const canConfirm =
     !locked &&
     !concluir.isPending &&
     quantityErrors.length === 0 &&
-    divergenceCandidates.length === 0;
+    divergenceCandidates.length === 0 &&
+    itensNaoConferidos.length === 0;
   const canCreateDivergence =
     !locked &&
     !createDivergence.isPending &&
@@ -437,6 +445,11 @@ export default function TaskDetailsPage() {
                 className="bg-green-600 text-white hover:bg-green-700"
                 onClick={() => setConfirmDialog(true)}
                 disabled={!canConfirm}
+                title={
+                  itensNaoConferidos.length > 0
+                    ? `Confirme cada item antes de finalizar. Faltam ${itensNaoConferidos.length} de ${taskItems.length}.`
+                    : undefined
+                }
               >
                 <CheckCircle2 className="mr-2 h-4 w-4" />
                 {confirmActionLabel}
@@ -486,6 +499,24 @@ export default function TaskDetailsPage() {
                   para relatar o problema encontrado.
                 </>
               )}
+            </p>
+          </div>
+        )}
+
+      {!locked &&
+        quantityErrors.length === 0 &&
+        divergenceCandidates.length === 0 &&
+        itensNaoConferidos.length > 0 && (
+          <div className="rounded-xl border border-border/60 bg-muted/40 p-4">
+            <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+              <PackageCheck className="h-4 w-4 text-muted-foreground" />
+              Confira cada item para liberar a finalizacao
+            </div>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {itensNaoConferidos.length === 1
+                ? '1 item ainda nao recebeu o ok'
+                : `${itensNaoConferidos.length} itens ainda nao receberam o ok`}
+              : {itensNaoConferidos.map(getTaskItemName).join(', ')}.
             </p>
           </div>
         )}
