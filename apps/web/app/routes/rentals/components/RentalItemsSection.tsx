@@ -4,7 +4,6 @@ import {
   Loader2,
   Package,
   PackagePlus,
-  RotateCcw,
   Save,
   Trash2,
 } from 'lucide-react';
@@ -44,7 +43,7 @@ interface RentalItemsSectionProps {
 export function RentalItemsSection({ rental }: RentalItemsSectionProps) {
   const navigate = useNavigate();
   const closed = isRentalClosed(rental.status);
-  const { totalUnits, returnedUnits, pending } = summarizeRentalItems(rental);
+  const { totalUnits, pending } = summarizeRentalItems(rental);
   const hasItems = rental.rentalItems.length > 0;
 
   return (
@@ -70,10 +69,6 @@ export function RentalItemsSection({ rental }: RentalItemsSectionProps) {
                 <span className="font-semibold text-foreground">
                   {totalUnits}
                 </span>
-              </span>
-              <span className="rounded-md bg-accent/10 px-2 py-1 text-accent">
-                Devolvido:{' '}
-                <span className="font-semibold">{returnedUnits}</span>
               </span>
               <span className="rounded-md bg-primary/10 px-2 py-1 text-primary">
                 Pendente: <span className="font-semibold">{pending}</span>
@@ -142,16 +137,10 @@ function RentalItemRow({ rental, rentalItem }: RentalItemRowProps) {
   const updateRentalItem = useUpdateRentalItem();
   const deleteRentalItem = useDeleteRentalItem();
   const [quantity, setQuantity] = useState(rentalItem.quantity);
-  const [returnedQuantity, setReturnedQuantity] = useState(
-    rentalItem.returnedQuantity,
-  );
   const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   const closed = isRentalClosed(rental.status);
-  const showReturnField = rental.status === 'ACTIVE';
-  const isDirty =
-    quantity !== rentalItem.quantity ||
-    returnedQuantity !== rentalItem.returnedQuantity;
+  const isDirty = quantity !== rentalItem.quantity;
   const isFullyReturned =
     rentalItem.returnedQuantity === rentalItem.quantity &&
     rentalItem.quantity > 0;
@@ -161,10 +150,7 @@ function RentalItemRow({ rental, rentalItem }: RentalItemRowProps) {
     updateRentalItem.mutate({
       rentalId: rental.id,
       rentalItemId: rentalItem.id,
-      data: {
-        quantity: Number(quantity),
-        returnedQuantity: Number(returnedQuantity),
-      },
+      data: { quantity: Number(quantity) },
     });
   };
 
@@ -200,20 +186,6 @@ function RentalItemRow({ rental, rentalItem }: RentalItemRowProps) {
             disabled={closed}
           />
         </label>
-        {showReturnField && (
-          <label className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-            Devolvido
-            <QuantityField
-              value={returnedQuantity}
-              minimum={0}
-              maximum={quantity}
-              size="compact"
-              className="w-28"
-              onChange={(value) => setReturnedQuantity(Number(value))}
-              disabled={closed}
-            />
-          </label>
-        )}
         {!closed && (
           <div className="flex gap-1.5">
             <Button
@@ -230,25 +202,6 @@ function RentalItemRow({ rental, rentalItem }: RentalItemRowProps) {
                 <Save className="h-4 w-4" />
               )}
             </Button>
-            {rental.status === 'ACTIVE' && !isFullyReturned && (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setReturnedQuantity(rentalItem.quantity);
-                  updateRentalItem.mutate({
-                    rentalId: rental.id,
-                    rentalItemId: rentalItem.id,
-                    data: { returnedQuantity: rentalItem.quantity },
-                  });
-                }}
-                disabled={updateRentalItem.isPending}
-                aria-label="Marcar item como totalmente devolvido"
-              >
-                <RotateCcw className="h-4 w-4" />
-              </Button>
-            )}
             <Button
               type="button"
               variant="outline"

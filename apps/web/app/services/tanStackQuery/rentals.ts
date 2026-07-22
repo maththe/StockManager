@@ -94,13 +94,23 @@ export const useReturnRental = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const response = await api.patch<Rental>(`/rentals/${id}/return`);
+      // Devolver cria a tarefa de contagem no galpão; a locação só vira
+      // RETURNED quando a contagem é concluída. `task` vem null quando não
+      // havia nada a conferir e a locação foi encerrada direto.
+      const response = await api.patch<{
+        rental: Rental;
+        task: { id: string; code: string } | null;
+      }>(`/rentals/${id}/return`);
       return response.data;
     },
-    onSuccess: () => {
+    onSuccess: ({ task }) => {
       queryClient.invalidateQueries({ queryKey: ['rentals'] });
-      queryClient.invalidateQueries({ queryKey: ['items'] });
-      mutationSuccess('Locação devolvida com sucesso.');
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      mutationSuccess(
+        task
+          ? `Contagem de devolução enviada para o galpão (${task.code}). A locação será devolvida quando os funcionários terminarem.`
+          : 'Locação devolvida. Não havia itens pendentes para conferir.',
+      );
     },
     onError: (error) => mutationError('Erro ao devolver locação.', error),
   });

@@ -1,9 +1,12 @@
 import { useMemo, useState } from 'react';
 import {
   AlertTriangle,
+  Building2,
   CheckCircle2,
   Loader2,
+  Package,
   PackageX,
+  Settings,
   Timer,
 } from 'lucide-react';
 import { Link } from 'react-router';
@@ -30,17 +33,28 @@ import {
   SOURCE_LABEL,
   STATUS_CLASS,
   STATUS_LABEL,
+  TYPE_LABEL,
+  formatDate,
   formatDateTime,
+  sourceTitle,
   sumByType,
+  sumUnits,
 } from './labels';
+
+const ITEMS_VISIVEIS = 3;
 
 function DivergenceCard({ divergence }: { divergence: Divergence }) {
   const missingQuantity = sumByType(divergence, 'MISSING');
   const damagedQuantity = sumByType(divergence, 'DAMAGED');
+  const totalUnits = sumUnits(divergence);
+  const itensVisiveis = divergence.items.slice(0, ITEMS_VISIVEIS);
+  const itensRestantes = divergence.items.length - itensVisiveis.length;
+  const manutencoes = divergence.maintenances?.length ?? 0;
+  const isPending = divergence.status === 'PENDING';
 
   return (
-    <Link to={`/dashboard/divergences/${divergence.id}`}>
-      <Card className="cursor-pointer border-border/60 transition-all hover:border-primary/40 hover:shadow-md">
+    <Link to={`/dashboard/divergences/${divergence.id}`} className="group">
+      <Card className="flex h-full cursor-pointer flex-col border-border/60 transition-all group-hover:border-primary/40 group-hover:shadow-md">
         <CardHeader className="pb-3">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
@@ -54,33 +68,107 @@ function DivergenceCard({ divergence }: { divergence: Divergence }) {
                   {SOURCE_LABEL[divergence.source] ?? divergence.source}
                 </span>
               </div>
-              <CardTitle className="mt-2 flex flex-wrap gap-2 text-base">
-                {missingQuantity > 0 && (
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-destructive/10 px-2.5 py-1 text-xs font-medium text-destructive">
-                    <PackageX className="h-3.5 w-3.5" />
-                    Faltantes
-                    <span className="tabular-nums">{missingQuantity}</span>
-                  </span>
-                )}
-                {damagedQuantity > 0 && (
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-orange-100 px-2.5 py-1 text-xs font-medium text-orange-700 dark:bg-orange-900/20 dark:text-orange-400">
-                    <AlertTriangle className="h-3.5 w-3.5" />
-                    Avariados
-                    <span className="tabular-nums">{damagedQuantity}</span>
-                  </span>
-                )}
+
+              {/* O que identifica a divergência é a origem: qual evento/locação. */}
+              <CardTitle className="mt-2 truncate text-base">
+                {sourceTitle(divergence)}
               </CardTitle>
+              {(divergence.sourceRef?.clientName ||
+                divergence.sourceRef?.date) && (
+                <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                  {divergence.sourceRef?.clientName && (
+                    <span className="inline-flex items-center gap-1">
+                      <Building2 className="h-3 w-3" />
+                      {divergence.sourceRef.clientName}
+                    </span>
+                  )}
+                  {divergence.sourceRef?.clientName &&
+                    divergence.sourceRef?.date &&
+                    ' · '}
+                  {divergence.sourceRef?.date &&
+                    formatDate(divergence.sourceRef.date)}
+                </p>
+              )}
             </div>
-            <AlertTriangle className="mt-1 h-5 w-5 shrink-0 text-muted-foreground" />
+            <AlertTriangle
+              className={`mt-1 h-5 w-5 shrink-0 ${isPending ? 'text-yellow-500' : 'text-muted-foreground/50'}`}
+            />
+          </div>
+
+          <div className="mt-3 flex flex-wrap gap-2">
+            {missingQuantity > 0 && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-destructive/10 px-2.5 py-1 text-xs font-medium text-destructive">
+                <PackageX className="h-3.5 w-3.5" />
+                Faltantes
+                <span className="tabular-nums">{missingQuantity}</span>
+              </span>
+            )}
+            {damagedQuantity > 0 && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-orange-100 px-2.5 py-1 text-xs font-medium text-orange-700 dark:bg-orange-900/20 dark:text-orange-400">
+                <AlertTriangle className="h-3.5 w-3.5" />
+                Avariados
+                <span className="tabular-nums">{damagedQuantity}</span>
+              </span>
+            )}
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/30 px-2.5 py-1 text-xs text-muted-foreground">
+              <Package className="h-3.5 w-3.5" />
+              {divergence.items.length} item(ns) · {totalUnits} un.
+            </span>
           </div>
         </CardHeader>
-        <CardContent className="pt-0">
-          <div className="flex items-center justify-between text-sm text-muted-foreground">
-            <span>{formatDateTime(divergence.occurredAt)}</span>
-            {divergence.createdBy && (
-              <span className="truncate text-xs">
-                {divergence.createdBy.name}
-              </span>
+
+        <CardContent className="flex flex-1 flex-col gap-3 pt-0">
+          {/* Quais itens: sem isso o card não diz o que se perdeu. */}
+          <div className="space-y-1.5 rounded-lg border border-border/50 bg-muted/20 p-2.5">
+            {itensVisiveis.map((item) => (
+              <div
+                key={item.id}
+                className="flex items-center justify-between gap-2 text-xs"
+              >
+                <span className="min-w-0 truncate text-foreground">
+                  {item.item.name}
+                </span>
+                <span
+                  className={`shrink-0 font-medium tabular-nums ${
+                    item.type === 'MISSING'
+                      ? 'text-destructive'
+                      : 'text-orange-600 dark:text-orange-400'
+                  }`}
+                >
+                  {TYPE_LABEL[item.type]} {item.quantity}
+                </span>
+              </div>
+            ))}
+            {itensRestantes > 0 && (
+              <p className="text-xs text-muted-foreground">
+                +{itensRestantes} item(ns)
+              </p>
+            )}
+          </div>
+
+          {divergence.notes && (
+            <p className="line-clamp-2 text-xs italic text-muted-foreground">
+              “{divergence.notes}”
+            </p>
+          )}
+
+          {manutencoes > 0 && (
+            <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-blue-100 px-2.5 py-1 text-xs font-medium text-blue-700 dark:bg-blue-900/20 dark:text-blue-400">
+              <Settings className="h-3.5 w-3.5" />
+              {manutencoes} manutenção(ões)
+            </span>
+          )}
+
+          <div className="mt-auto space-y-0.5 border-t border-border/50 pt-2 text-xs text-muted-foreground">
+            <p className="truncate">
+              Registrada em {formatDateTime(divergence.occurredAt)}
+              {divergence.createdBy && ` por ${divergence.createdBy.name}`}
+            </p>
+            {!isPending && divergence.resolvedAt && (
+              <p className="truncate text-green-700 dark:text-green-400">
+                Resolvida em {formatDateTime(divergence.resolvedAt)}
+                {divergence.resolvedBy && ` por ${divergence.resolvedBy.name}`}
+              </p>
             )}
           </div>
         </CardContent>

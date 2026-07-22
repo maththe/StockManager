@@ -279,58 +279,87 @@ export class RentalsService {
     });
   }
 
-  async markReturned(id: string, tenantUuid: string) {
+  // Devolver uma locação não a fecha na hora: despacha uma tarefa de contagem
+  // para o galpão, igual à conclusão de evento. O estoque só volta e a locação
+  // só vira RETURNED quando essa tarefa é concluída
+  // (RentalCountService.liquidarDevolucao).
+  async solicitarDevolucao(id: string, tenantUuid: string, userId?: string) {
     const rental = await this.findOne(id, tenantUuid);
     if (!rental) {
       throw new NotFoundException('Locação não encontrada.');
     }
 
-    if (rental.status === RentalStatus.RETURNED) {
-      throw new BadRequestException('Esta locação já foi devolvida.');
+    if (rental.status !== RentalStatus.ACTIVE) {
+      throw new BadRequestException(
+        'Apenas locações ativas podem ir para a contagem de devolução.',
+      );
     }
 
-    if (rental.status === RentalStatus.CANCELLED) {
-      throw new BadRequestException('Não é possível devolver uma locação cancelada.');
-    }
+    // Igual aos eventos: a devolução só é despachada com o quadro de tarefas
+    // limpo. Enquanto houver tarefa pendente não dá para saber o que saiu.
+    const pendentes = await this.prisma.task.findMany({
+      where: {
+        rentalId: id,
+        tenantUuid,
+        status: TaskStatus.PENDENTE,
+      },
+      select: { id: true, code: true, type: true },
+      orderBy: { createdAt: 'asc' },
+    });
 
-    const lossByRentalItemId = await this.getRecordedLossByRentalItemId(
-      id,
-      rental.rentalItems.map((rentalItem) => rentalItem.id),
-      tenantUuid,
+    const contagemPendente = pendentes.find(
+      (task) => task.type === TaskType.ENTRADA_GALPAO,
     );
 
+    if (contagemPendente) {
+      throw new BadRequestException(
+        `Já existe uma contagem de devolução pendente para esta locação (${contagemPendente.code}).`,
+      );
+    }
+
+    if (pendentes.length > 0) {
+      const codigos = pendentes.map((task) => task.code).join(', ');
+      throw new BadRequestException(
+        pendentes.length === 1
+          ? `Existe uma tarefa pendente nesta locação (${codigos}). Conclua ou cancele a tarefa antes de enviar a contagem de devolução.`
+          : `Existem tarefas pendentes nesta locação (${codigos}). Conclua ou cancele as tarefas antes de enviar a contagem de devolução.`,
+      );
+    }
+
+    // Igual aos eventos: o solicitado é o que ainda não voltou. Perdas já
+    // registradas em divergência não são abatidas aqui — é a divergência que
+    // reduz a quantidade esperada na hora de confirmar a tarefa.
+    const itensParaContar = rental.rentalItems
+      .map((rentalItem) => ({
+        rentalItemId: rentalItem.id,
+        requestedQuantity: rentalItem.quantity - rentalItem.returnedQuantity,
+      }))
+      .filter((item) => item.requestedQuantity > 0);
+
     return this.prisma.$transaction(async (tx) => {
-      await tx.task.updateMany({
-        where: { rentalId: id, tenantUuid, status: TaskStatus.PENDENTE },
-        data: { status: TaskStatus.CANCELADA },
-      });
-
-      for (const rentalItem of rental.rentalItems) {
-        const recordedLoss = lossByRentalItemId.get(rentalItem.id) ?? 0;
-        const pendingReturn = Math.max(
-          0,
-          rentalItem.quantity - rentalItem.returnedQuantity - recordedLoss,
-        );
-
-        if (pendingReturn > 0) {
-          await tx.item.update({
-            where: { id: rentalItem.itemId },
-            data: { availableQuantity: { increment: pendingReturn } },
-          });
-          await tx.rentalItem.update({
-            where: { id: rentalItem.id },
-            data: {
-              returnedQuantity: rentalItem.returnedQuantity + pendingReturn,
-            },
-          });
-        }
+      // Tudo já voltou (ou nada saiu): não há o que o galpão conferir.
+      if (itensParaContar.length === 0) {
+        const returned = await tx.rental.update({
+          where: { id },
+          data: { status: RentalStatus.RETURNED, returnedAt: new Date() },
+          include: { client: true, rentalItems: { include: { item: true } } },
+        });
+        return { rental: returned, task: null };
       }
 
-      return tx.rental.update({
-        where: { id },
-        data: { status: RentalStatus.RETURNED, returnedAt: new Date() },
-        include: { client: true, rentalItems: { include: { item: true } } },
-      });
+      const task = await this.tasksService.createEntradaGalpaoTaskForRental(
+        id,
+        itensParaContar,
+        tenantUuid,
+        userId,
+        tx,
+        {
+          notes:
+            'Contagem de devolução da locação. Registre a quantidade que realmente voltou ao galpão.',
+        },
+      );
+
+      return { rental, task };
     });
   }
 

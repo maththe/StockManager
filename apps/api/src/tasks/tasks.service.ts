@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { EventStatus, Prisma, TaskStatus, TaskType } from '@prisma/client';
 import { PrismaService } from 'src/services/prisma.service';
 import { EventCountService } from 'src/events/event-count.service';
+import { RentalCountService } from 'src/rentals/rental-count.service';
 import { nextSequentialCode } from 'src/common/code.util';
 import { UpdateTaskInput } from './dto/update-task.input';
 import { ConfirmTaskInput } from './dto/confirm-task.input';
@@ -46,12 +47,68 @@ export class TasksService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly eventCountService: EventCountService,
+    private readonly rentalCountService: RentalCountService,
   ) {}
 
-  // Tarefa de contagem final de evento: única que aceita quantidade divergente
-  // da solicitada, porque é exatamente ela que apura a diferença.
+  // Tarefa de contagem final de evento: é ela que fecha o evento e devolve o
+  // estoque contado (EventCountService.liquidarContagemFinal).
   private isContagemFinalDeEvento(task: { type: TaskType; eventId: string | null }) {
     return task.type === TaskType.ENTRADA_GALPAO && !!task.eventId;
+  }
+
+  // Contagem de devolução de locação: mesmo papel da contagem final do evento —
+  // fecha a locação e devolve o estoque contado (RentalCountService).
+  private isContagemDevolucaoDeLocacao(task: {
+    type: TaskType;
+    rentalId: string | null;
+  }) {
+    return task.type === TaskType.ENTRADA_GALPAO && !!task.rentalId;
+  }
+
+  // Quanto de cada item da tarefa já foi baixado em divergência (falta/avaria).
+  // Nenhuma tarefa fecha com menos do que o solicitado por conta própria: o que
+  // não voltou precisa estar registrado como divergência, e é esse registro que
+  // reduz a quantidade a confirmar.
+  private async somarDivergenciasPorTaskItem(
+    taskItems: Array<{
+      id: string;
+      eventItemId: string | null;
+      rentalItemId: string | null;
+    }>,
+    tenantUuid: string,
+  ): Promise<Map<string, number>> {
+    const sourceItemIds = taskItems
+      .map((taskItem) => taskItem.eventItemId ?? taskItem.rentalItemId)
+      .filter((id): id is string => !!id);
+
+    if (!sourceItemIds.length) return new Map();
+
+    const grupos = await this.prisma.divergenceItem.groupBy({
+      by: ['sourceItemId'],
+      where: { tenantUuid, sourceItemId: { in: sourceItemIds } },
+      _sum: { quantity: true },
+    });
+
+    const porSourceItemId = new Map(
+      grupos
+        .filter((grupo) => grupo.sourceItemId)
+        .map((grupo) => [grupo.sourceItemId!, grupo._sum.quantity ?? 0]),
+    );
+
+    return new Map(
+      taskItems.map((taskItem) => {
+        const sourceItemId = taskItem.eventItemId ?? taskItem.rentalItemId;
+        return [
+          taskItem.id,
+          sourceItemId ? (porSourceItemId.get(sourceItemId) ?? 0) : 0,
+        ];
+      }),
+    );
+  }
+
+  // Quantidade que ainda precisa ser confirmada fisicamente no item da tarefa.
+  private quantidadeEsperada(requestedQuantity: number, divergida: number) {
+    return Math.max(0, requestedQuantity - divergida);
   }
 
   private async generateTaskCode(tenantUuid: string, client: PrismaTx): Promise<string> {
@@ -166,6 +223,25 @@ export class TasksService {
   ) {
     return this.createGalpaoTask(
       TaskType.SAIDA_GALPAO,
+      { rentalId },
+      items,
+      tenantUuid,
+      createdById,
+      tx,
+      options,
+    );
+  }
+
+  async createEntradaGalpaoTaskForRental(
+    rentalId: string,
+    items: CreateRentalGalpaoTaskItem[],
+    tenantUuid: string,
+    createdById?: string,
+    tx?: PrismaTx,
+    options?: { assignedToId?: string | null; notes?: string },
+  ) {
+    return this.createGalpaoTask(
+      TaskType.ENTRADA_GALPAO,
       { rentalId },
       items,
       tenantUuid,
@@ -294,8 +370,33 @@ export class TasksService {
     });
   }
 
+  // O front precisa saber quanto de cada item já virou divergência para mostrar
+  // (e exigir) a quantidade certa na confirmação.
+  private async comQuantidadeDivergida<
+    T extends {
+      taskItems: Array<{
+        id: string;
+        eventItemId: string | null;
+        rentalItemId: string | null;
+      }>;
+    },
+  >(tasks: T[], tenantUuid: string) {
+    const divergidas = await this.somarDivergenciasPorTaskItem(
+      tasks.flatMap((task) => task.taskItems),
+      tenantUuid,
+    );
+
+    return tasks.map((task) => ({
+      ...task,
+      taskItems: task.taskItems.map((taskItem) => ({
+        ...taskItem,
+        divergedQuantity: divergidas.get(taskItem.id) ?? 0,
+      })),
+    }));
+  }
+
   async findAll(tenantUuid: string, status?: TaskStatus, type?: TaskType) {
-    return this.prisma.task.findMany({
+    const tasks = await this.prisma.task.findMany({
       where: {
         tenantUuid,
         ...(status ? { status } : {}),
@@ -304,6 +405,8 @@ export class TasksService {
       include: taskInclude,
       orderBy: { createdAt: 'desc' },
     });
+
+    return this.comQuantidadeDivergida(tasks, tenantUuid);
   }
 
   async findOne(id: string, tenantUuid: string) {
@@ -316,7 +419,12 @@ export class TasksService {
     });
 
     if (!task) throw new NotFoundException('Tarefa não encontrada.');
-    return task;
+
+    const [comDivergencias] = await this.comQuantidadeDivergida(
+      [task],
+      tenantUuid,
+    );
+    return comDivergencias;
   }
 
   async update(id: string, input: UpdateTaskInput, tenantUuid: string) {
@@ -362,32 +470,22 @@ export class TasksService {
       throw new NotFoundException('Item da tarefa não encontrado.');
     }
 
-    // Em tarefas de saída, confirmar significa conferir a quantidade exata
-    // solicitada; diferença precisa virar divergência. Na contagem final de
-    // evento é o oposto: o funcionário registra o que contou de verdade.
+    // Confirmar é conferir a quantidade esperada — inclusive na contagem final
+    // do evento. Quem reduz o esperado é a divergência já registrada, nunca uma
+    // contagem menor informada na confirmação.
     const confirmed = input?.confirmed ?? true;
-    const contagemFinal = this.isContagemFinalDeEvento(task);
-
-    let confirmedQuantity = 0;
-    if (confirmed) {
-      confirmedQuantity = contagemFinal
-        ? (input?.confirmedQuantity ?? taskItem.confirmedQuantity)
-        : taskItem.requestedQuantity;
-
-      if (
-        !Number.isInteger(confirmedQuantity) ||
-        confirmedQuantity < 0 ||
-        confirmedQuantity > taskItem.requestedQuantity
-      ) {
-        throw new BadRequestException(
-          `A quantidade contada deve ser um inteiro entre 0 e ${taskItem.requestedQuantity}.`,
-        );
-      }
-    }
+    const divergidas = await this.somarDivergenciasPorTaskItem(
+      [taskItem],
+      tenantUuid,
+    );
+    const esperada = this.quantidadeEsperada(
+      taskItem.requestedQuantity,
+      divergidas.get(taskItem.id) ?? 0,
+    );
 
     await this.prisma.taskItem.update({
       where: { id: taskItem.id },
-      data: { confirmed, confirmedQuantity },
+      data: { confirmed, confirmedQuantity: confirmed ? esperada : 0 },
     });
 
     return this.prisma.task.findFirst({
@@ -396,12 +494,7 @@ export class TasksService {
     });
   }
 
-  async concluir(
-    id: string,
-    input: ConfirmTaskInput,
-    tenantUuid: string,
-    userId?: string,
-  ) {
+  async concluir(id: string, input: ConfirmTaskInput, tenantUuid: string) {
     const task = await this.prisma.task.findFirst({
       where: { id, tenantUuid },
       include: { taskItems: { include: { eventItem: true } } },
@@ -433,23 +526,28 @@ export class TasksService {
       }
     }
 
+    const divergidas = await this.somarDivergenciasPorTaskItem(
+      task.taskItems,
+      tenantUuid,
+    );
+
     for (const taskItem of task.taskItems) {
       const update = itemsById.get(taskItem.id);
       if (!update) {
         throw new BadRequestException('Informe a confirmação de todos os itens da tarefa.');
       }
 
-      if (update.confirmedQuantity > taskItem.requestedQuantity) {
-        throw new BadRequestException(
-          'Quantidade confirmada nao pode ser maior que a quantidade solicitada.',
-        );
-      }
+      // Nenhuma tarefa fecha com falta silenciosa — nem a contagem final do
+      // evento. O que não voltou precisa estar registrado como divergência, e é
+      // ela que abate a quantidade esperada aqui.
+      const esperada = this.quantidadeEsperada(
+        taskItem.requestedQuantity,
+        divergidas.get(taskItem.id) ?? 0,
+      );
 
-      // A contagem final é justamente quem apura a diferença: aceita menos que
-      // o solicitado e transforma o que faltou em divergência.
-      if (!contagemFinal && update.confirmedQuantity !== taskItem.requestedQuantity) {
+      if (update.confirmedQuantity !== esperada) {
         throw new BadRequestException(
-          'A tarefa so pode ser concluida com a quantidade exata solicitada. Se houver problema, crie uma divergencia.',
+          `A tarefa só pode ser concluída com a quantidade esperada de cada item (${esperada}). Se faltou ou avariou alguma coisa, registre uma divergência antes de concluir.`,
         );
       }
     }
@@ -475,8 +573,9 @@ export class TasksService {
         include: taskInclude,
       });
 
-      // Concluir a contagem final devolve o estoque, registra a divergência do
-      // que não voltou e fecha o evento — tudo na mesma transação.
+      // Concluir a contagem final devolve ao estoque o que foi contado e fecha a
+      // origem (evento ou locação) — tudo na mesma transação. O que não voltou
+      // já saiu do acervo quando a divergência foi registrada.
       if (contagemFinal && task.eventId) {
         await this.eventCountService.liquidarContagemFinal(
           task.eventId,
@@ -484,13 +583,24 @@ export class TasksService {
             .filter((ti) => ti.eventItemId)
             .map((ti) => ({
               eventItemId: ti.eventItemId!,
-              expectedQuantity: ti.requestedQuantity,
               countedQuantity: itemsById.get(ti.id)?.confirmedQuantity ?? 0,
-              notes: itemsById.get(ti.id)?.notes ?? ti.notes,
             })),
           tenantUuid,
           tx,
-          userId,
+        );
+      }
+
+      if (this.isContagemDevolucaoDeLocacao(task) && task.rentalId) {
+        await this.rentalCountService.liquidarDevolucao(
+          task.rentalId,
+          task.taskItems
+            .filter((ti) => ti.rentalItemId)
+            .map((ti) => ({
+              rentalItemId: ti.rentalItemId!,
+              countedQuantity: itemsById.get(ti.id)?.confirmedQuantity ?? 0,
+            })),
+          tenantUuid,
+          tx,
         );
       }
 

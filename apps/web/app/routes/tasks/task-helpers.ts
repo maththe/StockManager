@@ -9,6 +9,15 @@ export function getTaskItemName(taskItem: TaskItem): string {
   );
 }
 
+// Quantidade que ainda precisa ser confirmada fisicamente: o que já virou
+// divergência (falta/avaria) saiu do acervo e não é contado de novo.
+export function getTaskItemExpected(taskItem: TaskItem): number {
+  return Math.max(
+    0,
+    taskItem.requestedQuantity - (taskItem.divergedQuantity ?? 0),
+  );
+}
+
 // Quantidade total planejada/locada do item na origem, para exibir como referência.
 export function getTaskItemPlanned(taskItem: TaskItem): number | null {
   if (taskItem.eventItem) return taskItem.eventItem.plannedQuantity;

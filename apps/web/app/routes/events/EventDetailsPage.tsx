@@ -111,6 +111,22 @@ export default function EventDetailsPage() {
     [eventTasks],
   );
 
+  // Tarefas de saída ainda em aberto travam a contagem final: sem elas fechadas
+  // não dá para saber o que realmente saiu do galpão.
+  const tarefasPendentes = useMemo(
+    () =>
+      eventTasks.filter(
+        (task) => task.type !== 'ENTRADA_GALPAO' && task.status === 'PENDENTE',
+      ),
+    [eventTasks],
+  );
+  const bloqueioContagemFinal =
+    tarefasPendentes.length > 0
+      ? `${tarefasPendentes.length === 1 ? 'Tarefa pendente' : 'Tarefas pendentes'}: ${tarefasPendentes
+          .map((task) => task.code)
+          .join(', ')}. Conclua ou cancele antes de enviar a contagem final.`
+      : null;
+
   const currentUser = useMemo(() => getCurrentUser(), []);
   const canManageTasks = hasRole(currentUser, 'ADMIN', 'DECORADOR');
 
@@ -440,24 +456,28 @@ export default function EventDetailsPage() {
                       </Button>
                     </Link>
                   ) : (
-                    <Button
-                      type="button"
-                      size="sm"
-                      className="bg-gradient-to-r from-primary to-secondary font-medium text-white shadow-md transition-all hover:shadow-lg"
-                      onClick={() =>
-                        setPendingAction({ type: 'complete', event })
-                      }
-                      disabled={
-                        completingId === event.id || Boolean(pendingAction)
-                      }
-                    >
-                      {completingId === event.id ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      ) : (
-                        <CheckCircle2 className="mr-2 h-4 w-4" />
-                      )}
-                      Concluir
-                    </Button>
+                    <span title={bloqueioContagemFinal ?? undefined}>
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="bg-gradient-to-r from-primary to-secondary font-medium text-white shadow-md transition-all hover:shadow-lg disabled:opacity-60"
+                        onClick={() =>
+                          setPendingAction({ type: 'complete', event })
+                        }
+                        disabled={
+                          Boolean(bloqueioContagemFinal) ||
+                          completingId === event.id ||
+                          Boolean(pendingAction)
+                        }
+                      >
+                        {completingId === event.id ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <CheckCircle2 className="mr-2 h-4 w-4" />
+                        )}
+                        Concluir
+                      </Button>
+                    </span>
                   ))}
                 {eventItems.length > 0 && canManageTasks && (
                   <Button
@@ -496,16 +516,6 @@ export default function EventDetailsPage() {
                       >
                         <Edit2 />
                         Editar evento
-                      </DropdownMenuItem>
-                    )}
-                    {event.status === 'PLANNING' && canManageTasks && (
-                      <DropdownMenuItem
-                        onSelect={() =>
-                          setPendingAction({ type: 'complete', event })
-                        }
-                      >
-                        <CheckCircle2 />
-                        Concluir evento
                       </DropdownMenuItem>
                     )}
                     {canManageTasks && <DropdownMenuSeparator />}
@@ -870,7 +880,7 @@ export default function EventDetailsPage() {
                 : pendingAction?.type === 'start'
                   ? `Ao iniciar "${pendingAction.event.eventName}", uma tarefa de saída do galpão com todos os itens será criada e o status mudará para Em andamento.`
                   : pendingAction?.type === 'complete'
-                    ? `Será criada uma tarefa de contagem com todos os itens de "${pendingAction.event.eventName}" para os funcionários conferirem no galpão. O estoque só volta e o evento só é concluído quando essa contagem terminar — o que faltar vira divergência automaticamente.`
+                    ? `Será criada uma tarefa de contagem com todos os itens de "${pendingAction.event.eventName}" para os funcionários conferirem no galpão. O estoque só volta e o evento só é concluído quando essa contagem terminar — e ela só fecha se o que faltar for registrado como divergência.`
                     : `Ao cancelar "${pendingAction?.event.eventName}", todos os itens reservados voltarão ao estoque.`}
             </AlertDialogDescription>
           </AlertDialogHeader>

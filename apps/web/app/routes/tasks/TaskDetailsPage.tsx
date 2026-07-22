@@ -50,6 +50,7 @@ import {
   type TaskDivergenceCandidate,
 } from './TaskDivergenceDialog';
 import {
+  getTaskItemExpected,
   getTaskItemName,
   getTaskItemPlanned,
   getTaskSource,
@@ -78,6 +79,7 @@ function ItemRow({
   locked,
   isEntrada,
   isContagemFinal,
+  requestedLabel,
 }: {
   taskItem: TaskItem;
   confirmedQuantity: number;
@@ -87,8 +89,11 @@ function ItemRow({
   locked: boolean;
   isEntrada: boolean;
   isContagemFinal: boolean;
+  requestedLabel: string;
 }) {
   const plannedTotal = getTaskItemPlanned(taskItem);
+  const expected = getTaskItemExpected(taskItem);
+  const divergedQuantity = taskItem.divergedQuantity ?? 0;
   const ConfirmIcon = isEntrada ? PackageCheck : Truck;
   const confirmLabel = isContagemFinal
     ? 'Registrar contagem'
@@ -100,10 +105,9 @@ function ItemRow({
     : isEntrada
       ? 'Retorno confirmado'
       : 'No caminhao';
-  const countMatches = confirmedQuantity === taskItem.requestedQuantity;
-  // Na contagem final o número contado é o dado que interessa: pode divergir.
-  const canConfirmItem = isContagemFinal || countMatches;
-  const isFaltando = isContagemFinal && confirmedQuantity < taskItem.requestedQuantity;
+  // Confirmar exige a quantidade esperada. Quem abaixa o esperado é a
+  // divergência já registrada, nunca uma contagem menor.
+  const canConfirmItem = confirmedQuantity === expected;
 
   return (
     <div className="flex items-center gap-4 rounded-lg border border-border/50 p-4">
@@ -113,7 +117,7 @@ function ItemRow({
           {getTaskItemName(taskItem)}
         </p>
         <p className="text-xs text-muted-foreground">
-          {isEntrada ? 'Retorno declarado pelo decorador' : 'Solicitado nesta tarefa'}:{' '}
+          {requestedLabel}:{' '}
           <span className="font-semibold text-foreground">
             {taskItem.requestedQuantity}
           </span>
@@ -121,6 +125,12 @@ function ItemRow({
             <> · Total reservado: {plannedTotal}</>
           )}
         </p>
+        {divergedQuantity > 0 && (
+          <p className="mt-1 inline-flex items-center gap-1.5 text-xs font-medium text-amber-700 dark:text-amber-400">
+            <AlertTriangle className="h-3.5 w-3.5" />
+            {divergedQuantity} em divergencia · esperado agora: {expected}
+          </p>
+        )}
       </div>
       <div className="flex items-center gap-3">
         {locked && taskItem.confirmed && (
@@ -133,7 +143,7 @@ function ItemRow({
           <QuantityField
             value={confirmedQuantity}
             minimum={0}
-            maximum={taskItem.requestedQuantity}
+            maximum={expected}
             size="compact"
             className="w-36"
             onChange={(value) =>
@@ -145,17 +155,10 @@ function ItemRow({
         {!locked &&
           (taskItem.confirmed ? (
             <div className="flex flex-col items-end gap-1.5 self-end">
-              {isFaltando ? (
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1.5 text-sm font-semibold text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">
-                  <AlertTriangle className="h-4 w-4" />
-                  Faltaram {taskItem.requestedQuantity - confirmedQuantity}
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-green-100 px-3 py-1.5 text-sm font-semibold text-green-800 dark:bg-green-900/30 dark:text-green-400">
-                  <CheckCircle2 className="h-4 w-4" />
-                  {confirmedLabel}
-                </span>
-              )}
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-green-100 px-3 py-1.5 text-sm font-semibold text-green-800 dark:bg-green-900/30 dark:text-green-400">
+                <CheckCircle2 className="h-4 w-4" />
+                {confirmedLabel}
+              </span>
               <Button
                 variant="outline"
                 size="default"
@@ -177,7 +180,7 @@ function ItemRow({
               title={
                 canConfirmItem
                   ? undefined
-                  : 'So e possivel confirmar o item com a quantidade exata solicitada. Se houver problema, crie uma divergencia.'
+                  : `So e possivel confirmar o item com a quantidade esperada (${expected}). Se faltou ou avariou alguma coisa, crie uma divergencia.`
               }
             >
               <ConfirmIcon className="h-5 w-5" />
@@ -206,39 +209,36 @@ export default function TaskDetailsPage() {
   const taskItems = task?.taskItems ?? [];
   const isEntrada = task?.type === 'ENTRADA_GALPAO';
   const isRentalTask = Boolean(task?.rentalId ?? task?.rental);
-  // Contagem final do evento: é ela que apura o retorno, fecha o evento e
-  // transforma o que não voltou em divergência.
-  const isContagemFinal = isEntrada && !isRentalTask;
-  const typeTitle = isContagemFinal
-    ? 'Contagem final do evento'
-    : isEntrada
-      ? 'Entrada no Galpao'
-      : 'Saida do Galpao';
+  // Toda entrada no galpão é uma contagem que fecha a origem: a contagem final
+  // conclui o evento, a contagem de devolução encerra a locação. Em ambas, o
+  // que não voltou precisa virar divergência antes de finalizar.
+  const isContagemFinal = isEntrada;
+  const typeTitle = !isEntrada
+    ? 'Saida do Galpao'
+    : isRentalTask
+      ? 'Contagem de devolucao da locacao'
+      : 'Contagem final do evento';
   const confirmActionLabel = isContagemFinal
     ? 'Finalizar contagem'
-    : isEntrada
-      ? 'Confirmar entrada'
-      : 'Confirmar saida';
-  const confirmDialogTitle = isContagemFinal
-    ? 'Finalizar a contagem do evento?'
-    : isEntrada
-      ? 'Confirmar entrada no galpao?'
-      : 'Confirmar saida do galpao?';
-  const confirmDialogDescription = isContagemFinal
-    ? 'Os itens contados voltam ao estoque e o evento sera concluido. Tudo que nao voltou vira uma divergencia pendente para o admin classificar. A tarefa nao podera ser editada depois.'
-    : isEntrada
-      ? 'Isso registrara que os itens retornaram fisicamente ao galpao. A tarefa ficara concluida e nao podera ser editada.'
-      : 'Isso registrara que os itens sairam fisicamente do galpao. A tarefa ficara concluida e nao podera ser editada.';
+    : 'Confirmar saida';
+  const confirmDialogTitle = !isEntrada
+    ? 'Confirmar saida do galpao?'
+    : isRentalTask
+      ? 'Finalizar a contagem da devolucao?'
+      : 'Finalizar a contagem do evento?';
+  const confirmDialogDescription = !isEntrada
+    ? 'Isso registrara que os itens sairam fisicamente do galpao. A tarefa ficara concluida e nao podera ser editada.'
+    : isRentalTask
+      ? 'Os itens contados voltam ao estoque e a locacao sera devolvida. A tarefa nao podera ser editada depois.'
+      : 'Os itens contados voltam ao estoque e o evento sera concluido. A tarefa nao podera ser editada depois.';
   const itemsCardDescription = isContagemFinal
-    ? 'Conte o que realmente voltou do evento e registre item a item. A diferenca vira divergencia automaticamente.'
-    : isEntrada
-      ? 'Confirme cada item conforme ele retorna fisicamente ao galpao.'
-      : 'Confirme cada item conforme ele entra no caminhao. Ao final, conclua a tarefa.';
+    ? `Conte o que realmente voltou ${isRentalTask ? 'da locacao' : 'do evento'}. Se faltar alguma coisa, registre a divergencia antes de finalizar: a contagem so fecha batendo com o esperado.`
+    : 'Confirme cada item conforme ele entra no caminhao. Ao final, conclua a tarefa.';
 
   const getQty = (taskItem: TaskItem) => {
     if (taskItem.confirmed) return taskItem.confirmedQuantity;
     if (quantities[taskItem.id] !== undefined) return quantities[taskItem.id];
-    return taskItem.requestedQuantity;
+    return getTaskItemExpected(taskItem);
   };
 
   const confirmedCount = taskItems.filter((ti) => ti.confirmed).length;
@@ -248,13 +248,14 @@ export default function TaskDetailsPage() {
       taskItems
         .map((taskItem) => {
           const quantity = getQty(taskItem);
+          const expected = getTaskItemExpected(taskItem);
 
           if (!Number.isInteger(quantity) || quantity < 0) {
             return `${getTaskItemName(taskItem)}: a quantidade deve ser um inteiro maior ou igual a zero.`;
           }
 
-          if (quantity > taskItem.requestedQuantity) {
-            return `${getTaskItemName(taskItem)}: a quantidade nao pode ser maior que ${taskItem.requestedQuantity}.`;
+          if (quantity > expected) {
+            return `${getTaskItemName(taskItem)}: a quantidade nao pode ser maior que ${expected}.`;
           }
 
           return null;
@@ -268,7 +269,7 @@ export default function TaskDetailsPage() {
       taskItems
         .map((taskItem) => {
           const confirmedQuantity = getQty(taskItem);
-          const difference = taskItem.requestedQuantity - confirmedQuantity;
+          const difference = getTaskItemExpected(taskItem) - confirmedQuantity;
 
           if (difference <= 0) return null;
 
@@ -282,16 +283,15 @@ export default function TaskDetailsPage() {
     [taskItems, quantities],
   );
 
-  // Na contagem final a diferença é o resultado esperado do trabalho: ela não
-  // bloqueia a conclusão, vira divergência automática no backend.
+  // Nenhuma tarefa fecha com falta silenciosa, nem a contagem final: a
+  // diferença tem que virar divergência antes de concluir.
   const canConfirm =
     !locked &&
     !concluir.isPending &&
     quantityErrors.length === 0 &&
-    (isContagemFinal || divergenceCandidates.length === 0);
+    divergenceCandidates.length === 0;
   const canCreateDivergence =
     !locked &&
-    !isContagemFinal &&
     !createDivergence.isPending &&
     quantityErrors.length === 0 &&
     divergenceCandidates.length > 0;
@@ -312,8 +312,6 @@ export default function TaskDetailsPage() {
       taskId: task.id,
       taskItemId: taskItem.id,
       confirmed,
-      // Fora da contagem final o backend impõe a quantidade solicitada.
-      confirmedQuantity: isContagemFinal ? getQty(taskItem) : undefined,
     });
     // Descarta a contagem local para o item voltar a refletir o servidor.
     setQuantities((current) => {
@@ -325,6 +323,9 @@ export default function TaskDetailsPage() {
   const handleCreateDivergence = async (data: CreateTaskDivergenceInput) => {
     if (!task) return;
     await createDivergence.mutateAsync({ taskId: task.id, data });
+    // A divergência muda a quantidade esperada: descarta a contagem local para
+    // as linhas voltarem a refletir o servidor.
+    setQuantities({});
     setDivergenceDialog(false);
   };
 
@@ -464,15 +465,27 @@ export default function TaskDetailsPage() {
       {!locked &&
         quantityErrors.length === 0 &&
         divergenceCandidates.length > 0 && (
-          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-900">
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-900 dark:border-amber-500/30 dark:bg-amber-950/30 dark:text-amber-200">
             <div className="flex items-center gap-2 text-sm font-semibold">
               <AlertTriangle className="h-4 w-4" />
-              A tarefa nao pode ser concluida com quantidade diferente da solicitada
+              {isContagemFinal
+                ? 'A contagem nao fecha enquanto houver item faltando sem registro'
+                : 'A tarefa nao pode ser concluida com quantidade diferente da esperada'}
             </div>
             <p className="mt-2 text-sm">
-              Ajuste a contagem para bater com o solicitado ou use{' '}
-              <span className="font-semibold">Criar uma divergencia</span> para
-              relatar o problema encontrado.
+              {isContagemFinal ? (
+                <>
+                  Use <span className="font-semibold">Criar uma divergencia</span>{' '}
+                  para registrar o que faltou ou voltou avariado. So depois disso
+                  o evento pode ser concluido.
+                </>
+              ) : (
+                <>
+                  Ajuste a contagem para bater com o esperado ou use{' '}
+                  <span className="font-semibold">Criar uma divergencia</span>{' '}
+                  para relatar o problema encontrado.
+                </>
+              )}
             </p>
           </div>
         )}
@@ -514,6 +527,13 @@ export default function TaskDetailsPage() {
                 locked={locked}
                 isEntrada={isEntrada}
                 isContagemFinal={isContagemFinal}
+                requestedLabel={
+                  !isEntrada
+                    ? 'Solicitado nesta tarefa'
+                    : isRentalTask
+                      ? 'Pendente de devolucao'
+                      : 'Retorno declarado pelo decorador'
+                }
               />
             ))
           )}

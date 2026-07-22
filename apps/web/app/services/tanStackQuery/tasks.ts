@@ -69,23 +69,30 @@ export const useConcluirTask = () => {
       queryClient.invalidateQueries({ queryKey: ['tasks', id] });
       queryClient.invalidateQueries({ queryKey: ['events'] });
 
-      // A contagem final devolve estoque, fecha o evento e pode gerar divergência.
-      const isContagemFinal = task?.type === 'ENTRADA_GALPAO' && !!task?.eventId;
-      if (isContagemFinal) {
+      // As contagens de entrada devolvem estoque e fecham a origem
+      // (evento concluído / locação devolvida).
+      const isContagemEvento =
+        task?.type === 'ENTRADA_GALPAO' && !!task?.eventId;
+      const isContagemLocacao =
+        task?.type === 'ENTRADA_GALPAO' && !!task?.rentalId;
+      if (isContagemEvento || isContagemLocacao) {
         queryClient.invalidateQueries({ queryKey: ['items'] });
         queryClient.invalidateQueries({ queryKey: ['divergences'] });
-        if (task?.eventId) {
-          queryClient.invalidateQueries({ queryKey: ['events', task.eventId] });
-          queryClient.invalidateQueries({
-            queryKey: ['event-items', task.eventId],
-          });
-        }
+      }
+      if (isContagemEvento && task?.eventId) {
+        queryClient.invalidateQueries({ queryKey: ['events', task.eventId] });
+        queryClient.invalidateQueries({
+          queryKey: ['event-items', task.eventId],
+        });
+      }
+      if (isContagemLocacao) {
+        queryClient.invalidateQueries({ queryKey: ['rentals'] });
       }
 
-      const message = isContagemFinal
+      const message = isContagemEvento
         ? 'Contagem finalizada. Estoque atualizado e evento concluído.'
-        : task?.type === 'ENTRADA_GALPAO'
-          ? 'Entrada no galpão confirmada com sucesso.'
+        : isContagemLocacao
+          ? 'Contagem finalizada. Estoque atualizado e locação devolvida.'
           : 'Saída do galpão confirmada com sucesso.';
       mutationSuccess(message);
     },
@@ -100,18 +107,16 @@ export const useConfirmarTaskItem = () => {
       taskId,
       taskItemId,
       confirmed,
-      confirmedQuantity,
     }: {
       taskId: string;
       taskItemId: string;
       confirmed: boolean;
-      // Só é aceita na contagem final de evento; nas demais o backend impõe
-      // a quantidade solicitada.
-      confirmedQuantity?: number;
     }) => {
+      // O backend impõe a quantidade esperada (solicitada menos o que já está
+      // em divergência); o front não envia número.
       const response = await api.patch<Task>(
         `/tasks/${taskId}/itens/${taskItemId}/confirmar`,
-        { confirmed, confirmedQuantity },
+        { confirmed },
       );
       return response.data;
     },

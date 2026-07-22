@@ -13,7 +13,7 @@ import {
 import { QuantityField } from '~/components/Form/QuantityInput';
 import { Label } from '~/components/ui/label';
 import type { CreateTaskDivergenceInput, TaskItem } from '~/types/task';
-import { getTaskItemName } from './task-helpers';
+import { getTaskItemExpected, getTaskItemName } from './task-helpers';
 
 export interface TaskDivergenceCandidate {
   taskItem: TaskItem;
@@ -129,8 +129,8 @@ export function TaskDivergenceDialog({
             Criar uma divergencia
           </DialogTitle>
           <DialogDescription>
-            Relate a diferenca encontrada na tarefa. A tarefa continua pendente
-            ate que a quantidade contada bata com a solicitada.
+            Relate a diferenca encontrada na tarefa. O que for registrado aqui
+            sai do acervo e deixa de ser cobrado na confirmacao dos itens.
           </DialogDescription>
         </DialogHeader>
 
@@ -148,7 +148,7 @@ export function TaskDivergenceDialog({
                       {getTaskItemName(candidate.taskItem)}
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      Solicitado: {candidate.taskItem.requestedQuantity} ·
+                      Esperado: {getTaskItemExpected(candidate.taskItem)} ·
                       Contado: {candidate.confirmedQuantity} · Divergencia:{' '}
                       {candidate.difference}
                     </div>

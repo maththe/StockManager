@@ -16,8 +16,80 @@ export class DivergencesService {
     private readonly maintenanceService: MaintenanceService,
   ) {}
 
+  // `sourceId` é um id solto (não há relação no schema, porque a origem pode ser
+  // evento, locação ou nenhuma das duas). Resolvemos o nome em lote para a UI
+  // conseguir dizer de onde a divergência veio sem abrir o registro.
+  private async resolverOrigens<
+    T extends { source: DivergenceSource; sourceId: string | null },
+  >(divergences: T[], tenantUuid: string) {
+    const idsPorOrigem = (origem: DivergenceSource) => [
+      ...new Set(
+        divergences
+          .filter((d) => d.source === origem && d.sourceId)
+          .map((d) => d.sourceId!),
+      ),
+    ];
+
+    const eventIds = idsPorOrigem(DivergenceSource.EVENT);
+    const rentalIds = idsPorOrigem(DivergenceSource.RENTAL);
+
+    const [events, rentals] = await Promise.all([
+      eventIds.length
+        ? this.prisma.event.findMany({
+            where: { tenantUuid, id: { in: eventIds } },
+            select: {
+              id: true,
+              eventName: true,
+              startDate: true,
+              client: { select: { companyName: true } },
+            },
+          })
+        : [],
+      rentalIds.length
+        ? this.prisma.rental.findMany({
+            where: { tenantUuid, id: { in: rentalIds } },
+            select: {
+              id: true,
+              rentalCode: true,
+              startDate: true,
+              client: { select: { companyName: true } },
+            },
+          })
+        : [],
+    ]);
+
+    const origemPorId = new Map<
+      string,
+      { label: string; clientName: string | null; date: Date | null }
+    >();
+
+    for (const event of events) {
+      origemPorId.set(event.id, {
+        label: event.eventName,
+        clientName: event.client?.companyName ?? null,
+        date: event.startDate,
+      });
+    }
+
+    for (const rental of rentals) {
+      origemPorId.set(rental.id, {
+        label: rental.rentalCode,
+        clientName: rental.client?.companyName ?? null,
+        date: rental.startDate,
+      });
+    }
+
+    return divergences.map((divergence) => ({
+      ...divergence,
+      // null quando a origem foi apagada ou não se aplica (MANUAL/MAINTENANCE).
+      sourceRef: divergence.sourceId
+        ? (origemPorId.get(divergence.sourceId) ?? null)
+        : null,
+    }));
+  }
+
   async findAll(tenantUuid: string, status?: DivergenceStatus) {
-    return this.prisma.divergence.findMany({
+    const divergences = await this.prisma.divergence.findMany({
       where: {
         tenantUuid,
         ...(status ? { status } : {}),
@@ -26,9 +98,12 @@ export class DivergencesService {
         items: { include: { item: { select: { id: true, name: true } } } },
         createdBy: { select: { id: true, name: true } },
         resolvedBy: { select: { id: true, name: true } },
+        maintenances: { select: { id: true, code: true, status: true } },
       },
       orderBy: { occurredAt: 'desc' },
     });
+
+    return this.resolverOrigens(divergences, tenantUuid);
   }
 
   async findOne(id: string, tenantUuid: string) {
@@ -46,7 +121,8 @@ export class DivergencesService {
       throw new NotFoundException('Divergencia nao encontrada.');
     }
 
-    return divergence;
+    const [comOrigem] = await this.resolverOrigens([divergence], tenantUuid);
+    return comOrigem;
   }
 
   async createFromTask(
@@ -110,6 +186,26 @@ export class DivergencesService {
       throw new BadRequestException('Ha itens duplicados na divergencia.');
     }
 
+    // Um item pode ter mais de uma divergência (ex.: falta apurada na saída e
+    // avaria na volta). O que já foi registrado sai da quantidade ainda em jogo.
+    const sourceItemIds = task.taskItems
+      .map((taskItem) => taskItem.eventItemId ?? taskItem.rentalItemId)
+      .filter((id): id is string => !!id);
+
+    const gruposDivergidos = sourceItemIds.length
+      ? await this.prisma.divergenceItem.groupBy({
+          by: ['sourceItemId'],
+          where: { tenantUuid, sourceItemId: { in: sourceItemIds } },
+          _sum: { quantity: true },
+        })
+      : [];
+
+    const jaDivergidoPorSourceItemId = new Map(
+      gruposDivergidos
+        .filter((grupo) => grupo.sourceItemId)
+        .map((grupo) => [grupo.sourceItemId!, grupo._sum.quantity ?? 0]),
+    );
+
     const divergenceItems: Array<{
       quantity: number;
       type: DivergenceType;
@@ -138,13 +234,19 @@ export class DivergencesService {
         );
       }
 
+      const esperada = Math.max(
+        0,
+        taskItem.requestedQuantity -
+          (jaDivergidoPorSourceItemId.get(sourceItemId) ?? 0),
+      );
+
       if (
         !Number.isInteger(item.confirmedQuantity) ||
         item.confirmedQuantity < 0 ||
-        item.confirmedQuantity > taskItem.requestedQuantity
+        item.confirmedQuantity > esperada
       ) {
         throw new BadRequestException(
-          'Quantidade contada deve ser um inteiro entre zero e a quantidade solicitada.',
+          `Quantidade contada deve ser um inteiro entre zero e a quantidade esperada (${esperada}).`,
         );
       }
 
@@ -171,10 +273,10 @@ export class DivergencesService {
 
       if (
         item.confirmedQuantity + missingQuantity + damagedQuantity !==
-        taskItem.requestedQuantity
+        esperada
       ) {
         throw new BadRequestException(
-          'A soma entre quantidade contada, faltante e avariada deve ser igual a quantidade solicitada.',
+          `A soma entre quantidade contada, faltante e avariada deve ser igual a quantidade esperada (${esperada}).`,
         );
       }
 

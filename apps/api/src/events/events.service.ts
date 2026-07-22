@@ -400,19 +400,35 @@ export class EventsService {
       );
     }
 
-    const pendente = await this.prisma.task.findFirst({
+    // O evento só vai para a contagem final com o quadro de tarefas limpo:
+    // enquanto houver tarefa pendente (saída ou contagem), não há como saber o
+    // que de fato saiu do galpão.
+    const pendentes = await this.prisma.task.findMany({
       where: {
         eventId: id,
         tenantUuid,
-        type: TaskType.ENTRADA_GALPAO,
         status: TaskStatus.PENDENTE,
       },
-      select: { id: true, code: true },
+      select: { id: true, code: true, type: true },
+      orderBy: { createdAt: 'asc' },
     });
 
-    if (pendente) {
+    const contagemPendente = pendentes.find(
+      (task) => task.type === TaskType.ENTRADA_GALPAO,
+    );
+
+    if (contagemPendente) {
       throw new BadRequestException(
-        `Já existe uma contagem pendente para este evento (${pendente.code}).`,
+        `Já existe uma contagem pendente para este evento (${contagemPendente.code}).`,
+      );
+    }
+
+    if (pendentes.length > 0) {
+      const codigos = pendentes.map((task) => task.code).join(', ');
+      throw new BadRequestException(
+        pendentes.length === 1
+          ? `Existe uma tarefa pendente neste evento (${codigos}). Conclua ou cancele a tarefa antes de enviar a contagem final.`
+          : `Existem tarefas pendentes neste evento (${codigos}). Conclua ou cancele as tarefas antes de enviar a contagem final.`,
       );
     }
 
@@ -430,12 +446,6 @@ export class EventsService {
     }
 
     return this.prisma.$transaction(async (tx) => {
-      // O caminhão já voltou: tarefas de saída pendentes perdem o sentido.
-      await tx.task.updateMany({
-        where: { eventId: id, tenantUuid, status: TaskStatus.PENDENTE },
-        data: { status: TaskStatus.CANCELADA },
-      });
-
       return this.tasksService.createEntradaGalpaoTask(
         id,
         itensParaContar,

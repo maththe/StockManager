@@ -3,10 +3,19 @@ import { api } from '~/services/axios/api';
 import type { CreateTaskDivergenceInput } from '~/types/task';
 import { mutationError, mutationSuccess } from './mutationToast';
 
+// Origem resolvida pelo backend (evento ou locação por trás do sourceId).
+// null quando a origem é MANUAL/MAINTENANCE ou o registro foi apagado.
+export interface DivergenceSourceRef {
+  label: string;
+  clientName?: string | null;
+  date?: string | null;
+}
+
 export interface Divergence {
   id: string;
   source: string;
   sourceId?: string;
+  sourceRef?: DivergenceSourceRef | null;
   status: 'PENDING' | 'RESOLVED';
   notes?: string;
   occurredAt: string;

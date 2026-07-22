@@ -86,8 +86,9 @@ Toda alteração em `availableQuantity` deve ser **transacional**. As regras vig
 | Adicionar item a evento/locação | Reserva estoque imediatamente |
 | Remover item de evento/locação | Devolve estoque |
 | Cancelar evento ou locação | Devolve todo estoque pendente |
-| Devolver locação | Incrementa conforme `returnedQuantity` |
-| Concluir a contagem final do evento | Devolve o contado e abate o que faltou de `totalQuantity` |
+| Concluir a contagem de devolução da locação | Devolve o contado (o que faltou já saiu na divergência) |
+| Registrar divergência (falta/avaria) | Abate a perda de `totalQuantity` na hora |
+| Concluir a contagem final do evento | Devolve o contado (o que faltou já saiu na divergência) |
 
 Campos a revisar sempre que tocar `EventsService` ou `RentalsService`:
 `availableQuantity` · `totalQuantity` · `returnedQuantity` · `divergences`
@@ -97,27 +98,37 @@ Campos a revisar sempre que tocar `EventsService` ou `RentalsService`:
 ```
 1. POST /events/:id/concluir            (ADMIN/DECORADOR)
    └─ NÃO conclui o evento e NÃO toca no estoque.
-      Cancela tarefas de saída pendentes e cria a tarefa ENTRADA_GALPAO
-      de contagem final, com a quantidade esperada por item.
+      REJEITA se houver qualquer tarefa PENDENTE no evento.
+      Com o quadro limpo, cria a tarefa ENTRADA_GALPAO de contagem
+      final, com a quantidade esperada por item.
 
-2. PATCH /tasks/:id/concluir            (funcionário que contou)
+2. POST /divergences/tasks/:taskId       (só se faltou / voltou avariado)
+   └─ Registra a perda, dá baixa em totalQuantity e reduz a quantidade
+      esperada da tarefa. Sem isso a contagem não fecha.
+
+3. PATCH /tasks/:id/concluir            (funcionário que contou)
    └─ EventCountService.liquidarContagemFinal:
-      devolve availableQuantity pelo contado, abate totalQuantity do que
-      faltou, cria Divergence PENDING (type MISSING, a classificar) e só
-      então move o evento para COMPLETED.
+      devolve availableQuantity pelo contado, atualiza returnedQuantity e
+      move o evento para COMPLETED. Não mexe em totalQuantity nem cria
+      divergência — isso já aconteceu na etapa 2.
 ```
 
 Regras que sustentam esse fluxo:
 
 - `PATCH /events/:id` com `status: COMPLETED` é **rejeitado**. Não recrie um caminho que conclua evento sem contagem do galpão.
-- A tarefa de contagem final é a **única** que aceita `confirmedQuantity` menor que `requestedQuantity` — identificada por `type === ENTRADA_GALPAO && eventId != null`. Nas demais, o backend impõe a quantidade solicitada.
+- **Evento com tarefa pendente não vai para a contagem final.** `solicitarContagemFinal` lista as tarefas `PENDENTE` do evento e recusa a operação citando os códigos; o admin tem que concluir ou cancelar cada uma antes. A rota nunca cancela tarefas por conta própria. O front espelha isso desabilitando o botão "Concluir" em `EventDetailsPage`.
+- **Nenhuma tarefa fecha com falta silenciosa**, nem a contagem final. A regra é única para todas: só conclui com `confirmedQuantity === requestedQuantity - divergedQuantity`. O que não voltou tem que virar divergência antes — é o registro dela que abaixa o esperado.
+- `divergedQuantity` é derivado (soma dos `DivergenceItem` daquele `eventItem`/`rentalItem`), calculado em `TasksService.somarDivergenciasPorTaskItem` e devolvido em cada `taskItem` por `GET /tasks` e `GET /tasks/:id`. Não é coluna do banco.
+- `PATCH /tasks/:id/itens/:taskItemId/confirmar` **não aceita quantidade**: o backend impõe a esperada.
 - `EventCountService` vive em módulo próprio (`EventCountModule`) porque `EventsModule` já depende de `TasksModule`; importar no sentido inverso criaria ciclo.
-- Divergências **resolvidas** do evento não são apagadas nem creditadas de volta na contagem: já podem ter virado manutenção. Só as **pendentes** são substituídas.
+- Um mesmo item pode acumular mais de uma divergência (ex.: falta na saída + avaria na volta); as validações sempre comparam com o esperado restante, nunca com `requestedQuantity` cru.
 
 ### Locações — restrições
 
 - `rentalCode` gerado como `LOC-YYYY-####` por tenant.
 - **Nunca** mude status para `RETURNED` ou `CANCELLED` via `PATCH /rentals/:id` diretamente — use as rotas dedicadas.
+- A devolução segue o **mesmo desenho da conclusão de evento**: `PATCH /rentals/:id/return` NÃO devolve estoque — **rejeita se houver qualquer tarefa `PENDENTE` na locação** (citando os códigos; nunca cancela tarefa por conta própria) e cria a tarefa `ENTRADA_GALPAO` de contagem (identificada por `type === ENTRADA_GALPAO && rentalId != null`). O front espelha isso desabilitando "Devolver locação" em `RentalDetailsPage`. Concluir essa tarefa dispara `RentalCountService.liquidarDevolucao` (módulo próprio `RentalCountModule`, pelo mesmo motivo anti-ciclo do `EventCountModule`): devolve o contado a `availableQuantity`, atualiza `returnedQuantity` e move a locação para `RETURNED`. Se não há itens pendentes, a rota encerra a locação direto, sem tarefa (`task: null` na resposta).
+- Devoluções parciais manuais (`PATCH /rentals/:id/items/:rentalItemId` com `returnedQuantity`) continuam existindo para retornos antecipados; a contagem final cobre apenas o que ainda não voltou.
 - Itens de locações encerradas são **não editáveis**.
 
 ---
@@ -200,6 +211,7 @@ Estas inconsistências **já existem**. Não as propague ao adicionar código no
 | Lógica de eventos | `apps/api/src/events/events.service.ts` |
 | Contagem final / fechamento do evento | `apps/api/src/events/event-count.service.ts` |
 | Lógica de locações | `apps/api/src/rentals/rentals.service.ts` |
+| Contagem de devolução / fechamento da locação | `apps/api/src/rentals/rental-count.service.ts` |
 | Rotas web | `apps/web/app/routes.ts` |
 | Root da SPA | `apps/web/app/root.tsx` |
 | Instância Axios | `apps/web/app/services/axios/api.ts` |

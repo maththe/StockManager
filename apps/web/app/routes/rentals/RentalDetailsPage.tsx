@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import {
+  AlertTriangle,
   ArrowLeft,
   Ban,
   Building2,
@@ -51,6 +52,7 @@ import {
   useReturnRental,
   useUpdateRental,
 } from '~/services/tanStackQuery/rentals';
+import { useTasks } from '~/services/tanStackQuery/tasks';
 import type {
   CreateRentalInput,
   UpdateRentalInput,
@@ -75,6 +77,39 @@ export default function RentalDetailsPage() {
 
   const { data: rental, isLoading } = useRental(rentalId);
   const { data: clients = [] } = useClients();
+  const { data: tasks = [] } = useTasks();
+
+  // Contagem de devolução já despachada: a locação fecha quando o galpão
+  // concluir esta tarefa (mesmo fluxo da contagem final do evento).
+  const contagemPendente = useMemo(
+    () =>
+      tasks.find(
+        (task) =>
+          task.rentalId === rentalId &&
+          task.type === 'ENTRADA_GALPAO' &&
+          task.status === 'PENDENTE',
+      ),
+    [tasks, rentalId],
+  );
+
+  // Tarefas de saída em aberto travam a devolução: sem elas fechadas não dá
+  // para saber o que realmente saiu do galpão.
+  const tarefasPendentes = useMemo(
+    () =>
+      tasks.filter(
+        (task) =>
+          task.rentalId === rentalId &&
+          task.type !== 'ENTRADA_GALPAO' &&
+          task.status === 'PENDENTE',
+      ),
+    [tasks, rentalId],
+  );
+  const bloqueioDevolucao =
+    tarefasPendentes.length > 0
+      ? `${tarefasPendentes.length === 1 ? 'Tarefa pendente' : 'Tarefas pendentes'}: ${tarefasPendentes
+          .map((task) => task.code)
+          .join(', ')}. Conclua ou cancele antes de enviar a contagem de devolução.`
+      : null;
 
   const updateRental = useUpdateRental();
   const cancelRental = useCancelRental();
@@ -100,10 +135,10 @@ export default function RentalDetailsPage() {
     }
     if (pendingAction === 'return') {
       return {
-        title: 'Marcar como devolvida?',
+        title: 'Enviar devolução para contagem?',
         description:
-          'Todas as unidades pendentes serão consideradas devolvidas e voltarão ao estoque disponível.',
-        confirmLabel: 'Confirmar devolução',
+          'Será criada uma tarefa de contagem com os itens pendentes para os funcionários conferirem no galpão. O estoque só volta e a locação só é devolvida quando essa contagem terminar — e ela só fecha se o que faltar for registrado como divergência.',
+        confirmLabel: 'Enviar contagem',
       };
     }
     if (pendingAction === 'cancel') {
@@ -204,7 +239,7 @@ export default function RentalDetailsPage() {
   const closed = isRentalClosed(rental.status);
   const hasItems = rental.rentalItems.length > 0;
   const canActivate = rental.status === 'DRAFT' && hasItems;
-  const canReturn = rental.status === 'ACTIVE';
+  const canReturn = rental.status === 'ACTIVE' && !contagemPendente;
   const canCancel = rental.status === 'DRAFT' || rental.status === 'ACTIVE';
   const canDelete =
     rental.status === 'CANCELLED' || (rental.status === 'DRAFT' && !hasItems);
@@ -262,17 +297,36 @@ export default function RentalDetailsPage() {
                 Ativar locação
               </Button>
             )}
+            {rental.status === 'ACTIVE' && contagemPendente && (
+              <Link to={`/dashboard/tasks/${contagemPendente.id}`}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="border-amber-300 text-amber-700 hover:bg-amber-50 hover:text-amber-800 dark:border-amber-500/40 dark:text-amber-400 dark:hover:bg-amber-950/40 dark:hover:text-amber-300"
+                >
+                  <AlertTriangle className="mr-2 h-4 w-4" />
+                  Aguardando contagem ({contagemPendente.code})
+                </Button>
+              </Link>
+            )}
             {canReturn && (
-              <Button
-                type="button"
-                size="sm"
-                className="bg-gradient-to-r from-primary to-secondary font-medium text-white shadow-md transition-all hover:shadow-lg"
-                onClick={() => setPendingAction('return')}
-                disabled={isProcessing || Boolean(pendingAction)}
-              >
-                <CheckCircle2 className="mr-2 h-4 w-4" />
-                Marcar devolvida
-              </Button>
+              <span title={bloqueioDevolucao ?? undefined}>
+                <Button
+                  type="button"
+                  size="sm"
+                  className="bg-gradient-to-r from-primary to-secondary font-medium text-white shadow-md transition-all hover:shadow-lg disabled:opacity-60"
+                  onClick={() => setPendingAction('return')}
+                  disabled={
+                    Boolean(bloqueioDevolucao) ||
+                    isProcessing ||
+                    Boolean(pendingAction)
+                  }
+                >
+                  <CheckCircle2 className="mr-2 h-4 w-4" />
+                  Devolver locação
+                </Button>
+              </span>
             )}
             {canDelete && (
               <Button
@@ -296,7 +350,9 @@ export default function RentalDetailsPage() {
                 title={
                   !hasItems
                     ? 'Adicione ao menos um item para gerar a tarefa de galpão.'
-                    : undefined
+                    : contagemPendente
+                      ? 'A devolução já foi enviada para contagem no galpão.'
+                      : undefined
                 }
               >
                 <Button
@@ -307,6 +363,7 @@ export default function RentalDetailsPage() {
                   onClick={() => createGalpaoTask.mutate(rental.id)}
                   disabled={
                     !hasItems ||
+                    Boolean(contagemPendente) ||
                     createGalpaoTask.isPending ||
                     Boolean(pendingAction)
                   }

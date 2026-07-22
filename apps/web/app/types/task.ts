@@ -17,6 +17,9 @@ export interface TaskItem {
   id: string;
   requestedQuantity: number;
   confirmedQuantity: number;
+  // Quanto deste item já foi registrado em divergência (falta/avaria). Abate a
+  // quantidade que ainda precisa ser confirmada — veja getTaskItemExpected.
+  divergedQuantity?: number;
   confirmed: boolean;
   notes?: string;
   eventItemId?: string | null;
@@ -77,9 +80,6 @@ export interface ConfirmTaskInput {
 
 export interface ToggleTaskItemInput {
   confirmed?: boolean;
-  // Só é lida na contagem final de evento, onde a quantidade contada pode
-  // divergir da solicitada.
-  confirmedQuantity?: number;
 }
 
 export interface CreateTaskDivergenceItemInput {

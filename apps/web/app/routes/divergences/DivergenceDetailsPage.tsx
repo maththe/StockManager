@@ -38,15 +38,12 @@ import {
   STATUS_CLASS,
   STATUS_LABEL,
   TYPE_LABEL,
+  formatDate,
   formatDateTime,
+  sourceHref,
+  sourceTitle,
+  sumUnits,
 } from './labels';
-
-const sourceLink = (source: string, sourceId?: string) => {
-  if (!sourceId) return null;
-  if (source === 'EVENT') return `/dashboard/events/${sourceId}`;
-  if (source === 'RENTAL') return `/dashboard/rentals/${sourceId}`;
-  return null;
-};
 
 export default function DivergenceDetailsPage() {
   const { divergenceId = '' } = useParams();
@@ -88,7 +85,7 @@ export default function DivergenceDetailsPage() {
     );
   }
 
-  const originLink = sourceLink(divergence.source, divergence.sourceId);
+  const originLink = sourceHref(divergence.source, divergence.sourceId);
   const isPending = divergence.status === 'PENDING';
   const hasDamaged = divergence.items.some((item) => item.type === 'DAMAGED');
 
@@ -131,10 +128,22 @@ export default function DivergenceDetailsPage() {
               </span>
             </div>
             <h1 className="mt-2 text-2xl font-bold tracking-tight">
-              Divergência de estoque
+              {sourceTitle(divergence)}
             </h1>
+            {(divergence.sourceRef?.clientName ||
+              divergence.sourceRef?.date) && (
+              <p className="mt-0.5 text-sm text-muted-foreground">
+                {divergence.sourceRef?.clientName}
+                {divergence.sourceRef?.clientName &&
+                  divergence.sourceRef?.date &&
+                  ' · '}
+                {divergence.sourceRef?.date &&
+                  formatDate(divergence.sourceRef.date)}
+              </p>
+            )}
             <p className="mt-1 text-sm text-muted-foreground">
-              Registrada em {formatDateTime(divergence.occurredAt)}
+              {divergence.items.length} item(ns) · {sumUnits(divergence)}{' '}
+              unidade(s) · registrada em {formatDateTime(divergence.occurredAt)}
               {divergence.createdBy && ` por ${divergence.createdBy.name}`}
             </p>
             {!isPending && (

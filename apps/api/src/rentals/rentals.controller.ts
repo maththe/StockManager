@@ -41,9 +41,9 @@ export class RentalsController {
   }
 
   @Patch(':id/return')
-  async markReturned(@Param('id') id: string, @Req() req: Request) {
+  async solicitarDevolucao(@Param('id') id: string, @Req() req: Request) {
     const user = (req as any).user;
-    return this.rentalsService.markReturned(id, user.tenantUuid);
+    return this.rentalsService.solicitarDevolucao(id, user.tenantUuid, user.sub);
   }
 
   @Delete(':id')

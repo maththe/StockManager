@@ -35,6 +35,15 @@ export const formatDateTime = (value?: string) =>
       })
     : '—';
 
+export const formatDate = (value?: string | null) =>
+  value
+    ? new Date(value).toLocaleDateString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+      })
+    : '—';
+
 export const sumByType = (
   divergence: Divergence,
   type: 'MISSING' | 'DAMAGED',
@@ -42,3 +51,21 @@ export const sumByType = (
   divergence.items
     .filter((item) => item.type === type)
     .reduce((total, item) => total + item.quantity, 0);
+
+// Total de unidades perdidas, somando faltantes e avariados.
+export const sumUnits = (divergence: Divergence) =>
+  divergence.items.reduce((total, item) => total + item.quantity, 0);
+
+// Título da divergência: o nome da origem é o que identifica o registro.
+// Sem origem resolvida, cai no rótulo genérico da fonte.
+export const sourceTitle = (divergence: Divergence) =>
+  divergence.sourceRef?.label ??
+  SOURCE_LABEL[divergence.source] ??
+  divergence.source;
+
+export const sourceHref = (source: string, sourceId?: string) => {
+  if (!sourceId) return null;
+  if (source === 'EVENT') return `/dashboard/events/${sourceId}`;
+  if (source === 'RENTAL') return `/dashboard/rentals/${sourceId}`;
+  return null;
+};

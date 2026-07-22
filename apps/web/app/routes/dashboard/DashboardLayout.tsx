@@ -24,14 +24,14 @@ import { clearSession } from '~/services/axios/api';
 
 const navItems = [
   { to: '/dashboard/inventory', icon: Box, label: 'Inventario' },
-  { to: '/dashboard/clients', label: 'Clientes', icon: Users },
-  { to: '/dashboard/users', label: 'Usuarios', icon: ShieldUser },
   { to: '/dashboard/events', label: 'Eventos', icon: CalendarDays },
   { to: '/dashboard/calendar', label: 'Calendário', icon: CalendarRange },
   { to: '/dashboard/rentals', label: 'Locações', icon: HandCoins },
   { to: '/dashboard/tasks', label: 'Tarefas', icon: ClipboardList },
   { to: '/dashboard/divergences', label: 'Divergências', icon: TriangleAlert },
   { to: '/dashboard/maintenance', label: 'Manutenções', icon: Settings },
+  { to: '/dashboard/clients', label: 'Clientes', icon: Users },
+  { to: '/dashboard/users', label: 'Usuarios', icon: ShieldUser },
 ];
 
 export default function DashboardLayout() {
