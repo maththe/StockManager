@@ -12,6 +12,7 @@ import { RentalsModule } from './rentals/rentals.module';
 import { TasksModule } from './tasks/tasks.module';
 import { MaintenanceModule } from './maintenance/maintenance.module';
 import { DivergencesModule } from './divergences/divergences.module';
+import { HealthController } from './health.controller';
 
 @Module({
   imports: [
@@ -27,7 +28,7 @@ import { DivergencesModule } from './divergences/divergences.module';
     MaintenanceModule,
     DivergencesModule,
   ],
-  controllers: [],
+  controllers: [HealthController],
   providers: [
     {
       provide: APP_GUARD,

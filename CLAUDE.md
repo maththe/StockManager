@@ -30,13 +30,17 @@ Percorra nesta ordem antes de escrever código:
 ```bash
 # API
 cd apps/api && pnpm install && pnpm start:dev
-# Variáveis: DATABASE_URL, JWT_SECRET, PORT (padrão 3000)
+# Variáveis: ver .env.example. DATABASE_URL e JWT_SECRET são obrigatórias —
+# a API não sobe sem elas (falha explícita, sem fallback).
+# Produção: pnpm build && pnpm start:prod (entrada em dist/main.js)
 
 # Web
 cd apps/web && pnpm install && pnpm dev
 # API configurável via VITE_API_URL (padrão: http://localhost:3000)
 # Outros: pnpm build | pnpm typecheck | pnpm format
 ```
+
+Deploy (Render + Vercel): ver `DEPLOY.md` na raiz.
 
 ---
 
@@ -55,6 +59,7 @@ cd apps/web && pnpm install && pnpm dev
 
 ### Frontend — pontos críticos
 
+- **SPA, não SSR** (`react-router.config.ts` tem `ssr: false`). O build gera só estáticos em `build/client`. Nenhuma rota usa `loader`/`action` — se for adicionar um, reveja essa decisão junto com o deploy da Vercel.
 - Rotas declaradas em `apps/web/app/routes.ts`.
 - Entry point real: `routes/home.tsx` → renderiza `routes/users/components/login.tsx`.
 - Cadastro público em `/register` (`routes/users/RegisterPage.tsx`) usa `POST /users`.
@@ -195,7 +200,7 @@ Estas inconsistências **já existem**. Não as propague ao adicionar código no
 |---|---------|-------------|
 | 1 | `apps/api/package.json` tem `test` placeholder; não há suíte configurada | — |
 | 2 | Imagens de itens são salvas como data URL base64 (~350KB) no campo `imageUrl`; cada `GET /items` trafega todas as imagens | `items` / `ItemImageUploadDialog` |
-| 3 | Faltam `RolesGuard` nas rotas de `users`, `JWT_SECRET` tem fallback hardcoded e CORS usa `origin: '*'` com `credentials: true` | `src/users/` · `src/auth/` · `main.ts` |
+| 3 | Faltam `RolesGuard` nas rotas de `users` | `src/users/` |
 
 > Resolvidas em jul/2026: `GET /users/me` existe no backend; `LoginPage.tsx` vazio foi removido; as colunas de variantes de imagem foram consolidadas em `image_url`; `clients` é multi-tenant.
 
