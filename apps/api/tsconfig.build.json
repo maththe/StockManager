@@ -1,7 +1,11 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "rootDir": "src"
+    "rootDir": "src",
+    // Dentro do dist: o "deleteOutDir" do nest-cli.json apaga os dois juntos.
+    // Fora dele, o cache sobrevive à limpeza, o tsc acha que já emitiu tudo e
+    // o build termina sem dist/main.js.
+    "tsBuildInfoFile": "./dist/tsconfig.build.tsbuildinfo"
   },
   "include": ["src/**/*"],
   "exclude": [

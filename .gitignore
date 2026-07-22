@@ -1,0 +1,37 @@
+# Rede de segurança da raiz.
+#
+# Os .gitignore de apps/api e apps/web são escopados nos próprios diretórios e
+# não cobrem nada fora deles — foi assim que um apps/.env entrou no histórico.
+# As regras abaixo valem para o repositório inteiro, em qualquer profundidade.
+
+# Variáveis de ambiente — nunca versionar (exceto os .example)
+.env
+.env.*
+!.env.example
+!*.env.example
+
+# Dependências e build
+node_modules/
+dist/
+build/
+.react-router/
+*.tsbuildinfo
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+
+# Cobertura de testes
+coverage/
+.nyc_output/
+
+# Config local de ferramentas (por máquina, não do projeto)
+.claude/settings.local.json
+.vscode/
+.idea/
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
